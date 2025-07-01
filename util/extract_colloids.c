@@ -11,6 +11,10 @@
  *  to arrange the header, and the output appropriately. The read
  *  can be ascii or binary and is set by the switch below.
  *
+ * CHANGE -------------------
+ *  Add bonds to the csv file. Nbonds and ids.
+ *  This adds the info needed to calculate bond lengths later
+ * CHANGE -------------------
  *  For compilation instructions see the Makefile.
  *
  *  $ make extract_colloids
@@ -53,24 +57,28 @@
 static const int  iread_ascii = 1;  /* Read ascii or binary (default) */
 static const int  include_ref = 0;  /* Include reference colloids at far x-,y-,z-corners */
 static const int  id = 1;  	    /* Output colloid id */
-static const int  cds_with_m  = 0;  /* Output coordinate and orientation */
-static const int  cds_with_v  = 1;  /* Output coordinate, velocity vector and magnitude */
+static const int  cds_with_m = 0;  /* Output coordinate and orientation */
+static const int  cds_with_v = 1;  /* Output coordinate, velocity vector and magnitude */
 
-static const char * format3_    = "%10.5f, %10.5f, %10.5f, ";
-static const char * format3end_ = "%10.5f, %10.5f, %10.5f\n";
-static const char * format3wocomma_    = "%10.5f %10.5f %10.5f ";
-static const char * format3wocommaend_ = "%10.5f %10.5f %10.5f\n";
-static const char * formate4end_ = "%14.6e, %14.6e, %14.6e, %14.6e\n";
+static const char* format3_ = "%10.5f, %10.5f, %10.5f, ";
+static const char* format3end_ = "%10.5f, %10.5f, %10.5f\n";
+static const char* format3wocomma_ = "%10.5f %10.5f %10.5f ";
+static const char* format3wocommaend_ = "%10.5f %10.5f %10.5f\n";
+static const char* formate4end_ = "%14.6e, %14.6e, %14.6e, %14.6e\n";
+// CHANGE -------------------------
+static const char* formate4_ = "%14.6e, %14.6e, %14.6e, %14.6e, ";
+static const char* formati7_end = "%d, %d, %d, %d, %d, %d, %d\n";
+// CHANGE -------------------------
 
-void colloids_to_csv_header(FILE * fp);
-void colloids_to_csv_header_with_m(FILE * fp);
-void colloids_to_csv_header_with_v(FILE * fp);
-void colloids_to_vtk_header(FILE * fp);
-void colloids_to_vtk_inbetween(FILE * fp);
-int file_name_to_ntime(const char * filename);
-int file_name_to_nfile(const char * filename);
+void colloids_to_csv_header(FILE* fp);
+void colloids_to_csv_header_with_m(FILE* fp);
+void colloids_to_csv_header_with_v(FILE* fp);
+void colloids_to_vtk_header(FILE* fp);
+void colloids_to_vtk_inbetween(FILE* fp);
+int file_name_to_ntime(const char* filename);
+int file_name_to_nfile(const char* filename);
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
 
   int n;
   int nf, nfile;
@@ -78,21 +86,21 @@ int main(int argc, char ** argv) {
   int nread;
   int ntime = 0;
   int ncount = 0;
-  double worldv1[3]={1.0,0.0,0.0};
-  double worldv2[3]={0.0,1.0,0.0};
+  double worldv1[3] = { 1.0,0.0,0.0 };
+  double worldv2[3] = { 0.0,1.0,0.0 };
   double elev1[3], elev2[3], elev3[3];
-  double *quat;
+  double* quat;
 
   double normv;
 
   colloid_state_t s1;
   colloid_state_t s2;
 
-  FILE * fp_colloids = NULL;
-  FILE * fp_csv = NULL;
-  char csv_filename[BUFSIZ] = {0};
-  FILE * fp_vtk = NULL;
-  char vtk_filename[BUFSIZ] = {0};
+  FILE* fp_colloids = NULL;
+  FILE* fp_csv = NULL;
+  char csv_filename[BUFSIZ] = { 0 };
+  FILE* fp_vtk = NULL;
+  char vtk_filename[BUFSIZ] = { 0 };
 
   if (argc < 2) {
     printf("Usage: %s <colloid_datafile>\n", argv[0]);
@@ -134,7 +142,7 @@ int main(int argc, char ** argv) {
 
   for (nf = 1; nf <= nfile; nf++) {
 
-    char filename[BUFSIZ] = {0};
+    char filename[BUFSIZ] = { 0 };
 
     /* We expect extensions 00n-001 00n-002 ... 00n-00n */
 
@@ -168,11 +176,12 @@ int main(int argc, char ** argv) {
 
     for (n = 0; n < ncolloid; n++) {
 
-      if (iread_ascii) {
-	colloid_state_read_ascii(&s1, fp_colloids);
+      if (iread_ascii)
+      {
+        colloid_state_read_ascii(&s1, fp_colloids);
       }
       else {
-	colloid_state_read_binary(&s1, fp_colloids);
+        colloid_state_read_binary(&s1, fp_colloids);
       }
 
       /* Offset the positions */
@@ -185,24 +194,30 @@ int main(int argc, char ** argv) {
       fprintf(fp_csv, format3_, s2.r[0], s2.r[1], s2.r[2]);
       if (cds_with_m) fprintf(fp_csv, format3end_, s1.s[0], s1.s[1], s1.s[2]);
       if (cds_with_v) {
-	normv = sqrt(s1.v[0]*s1.v[0] + s1.v[1]*s1.v[1] + s1.v[2]*s1.v[2]);
-	fprintf(fp_csv, formate4end_, s1.v[0], s1.v[1], s1.v[2], normv);
+        normv = sqrt(s1.v[0] * s1.v[0] + s1.v[1] * s1.v[1] + s1.v[2] * s1.v[2]);
+        // CHANGE --------------------------
+        // fprintf(fp_csv, formate4end_, s1.v[0], s1.v[1], s1.v[2], normv);
+        fprintf(fp_csv, formate4_, s1.v[0], s1.v[1], s1.v[2], normv);
+        // CHANGE --------------------------
       }
-      /* Write coordinates to vtk file*/
-      fprintf(fp_vtk, format3wocommaend_, s1.r[0]-1.0, s1.r[1]-1.0, s1.r[2]-1.0);
+      // CHANGE --------------------------      
+      fprintf(fp_csv, formati7_end, s1.nbonds, s1.bond[0], s1.bond[1], s1.bond[2], s1.bond[3], s1.bond[4], s1.bond[5]);
+      // CHANGE --------------------------      
+            /* Write coordinates to vtk file*/
+      fprintf(fp_vtk, format3wocommaend_, s1.r[0] - 1.0, s1.r[1] - 1.0, s1.r[2] - 1.0);
       /* Write Orientations to vtk file*/
       colloids_to_vtk_inbetween(fp_vtk);
       quat = s1.quat;
       util_q4_rotate_vector(quat, worldv1, elev1);
       util_q4_rotate_vector(quat, worldv2, elev2);
-      cross_product(elev1,elev2,elev3);
+      cross_product(elev1, elev2, elev3);
       util_vector_normalise(3, elev3);
-      fprintf(fp_vtk, format3wocomma_, 2.0*s1.elabc[0]*elev1[0],
-	      2.0*s1.elabc[0]*elev1[1],2.0*s1.elabc[0]*elev1[2]);
-      fprintf(fp_vtk, format3wocomma_, 2.0*s1.elabc[1]*elev2[0],
-	      2.0*s1.elabc[1]*elev2[1], 2.0*s1.elabc[1]*elev2[2]);
-      fprintf(fp_vtk, format3wocommaend_, 2.0*s1.elabc[2]*elev3[0],
-	      2.0*s1.elabc[2]*elev3[1], 2.0*s1.elabc[2]*elev3[2]);
+      fprintf(fp_vtk, format3wocomma_, 2.0 * s1.elabc[0] * elev1[0],
+        2.0 * s1.elabc[0] * elev1[1], 2.0 * s1.elabc[0] * elev1[2]);
+      fprintf(fp_vtk, format3wocomma_, 2.0 * s1.elabc[1] * elev2[0],
+        2.0 * s1.elabc[1] * elev2[1], 2.0 * s1.elabc[1] * elev2[2]);
+      fprintf(fp_vtk, format3wocommaend_, 2.0 * s1.elabc[2] * elev3[0],
+        2.0 * s1.elabc[2] * elev3[1], 2.0 * s1.elabc[2] * elev3[2]);
       ncount += 1;
     }
   }
@@ -212,7 +227,7 @@ int main(int argc, char ** argv) {
   fclose(fp_vtk);
   if (include_ref) {
     printf("Wrote %d actual colloids + 3 reference colloids in header to %s\n",
-	   ncount, csv_filename);
+     ncount, csv_filename);
   }
   else {
     printf("Wrote %d colloids to %s\n", ncount, csv_filename);
@@ -230,7 +245,7 @@ int main(int argc, char ** argv) {
  *
  *****************************************************************************/
 
-void colloids_to_csv_header(FILE * fp) {
+void colloids_to_csv_header(FILE* fp) {
 
   double r[3];
 
@@ -239,7 +254,7 @@ void colloids_to_csv_header(FILE * fp) {
 
   if (include_ref) {
 
-    r[0] = 1.0*NX - 1.0;
+    r[0] = 1.0 * NX - 1.0;
     r[1] = 0.0;
     r[2] = 0.0;
 
@@ -247,7 +262,7 @@ void colloids_to_csv_header(FILE * fp) {
     fprintf(fp, "\n");
 
     r[0] = 0.0;
-    r[1] = 1.0*NY - 1.0;
+    r[1] = 1.0 * NY - 1.0;
     r[2] = 0.0;
 
     fprintf(fp, format3_, r[0], r[1], r[2]);
@@ -255,7 +270,7 @@ void colloids_to_csv_header(FILE * fp) {
 
     r[0] = 0.0;
     r[1] = 0.0;
-    r[2] = 1.0*NZ - 1.0;
+    r[2] = 1.0 * NZ - 1.0;
 
     fprintf(fp, format3_, r[0], r[1], r[2]);
     fprintf(fp, "\n");
@@ -271,7 +286,7 @@ void colloids_to_csv_header(FILE * fp) {
  *
  *****************************************************************************/
 
-void colloids_to_vtk_header(FILE * fp) {
+void colloids_to_vtk_header(FILE* fp) {
 
   assert(fp);
 
@@ -282,7 +297,7 @@ void colloids_to_vtk_header(FILE * fp) {
   fprintf(fp, "POINTS 2 float\n");
   fprintf(fp, "%d %d %d\n", 0, 0, 0);
 
- }
+}
 
 /*****************************************************************************
  *
@@ -290,7 +305,7 @@ void colloids_to_vtk_header(FILE * fp) {
  *
  *****************************************************************************/
 
-void colloids_to_vtk_inbetween(FILE * fp) {
+void colloids_to_vtk_inbetween(FILE* fp) {
 
   assert(fp);
 
@@ -300,7 +315,7 @@ void colloids_to_vtk_inbetween(FILE * fp) {
   fprintf(fp, "%d %d %d ", 0, 0, 0);
   fprintf(fp, "%d %d %d \n", 0, 0, 0);
 
- }
+}
 
 /*****************************************************************************
  *
@@ -308,17 +323,19 @@ void colloids_to_vtk_inbetween(FILE * fp) {
  *
  *****************************************************************************/
 
-void colloids_to_csv_header_with_m(FILE * fp) {
+void colloids_to_csv_header_with_m(FILE* fp) {
 
   double r[3];
   double m[3];
 
   if (id) fprintf(fp, "%s", "id, ");
-  fprintf(fp, "%s", "x, y, z, mx, my, mz\n");
-
+  // CHANGE -------------------
+    // fprintf(fp, "%s", "x, y, z, mx, my, mz\n"); 
+  fprintf(fp, "%s", "x, y, z, mx, my, mz, nbonds, id1, id2, id3, id4, id5, id6\n");
+  // CHANGE -------------------
   if (include_ref) {
 
-    r[0] = 1.0*NX - 1.0;
+    r[0] = 1.0 * NX - 1.0;
     r[1] = 0.0;
     r[2] = 0.0;
 
@@ -330,7 +347,7 @@ void colloids_to_csv_header_with_m(FILE * fp) {
     fprintf(fp, format3end_, m[0], m[1], m[2]);
 
     r[0] = 0.0;
-    r[1] = 1.0*NY - 1.0;
+    r[1] = 1.0 * NY - 1.0;
     r[2] = 0.0;
 
     m[0] = 0.0;
@@ -342,7 +359,7 @@ void colloids_to_csv_header_with_m(FILE * fp) {
 
     r[0] = 0.0;
     r[1] = 0.0;
-    r[2] = 1.0*NZ - 1.0;
+    r[2] = 1.0 * NZ - 1.0;
 
     m[0] = 0.0;
     m[1] = 0.0;
@@ -362,16 +379,20 @@ void colloids_to_csv_header_with_m(FILE * fp) {
  *
  *****************************************************************************/
 
-void colloids_to_csv_header_with_v(FILE * fp) {
+void colloids_to_csv_header_with_v(FILE* fp) {
 
   double r[3];
 
   if (id) fprintf(fp, "%s", "id, ");
-  fprintf(fp, "%s", "x, y, z, vx, vy, vz, normv\n");
+  // CHANGE -------------------
+    // fprintf(fp, "%s", "x, y, z, vx, vy, vz, normv\n");
+  fprintf(fp, "%s", "x, y, z, vx, vy, vz, normv, nbonds, id1, id2, id3, id4, id5, id6\n");
+  // CHANGE -------------------  
+
 
   if (include_ref) {
 
-    r[0] = 1.0*NX - 1.0;
+    r[0] = 1.0 * NX - 1.0;
     r[1] = 0.0;
     r[2] = 0.0;
 
@@ -379,7 +400,7 @@ void colloids_to_csv_header_with_v(FILE * fp) {
     fprintf(fp, format3end_, 0, 0, 0, 0);
 
     r[0] = 0.0;
-    r[1] = 1.0*NY - 1.0;
+    r[1] = 1.0 * NY - 1.0;
     r[2] = 0.0;
 
     fprintf(fp, format3_, r[0], r[1], r[2]);
@@ -387,7 +408,7 @@ void colloids_to_csv_header_with_v(FILE * fp) {
 
     r[0] = 0.0;
     r[1] = 0.0;
-    r[2] = 1.0*NZ - 1.0;
+    r[2] = 1.0 * NZ - 1.0;
 
     fprintf(fp, format3_, r[0], r[1], r[2]);
     fprintf(fp, format3end_, 0, 0, 0, 0);
@@ -405,13 +426,13 @@ void colloids_to_csv_header_with_v(FILE * fp) {
  *
  *****************************************************************************/
 
-int file_name_to_nfile(const char * filename) {
+int file_name_to_nfile(const char* filename) {
 
   int nfile = 0;
-  const char * ext = strrchr(filename, '.'); /* last dot */
+  const char* ext = strrchr(filename, '.'); /* last dot */
 
   if (ext != NULL) {
-    char buf[BUFSIZ] = {0};
+    char buf[BUFSIZ] = { 0 };
     strncpy(buf, ext + 1, 3);
     nfile = atoi(buf);
   }
@@ -427,18 +448,18 @@ int file_name_to_nfile(const char * filename) {
  *
  *****************************************************************************/
 
-int file_name_to_ntime(const char * filename) {
+int file_name_to_ntime(const char* filename) {
 
   int ntime = -1;
-  const char * tmp = strchr(filename, 's'); /* Must be "config.cds" */
+  const char* tmp = strchr(filename, 's'); /* Must be "config.cds" */
 
   if (tmp) {
-    char buf[BUFSIZ] = {0};
+    char buf[BUFSIZ] = { 0 };
     strncpy(buf, tmp + 1, 8);
     ntime = atoi(buf);
   }
 
-  if (0 > ntime || ntime >= 1000*1000*1000) {
+  if (0 > ntime || ntime >= 1000 * 1000 * 1000) {
     printf("Could not parse a time step from file name %s\n", filename);
     exit(-1);
   }

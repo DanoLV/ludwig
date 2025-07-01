@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- *  interact.c
+ *  interaction.c
  *
  *  Colloid interactions with external fields (single particle);
  *  and colloid-colloid interactions.
@@ -36,10 +36,13 @@
 #include "stats_colloid.h"
 #include "driven_colloid.h"
 #include "interaction.h"
+/*CHANGE INIT - Subgrid charge */
+#include "psi_gradients.h"
+/*CHANGE END - Subgrid charge */
 
 struct interact_s {
-  pe_t * pe;
-  cs_t * cs;
+  pe_t* pe;
+  cs_t* cs;
   double vlocal[INTERACT_MAX];       /* Local potential contributions */
   double vtotal[INTERACT_MAX];       /* Total potential contributions */
 
@@ -49,7 +52,7 @@ struct interact_s {
   int    hcset[INTERACT_MAX];        /* Surface-surface interaction active */
   double hc[INTERACT_MAX];           /* Surface-surface cutoff range */
 
-  void * abstr[INTERACT_MAX];        /* Abstract interaction types */
+  void* abstr[INTERACT_MAX];        /* Abstract interaction types */
   compute_ft compute[INTERACT_MAX];  /* Corresponding compute functions */
   stat_ft stats[INTERACT_MAX];       /* Statistics functions */
 };
@@ -60,15 +63,15 @@ struct interact_s {
  *
  *****************************************************************************/
 
-int interact_create(pe_t * pe, cs_t * cs, interact_t ** pobj) {
+int interact_create(pe_t* pe, cs_t* cs, interact_t** pobj) {
 
-  interact_t * obj = NULL;
+  interact_t* obj = NULL;
 
   assert(pe);
   assert(cs);
   assert(pobj);
 
-  obj = (interact_t *) calloc(1, sizeof(interact_t));
+  obj = (interact_t*)calloc(1, sizeof(interact_t));
   assert(obj);
   if (obj == NULL) pe_fatal(pe, "calloc(interact_t) failed\n");
 
@@ -86,7 +89,7 @@ int interact_create(pe_t * pe, cs_t * cs, interact_t ** pobj) {
  *
  *****************************************************************************/
 
-void interact_free(interact_t * obj) {
+void interact_free(interact_t* obj) {
 
   assert(obj);
 
@@ -101,7 +104,7 @@ void interact_free(interact_t * obj) {
  *
  *****************************************************************************/
 
-int interact_rc_set(interact_t * obj, interact_enum_t it, double rc) {
+int interact_rc_set(interact_t* obj, interact_enum_t it, double rc) {
 
   assert(obj);
   assert(it < INTERACT_MAX);
@@ -118,7 +121,7 @@ int interact_rc_set(interact_t * obj, interact_enum_t it, double rc) {
  *
  *****************************************************************************/
 
-int interact_hc_set(interact_t * obj, interact_enum_t it, double hc) {
+int interact_hc_set(interact_t* obj, interact_enum_t it, double hc) {
 
   assert(obj);
   assert(it < INTERACT_MAX);
@@ -135,8 +138,8 @@ int interact_hc_set(interact_t * obj, interact_enum_t it, double hc) {
  *
  *****************************************************************************/
 
-int interact_potential_add(interact_t * obj, interact_enum_t it,
-			   void * potential, compute_ft compute) {
+int interact_potential_add(interact_t* obj, interact_enum_t it,
+         void* potential, compute_ft compute) {
 
   assert(obj);
   assert(it < INTERACT_MAX);
@@ -155,8 +158,8 @@ int interact_potential_add(interact_t * obj, interact_enum_t it,
  *
  *****************************************************************************/
 
-int interact_statistic_add(interact_t * obj, interact_enum_t it, void * pot,
-			   stat_ft stats) {
+int interact_statistic_add(interact_t* obj, interact_enum_t it, void* pot,
+         stat_ft stats) {
 
   assert(obj);
   assert(it < INTERACT_MAX);
@@ -179,8 +182,8 @@ int interact_statistic_add(interact_t * obj, interact_enum_t it, void * pot,
  *
  *****************************************************************************/
 
-int interact_compute(interact_t * interact, colloids_info_t * cinfo,
-		     map_t * map, psi_t * psi, ewald_t * ewald) {
+int interact_compute(interact_t* interact, colloids_info_t* cinfo,
+         map_t* map, psi_t* psi, ewald_t* ewald) {
 
   int nc;
 
@@ -190,7 +193,7 @@ int interact_compute(interact_t * interact, colloids_info_t * cinfo,
   colloids_info_ntotal(cinfo, &nc);
 
   if (nc > 0) {
-    physics_t * phys = NULL;
+    physics_t* phys = NULL;
     physics_ref(&phys);
     colloids_update_forces_zero(cinfo);
     colloids_update_forces_external(cinfo, phys);
@@ -199,7 +202,9 @@ int interact_compute(interact_t * interact, colloids_info_t * cinfo,
     colloids_update_forces_fluid_driven(cinfo, map, phys);
 
     colloids_update_forces_buoyancy(cinfo, map, phys);
-
+    /*CHANGE INIT - Subgrid charge */
+    if (psi) subgrid_update_forces_electrokinetics(cinfo, phys, psi);
+    /*CHANGE END - Subgrid charge */
     interact_wall(interact, cinfo);
 
     if (nc > 1) {
@@ -207,6 +212,10 @@ int interact_compute(interact_t * interact, colloids_info_t * cinfo,
       interact_bonds(interact, cinfo);
       interact_angles(interact, cinfo);
       if (ewald) ewald_sum(ewald);
+      //CHANGE3
+      interact_bonds_harmonic(interact, cinfo);
+      interact_angles_harmonic(interact, cinfo);
+      interact_angles_dihedral(interact, cinfo);
     }
 
     if (is_statistics_step()) {
@@ -229,10 +238,10 @@ int interact_compute(interact_t * interact, colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int interact_stats(interact_t * obj, colloids_info_t * cinfo) {
+int interact_stats(interact_t* obj, colloids_info_t* cinfo) {
 
   int nc = 0;
-  void * intr = NULL;
+  void* intr = NULL;
   double stats[INTERACT_STAT_MAX];
   double hminlocal, hmin;
   double rminlocal, rmin;
@@ -271,32 +280,32 @@ int interact_stats(interact_t * obj, colloids_info_t * cinfo) {
 
       intr = obj->abstr[INTERACT_LUBR];
 
-     if (intr) {
+      if (intr) {
 
-	obj->stats[INTERACT_LUBR](intr, stats);
+        obj->stats[INTERACT_LUBR](intr, stats);
 
-	hminlocal = stats[INTERACT_STAT_HMINLOCAL];
-	MPI_Reduce(&hminlocal, &hmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
-	pe_info(obj->pe, "Lubrication minimum h is:    %14.7e\n", hmin);
+        hminlocal = stats[INTERACT_STAT_HMINLOCAL];
+        MPI_Reduce(&hminlocal, &hmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        pe_info(obj->pe, "Lubrication minimum h is:    %14.7e\n", hmin);
       }
 
-     /* Pairwise */
-     /* Minimum separation, potential energy */
+      /* Pairwise */
+      /* Minimum separation, potential energy */
 
       intr = obj->abstr[INTERACT_PAIR];
 
       if (intr) {
 
-	obj->stats[INTERACT_PAIR](intr, stats);
+        obj->stats[INTERACT_PAIR](intr, stats);
 
-	hminlocal = stats[INTERACT_STAT_HMINLOCAL];
-	vlocal = stats[INTERACT_STAT_VLOCAL];
+        hminlocal = stats[INTERACT_STAT_HMINLOCAL];
+        vlocal = stats[INTERACT_STAT_VLOCAL];
 
-	MPI_Reduce(&hminlocal, &hmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
-	MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+        MPI_Reduce(&hminlocal, &hmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
 
-	pe_info(obj->pe, "Pair potential minimum h is: %14.7e\n", hmin);
-	pe_info(obj->pe, "Pair potential energy is:    %14.7e\n", v);
+        pe_info(obj->pe, "Pair potential minimum h is: %14.7e\n", hmin);
+        pe_info(obj->pe, "Pair potential energy is:    %14.7e\n", v);
       }
 
       /* Bonds */
@@ -306,19 +315,19 @@ int interact_stats(interact_t * obj, colloids_info_t * cinfo) {
 
       if (intr) {
 
-	obj->stats[INTERACT_BOND](intr, stats);
+        obj->stats[INTERACT_BOND](intr, stats);
 
-	rminlocal = stats[INTERACT_STAT_RMINLOCAL];
-	rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
-	vlocal = stats[INTERACT_STAT_VLOCAL];
+        rminlocal = stats[INTERACT_STAT_RMINLOCAL];
+        rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
+        vlocal = stats[INTERACT_STAT_VLOCAL];
 
-	MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
-	MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-	MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+        MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+        MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
 
-	pe_info(obj->pe, "Bond potential minimum r is: %14.7e\n", rmin);
-	pe_info(obj->pe, "Bond potential maximum r is: %14.7e\n", rmax);
-	pe_info(obj->pe, "Bond potential energy is:    %14.7e\n", v);
+        pe_info(obj->pe, "Bond potential minimum r is: %14.7e\n", rmin);
+        pe_info(obj->pe, "Bond potential maximum r is: %14.7e\n", rmax);
+        pe_info(obj->pe, "Bond potential energy is:    %14.7e\n", v);
       }
 
       /* Angles */
@@ -328,19 +337,80 @@ int interact_stats(interact_t * obj, colloids_info_t * cinfo) {
 
       if (intr) {
 
-	obj->stats[INTERACT_ANGLE](intr, stats);
+        obj->stats[INTERACT_ANGLE](intr, stats);
 
-	rminlocal = stats[INTERACT_STAT_RMINLOCAL];
-	rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
-	vlocal = stats[INTERACT_STAT_VLOCAL];
+        rminlocal = stats[INTERACT_STAT_RMINLOCAL];
+        rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
+        vlocal = stats[INTERACT_STAT_VLOCAL];
 
-	MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
-	MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
-	MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+        MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+        MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
 
-	pe_info(obj->pe, "Angle minimum angle is:      %14.7e\n", rmin);
-	pe_info(obj->pe, "Angle maximum angle is:      %14.7e\n", rmax);
-	pe_info(obj->pe, "Angle potential energy is:   %14.7e\n", v);
+        pe_info(obj->pe, "Angle minimum angle is:      %14.7e\n", rmin);
+        pe_info(obj->pe, "Angle maximum angle is:      %14.7e\n", rmax);
+        pe_info(obj->pe, "Angle potential energy is:   %14.7e\n", v);
+      }
+
+      //CHANGE3
+      intr = obj->abstr[INTERACT_BOND_HARMONIC];
+
+      if (intr) {
+
+        obj->stats[INTERACT_BOND_HARMONIC](intr, stats);
+
+        rminlocal = stats[INTERACT_STAT_RMINLOCAL];
+        rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
+        vlocal = stats[INTERACT_STAT_VLOCAL];
+
+        MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+        MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+        pe_info(obj->pe, "Bond harmonic potential minimum r is: %14.7e\n", rmin);
+        pe_info(obj->pe, "Bond harmonic potential maximum r is: %14.7e\n", rmax);
+        pe_info(obj->pe, "Bond harmonic potential energy is:    %14.7e\n", v);
+      }
+      //CHANGE3
+      intr = obj->abstr[INTERACT_ANGLE_HARMONIC];
+
+      //CHANGE3
+      if (intr) {
+
+        obj->stats[INTERACT_ANGLE_HARMONIC](intr, stats);
+
+        rminlocal = stats[INTERACT_STAT_RMINLOCAL];
+        rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
+        vlocal = stats[INTERACT_STAT_VLOCAL];
+
+        MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+        MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+        pe_info(obj->pe, "Angle harmonic minimum angle is:      %14.7e\n", rmin);
+        pe_info(obj->pe, "Angle harmonic maximum angle is:      %14.7e\n", rmax);
+        pe_info(obj->pe, "Angle harmonic potential energy is:   %14.7e\n", v);
+      }
+
+      //CHANGE3
+      intr = obj->abstr[INTERACT_ANGLE_DIHEDRAL];
+
+      //CHANGE3
+      if (intr) {
+
+        obj->stats[INTERACT_ANGLE_DIHEDRAL](intr, stats);
+
+        rminlocal = stats[INTERACT_STAT_RMINLOCAL];
+        rmaxlocal = stats[INTERACT_STAT_RMAXLOCAL];
+        vlocal = stats[INTERACT_STAT_VLOCAL];
+
+        MPI_Reduce(&rminlocal, &rmin, 1, MPI_DOUBLE, MPI_MIN, 0, comm);
+        MPI_Reduce(&rmaxlocal, &rmax, 1, MPI_DOUBLE, MPI_MAX, 0, comm);
+        MPI_Reduce(&vlocal, &v, 1, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+        pe_info(obj->pe, "Angle dihedral minimum angle is:      %14.7e\n", rmin);
+        pe_info(obj->pe, "Angle dihedral maximum angle is:      %14.7e\n", rmax);
+        pe_info(obj->pe, "Angle dihedral potential energy is:   %14.7e\n", v);
       }
     }
   }
@@ -357,9 +427,9 @@ int interact_stats(interact_t * obj, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int colloids_update_forces_zero(colloids_info_t * cinfo) {
+int colloids_update_forces_zero(colloids_info_t* cinfo) {
 
-  colloid_t * pc = NULL;
+  colloid_t* pc = NULL;
 
   assert(cinfo);
 
@@ -384,16 +454,15 @@ int colloids_update_forces_zero(colloids_info_t * cinfo) {
  *  Accumulate single particle force contributions.
  *
  *****************************************************************************/
-
-int colloids_update_forces_external(colloids_info_t * cinfo,
-				    physics_t * phys) {
+int colloids_update_forces_external(colloids_info_t* cinfo,
+            physics_t* phys) {
 
   int ic, jc, kc, ia;
   int ncell[3];
   double b0[3];          /* external fields */
   double btorque[3];
   double dforce[3];
-  colloid_t * pc;
+  colloid_t* pc;
 
   assert(cinfo);
   colloids_info_ncell(cinfo, ncell);
@@ -404,28 +473,28 @@ int colloids_update_forces_external(colloids_info_t * cinfo,
     for (jc = 1; jc <= ncell[Y]; jc++) {
       for (kc = 1; kc <= ncell[Z]; kc++) {
 
-	colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+        colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
 
-	for (; pc; pc = pc->next) {
+        for (; pc; pc = pc->next) {
 
-	  /* All particles have gravity */
-	  pc->force[X] += cinfo->fgravity[X];
-	  pc->force[Y] += cinfo->fgravity[Y];
-	  pc->force[Z] += cinfo->fgravity[Z];
+          /* All particles have gravity */
+          pc->force[X] += cinfo->fgravity[X];
+          pc->force[Y] += cinfo->fgravity[Y];
+          pc->force[Z] += cinfo->fgravity[Z];
 
           if (pc->s.bc == COLLOID_BC_SUBGRID) continue;
 
-	  btorque[X] = pc->s.s[Y]*b0[Z] - pc->s.s[Z]*b0[Y];
-	  btorque[Y] = pc->s.s[Z]*b0[X] - pc->s.s[X]*b0[Z];
-	  btorque[Z] = pc->s.s[X]*b0[Y] - pc->s.s[Y]*b0[X];
+          btorque[X] = pc->s.s[Y] * b0[Z] - pc->s.s[Z] * b0[Y];
+          btorque[Y] = pc->s.s[Z] * b0[X] - pc->s.s[X] * b0[Z];
+          btorque[Z] = pc->s.s[X] * b0[Y] - pc->s.s[Y] * b0[X];
 
-	  driven_colloid_force(pc->s.s, dforce);
+          driven_colloid_force(pc->s.s, dforce);
 
-	  for (ia = 0; ia < 3; ia++) {
-	    pc->torque[ia] += btorque[ia];         /* Magnetic field */
-	    pc->force[ia] += dforce[ia];           /* Active force */
-	  }
-	}
+          for (ia = 0; ia < 3; ia++) {
+            pc->torque[ia] += btorque[ia];         /* Magnetic field */
+            pc->force[ia] += dforce[ia];           /* Active force */
+          }
+        }
       }
     }
   }
@@ -433,6 +502,63 @@ int colloids_update_forces_external(colloids_info_t * cinfo,
   return 0;
 }
 
+/*CHANGE INIT*/
+/*****************************************************************************
+ *
+ *  colloid_update_forces_external
+ *
+ *  Accumulate single particle force contributions.
+ *
+ *****************************************************************************/
+ // int colloids_update_forces_external(colloids_info_t* cinfo,
+ //             physics_t* phys) {
+int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
+                                          physics_t* phys,
+                                          psi_t* psi) {
+  int ic, jc, kc, ia;
+  int ncell[3];
+  int index;
+  double kt, eunit, reunit;
+  double e0[3];          /* external field */
+  double e[3];           /* total field */
+  double dforce[3];
+  colloid_t* pc;
+
+  assert(cinfo);
+
+  colloids_info_ncell(cinfo, ncell);
+  physics_kt(phys, &kt);
+  psi_unit_charge(psi, &eunit);
+  reunit = 1.0 / eunit;
+
+  physics_e0(phys, e0);
+
+  for (ic = 1; ic <= ncell[X]; ic++) {
+    for (jc = 1; jc <= ncell[Y]; jc++) {
+      for (kc = 1; kc <= ncell[Z]; kc++) {
+
+        colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+        index = cs_index(psi->cs, ic, jc, kc);
+
+        for (; pc; pc = pc->next) {
+
+          if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+          psi_electric_field(psi, index, e);
+
+          pc->force[X] += kt * reunit * (e[X]) * (pc->s.q0 - pc->s.q1);
+          pc->force[Y] += kt * reunit * (e[Y]) * (pc->s.q0 - pc->s.q1);
+          pc->force[Z] += kt * reunit * (e[Z]) * (pc->s.q0 - pc->s.q1);
+
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+/*CHANGE END*/
 /*****************************************************************************
  *
  *  colloid_update_forces_fluid_gravity
@@ -445,9 +571,9 @@ int colloids_update_forces_external(colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int colloids_update_forces_fluid_gravity(colloids_info_t * cinfo,
-					 map_t * map,
-					 physics_t * phys) {
+int colloids_update_forces_fluid_gravity(colloids_info_t* cinfo,
+           map_t* map,
+           physics_t* phys) {
   int nc;
   int ia;
   int nsfluid;
@@ -464,12 +590,12 @@ int colloids_update_forces_fluid_gravity(colloids_info_t * cinfo,
 
     assert(map);
     map_volume_allreduce(map, MAP_FLUID, &nsfluid);
-    rvolume = 1.0/nsfluid;
+    rvolume = 1.0 / nsfluid;
 
     /* Force per fluid node to balance is... */
 
     for (ia = 0; ia < 3; ia++) {
-      f[ia] = -cinfo->fgravity[ia]*rvolume*nc;
+      f[ia] = -cinfo->fgravity[ia] * rvolume * nc;
     }
 
     physics_fbody_set(phys, f);
@@ -491,8 +617,8 @@ int colloids_update_forces_fluid_gravity(colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int colloids_update_forces_fluid_body_force(colloids_info_t * cinfo,
-					    const physics_t * phys) {
+int colloids_update_forces_fluid_body_force(colloids_info_t* cinfo,
+              const physics_t* phys) {
 
   assert(cinfo);
 
@@ -500,8 +626,8 @@ int colloids_update_forces_fluid_body_force(colloids_info_t * cinfo,
     /* Gravity => cannot have body force; do nothing */
   }
   else {
-    colloid_t * pc = NULL;
-    double fb[3] = {0};
+    colloid_t* pc = NULL;
+    double fb[3] = { 0 };
 
     physics_fbody(phys, fb);
     colloids_info_local_head(cinfo, &pc);
@@ -510,9 +636,9 @@ int colloids_update_forces_fluid_body_force(colloids_info_t * cinfo,
       double vol = 0.0;
       if (pc->s.bc == COLLOID_BC_SUBGRID) continue;
       util_discrete_volume_sphere(pc->s.r, pc->s.a0, &vol);
-      pc->force[X] += vol*fb[X];
-      pc->force[Y] += vol*fb[Y];
-      pc->force[Z] += vol*fb[Z];
+      pc->force[X] += vol * fb[X];
+      pc->force[Y] += vol * fb[Y];
+      pc->force[Z] += vol * fb[Z];
     }
   }
 
@@ -534,9 +660,9 @@ int colloids_update_forces_fluid_body_force(colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int colloids_update_forces_fluid_driven(colloids_info_t * cinfo,
-					map_t * map,
-					physics_t * phys) {
+int colloids_update_forces_fluid_driven(colloids_info_t* cinfo,
+          map_t* map,
+          physics_t* phys) {
   int nc;
   int ia;
   int nsfluid;
@@ -558,13 +684,13 @@ int colloids_update_forces_fluid_driven(colloids_info_t * cinfo,
 
     cs_periodic(map->cs, periodic);
     map_volume_allreduce(map, MAP_FLUID, &nsfluid);
-    rvolume = 1.0/nsfluid;
+    rvolume = 1.0 / nsfluid;
 
     /* Force per fluid node to balance is... */
     driven_colloid_total_force(cinfo, fd);
 
     for (ia = 0; ia < 3; ia++) {
-      f[ia] = -1.0*fd[ia]*rvolume*periodic[ia];
+      f[ia] = -1.0 * fd[ia] * rvolume * periodic[ia];
       /* Wall accounting adjustment should be -fd (1 - periodic) / nprocs */
     }
 
@@ -583,9 +709,9 @@ int colloids_update_forces_fluid_driven(colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int interact_pairwise(interact_t * obj, colloids_info_t * cinfo) {
+int interact_pairwise(interact_t* obj, colloids_info_t* cinfo) {
 
-  void * intr = NULL;
+  void* intr = NULL;
 
   assert(obj);
   assert(cinfo);
@@ -605,9 +731,9 @@ int interact_pairwise(interact_t * obj, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int interact_wall(interact_t * obj, colloids_info_t * cinfo) {
+int interact_wall(interact_t* obj, colloids_info_t* cinfo) {
 
-  void * intr = NULL;
+  void* intr = NULL;
 
   assert(obj);
   assert(cinfo);
@@ -624,9 +750,9 @@ int interact_wall(interact_t * obj, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int interact_bonds(interact_t * obj, colloids_info_t * cinfo) {
+int interact_bonds(interact_t* obj, colloids_info_t* cinfo) {
 
-  void * intr = NULL;
+  void* intr = NULL;
 
   assert(obj);
   assert(cinfo);
@@ -638,21 +764,80 @@ int interact_bonds(interact_t * obj, colloids_info_t * cinfo) {
   return 0;
 }
 
+//CHANGE3
+/*****************************************************************************
+ *
+ *  interact_bonds_harmonic
+ *
+ *****************************************************************************/
+
+int interact_bonds_harmonic(interact_t* obj, colloids_info_t* cinfo) {
+
+  void* intr = NULL;
+
+  assert(obj);
+  assert(cinfo);
+
+  intr = obj->abstr[INTERACT_BOND_HARMONIC];
+  if (intr) interact_find_bonds_all(obj, cinfo, 1);
+  if (intr) obj->compute[INTERACT_BOND_HARMONIC](cinfo, intr);
+
+  return 0;
+}
+
 /*****************************************************************************
  *
  *  interact_angles
  *
  *****************************************************************************/
 
-int interact_angles(interact_t * obj, colloids_info_t * cinfo) {
+int interact_angles(interact_t* obj, colloids_info_t* cinfo) {
 
-  void * intr = NULL;
+  void* intr = NULL;
 
   assert(obj);
   assert(cinfo);
 
   intr = obj->abstr[INTERACT_ANGLE];
   if (intr) obj->compute[INTERACT_ANGLE](cinfo, intr);
+
+  return 0;
+}
+
+//CHANGE3
+/*****************************************************************************
+ *
+ *  interact_angles_harmonic
+ *
+ *****************************************************************************/
+int interact_angles_harmonic(interact_t* obj, colloids_info_t* cinfo) {
+
+  void* intr = NULL;
+
+  assert(obj);
+  assert(cinfo);
+
+  intr = obj->abstr[INTERACT_ANGLE_HARMONIC];
+  if (intr) obj->compute[INTERACT_ANGLE_HARMONIC](cinfo, intr);
+
+  return 0;
+}
+
+//CHANGE3
+/*****************************************************************************
+ *
+ *  interact_angles_dihedral
+ *
+ *****************************************************************************/
+int interact_angles_dihedral(interact_t* obj, colloids_info_t* cinfo) {
+
+  void* intr = NULL;
+
+  assert(obj);
+  assert(cinfo);
+
+  intr = obj->abstr[INTERACT_ANGLE_DIHEDRAL];
+  if (intr) obj->compute[INTERACT_ANGLE_DIHEDRAL](cinfo, intr);
 
   return 0;
 }
@@ -666,7 +851,7 @@ int interact_angles(interact_t * obj, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int interact_find_bonds(interact_t * obj, colloids_info_t * cinfo) {
+int interact_find_bonds(interact_t* obj, colloids_info_t* cinfo) {
 
   assert(obj);
   assert(cinfo);
@@ -687,8 +872,8 @@ int interact_find_bonds(interact_t * obj, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int interact_find_bonds_all(interact_t * obj, colloids_info_t * cinfo,
-			    int nextra) {
+int interact_find_bonds_all(interact_t* obj, colloids_info_t* cinfo,
+          int nextra) {
 
   int ic1, jc1, kc1, ic2, jc2, kc2;
   int di[2], dj[2], dk[2];
@@ -698,8 +883,8 @@ int interact_find_bonds_all(interact_t * obj, colloids_info_t * cinfo,
   int nbondfound = 0;
   int nbondpair = 0;
 
-  colloid_t * pc1;
-  colloid_t * pc2;
+  colloid_t* pc1;
+  colloid_t* pc2;
 
   assert(obj);
   assert(cinfo);
@@ -716,37 +901,37 @@ int interact_find_bonds_all(interact_t * obj, colloids_info_t * cinfo,
         colloids_info_cell_list_head(cinfo, ic1, jc1, kc1, &pc1);
         for (; pc1; pc1 = pc1->next) {
 
-	  if (pc1->s.nbonds == 0) continue;
+          if (pc1->s.nbonds == 0) continue;
 
-	  for (ic2 = di[0]; ic2 <= di[1]; ic2++) {
-	    for (jc2 = dj[0]; jc2 <= dj[1]; jc2++) {
-	      for (kc2 = dk[0]; kc2 <= dk[1]; kc2++) {
+          for (ic2 = di[0]; ic2 <= di[1]; ic2++) {
+            for (jc2 = dj[0]; jc2 <= dj[1]; jc2++) {
+              for (kc2 = dk[0]; kc2 <= dk[1]; kc2++) {
 
-		colloids_info_cell_list_head(cinfo, ic2, jc2, kc2, &pc2);
-		for (; pc2; pc2 = pc2->next) {
+                colloids_info_cell_list_head(cinfo, ic2, jc2, kc2, &pc2);
+                for (; pc2; pc2 = pc2->next) {
 
-		  if (pc2->s.nbonds == 0) continue;
+                  if (pc2->s.nbonds == 0) continue;
 
-		  for (n1 = 0; n1 < pc1->s.nbonds; n1++) {
-		    if (pc1->s.bond[n1] == pc2->s.index) {
-		      nbondfound += 1;
-		      pc1->bonded[n1] = pc2;
-		      /* And bond is reciprocated */
-		      for (n2 = 0; n2 < pc2->s.nbonds; n2++) {
-			if (pc2->s.bond[n2] == pc1->s.index) {
-			  nbondpair += 1;
-			  pc2->bonded[n2] = pc1;
-			}
-		      }
-		    }
-		  }
+                  for (n1 = 0; n1 < pc1->s.nbonds; n1++) {
+                    if (pc1->s.bond[n1] == pc2->s.index) {
+                      nbondfound += 1;
+                      pc1->bonded[n1] = pc2;
+                      /* And bond is reciprocated */
+                      for (n2 = 0; n2 < pc2->s.nbonds; n2++) {
+                        if (pc2->s.bond[n2] == pc1->s.index) {
+                          nbondpair += 1;
+                          pc2->bonded[n2] = pc1;
+                        }
+                      }
+                    }
+                  }
 
-		  /* Cell list */
-	        }
-	      }
-	    }
-	  }
-	}
+                  /* Cell list */
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -767,7 +952,7 @@ int interact_find_bonds_all(interact_t * obj, colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int interact_rcmax(interact_t * obj, double * rcmax) {
+int interact_rcmax(interact_t* obj, double* rcmax) {
 
   int n;
   double rc = 0.0;
@@ -791,7 +976,7 @@ int interact_rcmax(interact_t * obj, double * rcmax) {
  *
  *****************************************************************************/
 
-int interact_hcmax(interact_t * obj, double * hcmax) {
+int interact_hcmax(interact_t* obj, double* hcmax) {
 
   int n;
   double hc = 0.0;
@@ -821,7 +1006,7 @@ int interact_hcmax(interact_t * obj, double * hcmax) {
  *
  *****************************************************************************/
 
-int interact_range_check(interact_t * obj, colloids_info_t * cinfo) {
+int interact_range_check(interact_t* obj, colloids_info_t* cinfo) {
 
   int nc;
   int ncell[3];
@@ -846,7 +1031,7 @@ int interact_range_check(interact_t * obj, colloids_info_t * cinfo) {
   colloids_info_ahmax(cinfo, &ahmax);
   interact_rcmax(obj, &rc);
   interact_hcmax(obj, &hc);
-  rmax = dmax(2.0*ahmax + hc, rc);
+  rmax = dmax(2.0 * ahmax + hc, rc);
 
   /* Check against the cell list */
 
@@ -858,7 +1043,7 @@ int interact_range_check(interact_t * obj, colloids_info_t * cinfo) {
 
   if (rmax > lmin) {
     pe_info(obj->pe,
-	    "Cell list width too small to capture specified interactions!\n");
+      "Cell list width too small to capture specified interactions!\n");
     pe_info(obj->pe, "The maximum interaction range is: %f\n", rmax);
     pe_info(obj->pe, "The minimum cell width is only:   %f\n", lmin);
     pe_fatal(obj->pe, "Please check and try again\n");
@@ -881,9 +1066,9 @@ int interact_range_check(interact_t * obj, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int colloids_update_forces_ext(colloids_info_t * cinfo) {
+int colloids_update_forces_ext(colloids_info_t* cinfo) {
 
-  colloid_t * pc = NULL;
+  colloid_t* pc = NULL;
 
   assert(cinfo);
 
@@ -913,9 +1098,9 @@ int colloids_update_forces_ext(colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int colloids_update_forces_buoyancy(colloids_info_t * cinfo, map_t * map,
-				    physics_t * phys) {
-  double btot[3] = {0};
+int colloids_update_forces_buoyancy(colloids_info_t* cinfo, map_t* map,
+            physics_t* phys) {
+  double btot[3] = { 0 };
 
   assert(cinfo);
   assert(map);
@@ -924,21 +1109,21 @@ int colloids_update_forces_buoyancy(colloids_info_t * cinfo, map_t * map,
   if (cinfo->isbuoyancy == 0) return 0;
 
   {
-    colloid_t * pc = NULL;
+    colloid_t* pc = NULL;
 
     colloids_info_local_head(cinfo, &pc);
 
-    for ( ; pc; pc = pc->nextlocal) {
+    for (; pc; pc = pc->nextlocal) {
       double vol = 0.0; /* volume, aka mass here */
       colloid_state_mass(&pc->s, cinfo->rho0, &vol);
 
-      pc->force[X] += cinfo->bgravity[X]*vol;
-      pc->force[Y] += cinfo->bgravity[Y]*vol;
-      pc->force[Z] += cinfo->bgravity[Z]*vol;
+      pc->force[X] += cinfo->bgravity[X] * vol;
+      pc->force[Y] += cinfo->bgravity[Y] * vol;
+      pc->force[Z] += cinfo->bgravity[Z] * vol;
 
-      btot[X] += cinfo->bgravity[X]*vol;
-      btot[Y] += cinfo->bgravity[Y]*vol;
-      btot[Z] += cinfo->bgravity[Z]*vol;
+      btot[X] += cinfo->bgravity[X] * vol;
+      btot[Y] += cinfo->bgravity[Y] * vol;
+      btot[Z] += cinfo->bgravity[Z] * vol;
     }
   }
 
@@ -947,12 +1132,12 @@ int colloids_update_forces_buoyancy(colloids_info_t * cinfo, map_t * map,
   /* Counter force per fluid site */
   {
     int vfluid = 0;
-    double fcounter[3] = {0};
+    double fcounter[3] = { 0 };
     map_volume_allreduce(map, MAP_FLUID, &vfluid);
 
-    fcounter[X] = -btot[X]/vfluid;
-    fcounter[Y] = -btot[Y]/vfluid;
-    fcounter[Z] = -btot[Z]/vfluid;
+    fcounter[X] = -btot[X] / vfluid;
+    fcounter[Y] = -btot[Y] / vfluid;
+    fcounter[Z] = -btot[Z] / vfluid;
 
     physics_fbody_set(phys, fcounter);
   }

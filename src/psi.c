@@ -23,21 +23,21 @@
 
 #include "psi.h"
 
-/*****************************************************************************
- *
- *  psi_create
- *
- *****************************************************************************/
+ /*****************************************************************************
+  *
+  *  psi_create
+  *
+  *****************************************************************************/
 
-int psi_create(pe_t * pe, cs_t * cs, const psi_options_t * opts,
-	       psi_t ** pobj) {
+int psi_create(pe_t* pe, cs_t* cs, const psi_options_t* opts,
+         psi_t** pobj) {
 
   int ifail = 0;
-  psi_t * psi = NULL;
+  psi_t* psi = NULL;
 
   assert(pobj);
 
-  psi = (psi_t *) calloc(1, sizeof(psi_t));
+  psi = (psi_t*)calloc(1, sizeof(psi_t));
   if (psi == NULL) goto err;
 
   ifail = psi_initialise(pe, cs, opts, psi);
@@ -47,7 +47,7 @@ int psi_create(pe_t * pe, cs_t * cs, const psi_options_t * opts,
 
   return 0;
 
- err:
+err:
   free(psi);
   return -1;
 }
@@ -58,7 +58,7 @@ int psi_create(pe_t * pe, cs_t * cs, const psi_options_t * opts,
  *
  *****************************************************************************/
 
-int psi_free(psi_t ** psi) {
+int psi_free(psi_t** psi) {
 
   assert(psi);
   assert(*psi);
@@ -76,8 +76,8 @@ int psi_free(psi_t ** psi) {
  *
  *****************************************************************************/
 
-int psi_initialise(pe_t * pe, cs_t * cs, const psi_options_t * opts,
-		   psi_t * psi) {
+int psi_initialise(pe_t* pe, cs_t* cs, const psi_options_t* opts,
+       psi_t* psi) {
 
   int ifail = 0;
 
@@ -101,15 +101,15 @@ int psi_initialise(pe_t * pe, cs_t * cs, const psi_options_t * opts,
   psi->e0[Y] = opts->e0[Y];
   psi->e0[Z] = opts->e0[Z];
 
-  psi->diffusivity = (double *) calloc(opts->nk, sizeof(double));
-  psi->valency = (int *) calloc(opts->nk, sizeof(int));
+  psi->diffusivity = (double*)calloc(opts->nk, sizeof(double));
+  psi->valency = (int*)calloc(opts->nk, sizeof(int));
 
   if (psi->diffusivity == NULL) pe_fatal(pe, "psi->diffusivity failed\n");
   if (psi->valency == NULL) pe_fatal(pe, "calloc(psi->valency) failed\n");
 
   for (int n = 0; n < opts->nk; n++) {
     psi->diffusivity[n] = opts->diffusivity[n];
-    psi->valency[n]     = opts->valency[n];
+    psi->valency[n] = opts->valency[n];
   }
 
   /* Solver options */
@@ -124,7 +124,7 @@ int psi_initialise(pe_t * pe, cs_t * cs, const psi_options_t * opts,
   {
     /* Unfortunately, "rho" is not available for the charge density,
      * as it would conflict with the fluid density. */
-    lees_edw_t * le = NULL;
+    lees_edw_t* le = NULL;
     field_create(pe, cs, le, "psi", &opts->psi, &psi->psi);
     field_create(pe, cs, le, "qsi", &opts->rho, &psi->rho);
   }
@@ -143,7 +143,7 @@ int psi_initialise(pe_t * pe, cs_t * cs, const psi_options_t * opts,
  *
  *****************************************************************************/
 
-int psi_finalise(psi_t * psi) {
+int psi_finalise(psi_t* psi) {
 
   assert(psi->psi);
 
@@ -154,7 +154,7 @@ int psi_finalise(psi_t * psi) {
   free(psi->valency);
   free(psi->diffusivity);
 
-  *psi = (psi_t) {0};
+  *psi = (psi_t){ 0 };
 
   return 0;
 }
@@ -165,7 +165,7 @@ int psi_finalise(psi_t * psi) {
  *
  *****************************************************************************/
 
-int psi_halo_psi(psi_t * psi) {
+int psi_halo_psi(psi_t* psi) {
 
   assert(psi);
 
@@ -183,7 +183,7 @@ int psi_halo_psi(psi_t * psi) {
  *
  *****************************************************************************/
 
-int psi_halo_rho(psi_t * psi) {
+int psi_halo_rho(psi_t* psi) {
 
   assert(psi);
 
@@ -200,7 +200,7 @@ int psi_halo_rho(psi_t * psi) {
  *
  *****************************************************************************/
 
-int psi_nk(psi_t * obj, int * nk) {
+int psi_nk(psi_t* obj, int* nk) {
 
   assert(obj);
 
@@ -215,7 +215,7 @@ int psi_nk(psi_t * obj, int * nk) {
  *
  *****************************************************************************/
 
-int psi_valency(psi_t * obj, int n, int * iv) {
+int psi_valency(psi_t* obj, int n, int* iv) {
 
   assert(obj);
   assert(n < obj->nk);
@@ -232,7 +232,7 @@ int psi_valency(psi_t * obj, int n, int * iv) {
  *
  *****************************************************************************/
 
-int psi_diffusivity(psi_t * obj, int n, double * diff) {
+int psi_diffusivity(psi_t* obj, int n, double* diff) {
 
   assert(obj);
   assert(n < obj->nk);
@@ -251,7 +251,7 @@ int psi_diffusivity(psi_t * obj, int n, double * diff) {
  *
  *****************************************************************************/
 
-int psi_rho_elec(psi_t * obj, int index, double * rho) {
+int psi_rho_elec(psi_t* obj, int index, double* rho) {
 
   double rho_elec = 0.0;
 
@@ -260,7 +260,7 @@ int psi_rho_elec(psi_t * obj, int index, double * rho) {
 
   for (int n = 0; n < obj->nk; n++) {
     int irho = addr_rank1(obj->nsites, obj->nk, index, n);
-    rho_elec += obj->e*obj->valency[n]*obj->rho->data[irho];
+    rho_elec += obj->e * obj->valency[n] * obj->rho->data[irho];
   }
   *rho = rho_elec;
 
@@ -273,7 +273,7 @@ int psi_rho_elec(psi_t * obj, int index, double * rho) {
  *
  *****************************************************************************/
 
-int psi_rho(psi_t * obj, int index, int n, double * rho) {
+int psi_rho(psi_t* obj, int index, int n, double* rho) {
 
   assert(obj);
   assert(rho);
@@ -290,7 +290,7 @@ int psi_rho(psi_t * obj, int index, int n, double * rho) {
  *
  *****************************************************************************/
 
-int psi_rho_set(psi_t * obj, int index, int n, double rho) {
+int psi_rho_set(psi_t* obj, int index, int n, double rho) {
 
   assert(obj);
   assert(n < obj->nk);
@@ -306,7 +306,7 @@ int psi_rho_set(psi_t * obj, int index, int n, double rho) {
  *
  *****************************************************************************/
 
-int psi_psi(psi_t * obj, int index, double * psi) {
+int psi_psi(psi_t* obj, int index, double* psi) {
 
   assert(obj);
   assert(psi);
@@ -322,7 +322,7 @@ int psi_psi(psi_t * obj, int index, double * psi) {
  *
  ****************************************************************************/
 
-int psi_psi_set(psi_t * obj, int index, double psi) {
+int psi_psi_set(psi_t* obj, int index, double psi) {
 
   assert(obj);
 
@@ -337,7 +337,7 @@ int psi_psi_set(psi_t * obj, int index, double psi) {
  *
  *****************************************************************************/
 
-int psi_unit_charge(psi_t * obj, double * eunit) {
+int psi_unit_charge(psi_t* obj, double* eunit) {
 
   assert(obj);
   assert(eunit);
@@ -353,7 +353,7 @@ int psi_unit_charge(psi_t * obj, double * eunit) {
  *
  *****************************************************************************/
 
-int psi_beta(psi_t * obj, double * beta) {
+int psi_beta(psi_t* obj, double* beta) {
 
   assert(obj);
   assert(beta);
@@ -369,7 +369,7 @@ int psi_beta(psi_t * obj, double * beta) {
  *
  *****************************************************************************/
 
-int psi_epsilon(psi_t * obj, double * epsilon) {
+int psi_epsilon(psi_t* obj, double* epsilon) {
 
   assert(obj);
   assert(epsilon);
@@ -385,7 +385,7 @@ int psi_epsilon(psi_t * obj, double * epsilon) {
  *
  *****************************************************************************/
 
-int psi_epsilon2(psi_t * obj, double * epsilon2) {
+int psi_epsilon2(psi_t* obj, double* epsilon2) {
 
   assert(obj);
   assert(epsilon2);
@@ -404,15 +404,15 @@ int psi_epsilon2(psi_t * obj, double * epsilon2) {
  *
  *****************************************************************************/
 
-int psi_ionic_strength(psi_t * psi, int index, double * sion) {
+int psi_ionic_strength(psi_t* psi, int index, double* sion) {
 
   assert(psi);
   assert(sion);
 
   *sion = 0.0;
   for (int n = 0; n < psi->nk; n++) {
-    *sion += 0.5*psi->valency[n]*psi->valency[n]
-      *psi->rho->data[addr_rank1(psi->nsites, psi->nk, index, n)];
+    *sion += 0.5 * psi->valency[n] * psi->valency[n]
+      * psi->rho->data[addr_rank1(psi->nsites, psi->nk, index, n)];
   }
 
   return 0;
@@ -431,8 +431,8 @@ int psi_ionic_strength(psi_t * psi, int index, double * sion) {
  *
  *****************************************************************************/
 
-int psi_surface_potential(psi_t * obj, double sigma, double rho_b,
-			  double *sp) {
+int psi_surface_potential(psi_t* obj, double sigma, double rho_b,
+        double* sp) {
   double p;
 
   assert(obj);
@@ -440,10 +440,10 @@ int psi_surface_potential(psi_t * obj, double sigma, double rho_b,
   assert(obj->nk == 2);
   assert(obj->valency[0] == -obj->valency[1]);
 
-  p = 1.0 / sqrt(8.0*obj->epsilon*rho_b / obj->beta);
+  p = 1.0 / sqrt(8.0 * obj->epsilon * rho_b / obj->beta);
 
-  *sp = fabs(2.0 / (obj->valency[0]*obj->e*obj->beta)
-	     *log(-p*sigma + sqrt(p*p*sigma*sigma + 1.0)));
+  *sp = fabs(2.0 / (obj->valency[0] * obj->e * obj->beta)
+       * log(-p * sigma + sqrt(p * p * sigma * sigma + 1.0)));
 
   return 0;
 }
@@ -456,7 +456,7 @@ int psi_surface_potential(psi_t * obj, double sigma, double rho_b,
  *
  *****************************************************************************/
 
-int psi_reltol(psi_t * obj, double * reltol) {
+int psi_reltol(psi_t* obj, double* reltol) {
 
   assert(obj);
   assert(reltol);
@@ -474,7 +474,7 @@ int psi_reltol(psi_t * obj, double * reltol) {
  *
  *****************************************************************************/
 
-int psi_abstol(psi_t * obj, double * abstol) {
+int psi_abstol(psi_t* obj, double* abstol) {
 
   assert(obj);
   assert(abstol);
@@ -490,7 +490,7 @@ int psi_abstol(psi_t * obj, double * abstol) {
  *
  *****************************************************************************/
 
-int psi_multisteps(psi_t * obj, int * multisteps) {
+int psi_multisteps(psi_t* obj, int* multisteps) {
 
   assert(obj);
   assert(multisteps);
@@ -506,11 +506,11 @@ int psi_multisteps(psi_t * obj, int * multisteps) {
  *
  *****************************************************************************/
 
-int psi_multistep_timestep(psi_t * obj, double * dt) {
+int psi_multistep_timestep(psi_t* obj, double* dt) {
 
   assert(obj);
 
-  *dt = 1.0/obj->multisteps;
+  *dt = 1.0 / obj->multisteps;
 
   return 0;
 }
@@ -521,7 +521,7 @@ int psi_multistep_timestep(psi_t * obj, double * dt) {
  *
  *****************************************************************************/
 
-int psi_maxits(psi_t * obj, int * maxits) {
+int psi_maxits(psi_t* obj, int* maxits) {
 
   assert(obj);
   assert(maxits);
@@ -537,10 +537,10 @@ int psi_maxits(psi_t * obj, int * maxits) {
  *
  *****************************************************************************/
 
-int psi_diffacc_set(psi_t * obj, double diffacc) {
+int psi_diffacc_set(psi_t* obj, double diffacc) {
 
   assert(obj);
-  assert(diffacc>=0);
+  assert(diffacc >= 0);
 
   obj->diffacc = diffacc;
 
@@ -553,7 +553,7 @@ int psi_diffacc_set(psi_t * obj, double diffacc) {
  *
  *****************************************************************************/
 
-int psi_diffacc(psi_t * obj, double * diffacc) {
+int psi_diffacc(psi_t* obj, double* diffacc) {
 
   assert(obj);
   assert(diffacc);
@@ -571,7 +571,7 @@ int psi_diffacc(psi_t * obj, double * diffacc) {
  *
  *****************************************************************************/
 
-int psi_zero_mean(psi_t * psi) {
+int psi_zero_mean(psi_t* psi) {
 
   int ic, jc, kc, index;
   int nlocal[3];
@@ -597,27 +597,27 @@ int psi_zero_mean(psi_t * psi) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(psi->cs, ic, jc, kc);
+        index = cs_index(psi->cs, ic, jc, kc);
 
-	psi_psi(psi, index, &psi0);
-	sum_local += psi0;
+        psi_psi(psi, index, &psi0);
+        sum_local += psi0;
       }
     }
   }
 
   MPI_Allreduce(&sum_local, &psi_offset, 1, MPI_DOUBLE, MPI_SUM, comm);
 
-  psi_offset /= (ltot[X]*ltot[Y]*ltot[Z]);
+  psi_offset /= (ltot[X] * ltot[Y] * ltot[Z]);
 
   for (ic = 1 - nhalo; ic <= nlocal[X] + nhalo; ic++) {
     for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
       for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
 
-	index = cs_index(psi->cs, ic, jc, kc);
+        index = cs_index(psi->cs, ic, jc, kc);
 
-	psi_psi(psi, index, &psi0);
-	psi0 -= psi_offset;
-	psi_psi_set(psi, index, psi0);
+        psi_psi(psi, index, &psi0);
+        psi0 -= psi_offset;
+        psi_psi_set(psi, index, psi0);
       }
     }
   }
@@ -638,7 +638,7 @@ int psi_zero_mean(psi_t * psi) {
  *
  *****************************************************************************/
 
-int psi_halo_psijump(psi_t * psi) {
+int psi_halo_psijump(psi_t* psi) {
 
   int nhalo;
   int nlocal[3], ntotal[3], noffset[3];
@@ -650,7 +650,7 @@ int psi_halo_psijump(psi_t * psi) {
   double eps;
   double beta;
 
-  double * psidata = psi->psi->data;
+  double* psidata = psi->psi->data;
 
   assert(psi);
 
@@ -669,45 +669,45 @@ int psi_halo_psijump(psi_t * psi) {
 
     for (nh = 0; nh < nhalo; nh++) {
       for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
-	for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
+        for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
 
-	  index = cs_index(psi->cs, 0 - nh, jc, kc);
+          index = cs_index(psi->cs, 0 - nh, jc, kc);
 
-	  if (periodic[X]) {
-	    /* Add external potential */
-	    psidata[addr_rank0(psi->nsites, index)] += psi->e0[X]*ntotal[X];
-	  }
-	  else{
-	    /* Borrow fluid site ic = 1 */
-	    index1 = cs_index(psi->cs, 1, jc, kc);
-	    psidata[addr_rank0(psi->nsites, index)] =
-	      psidata[addr_rank0(psi->nsites, index1)];
-	  }
-	}
+          if (periodic[X]) {
+            /* Add external potential */
+            psidata[addr_rank0(psi->nsites, index)] += psi->e0[X] * ntotal[X];
+          }
+          else {
+            /* Borrow fluid site ic = 1 */
+            index1 = cs_index(psi->cs, 1, jc, kc);
+            psidata[addr_rank0(psi->nsites, index)] =
+              psidata[addr_rank0(psi->nsites, index1)];
+          }
+        }
       }
     }
 
   }
 
-  if (mpicoords[X] == mpi_cartsz[X]-1) {
+  if (mpicoords[X] == mpi_cartsz[X] - 1) {
 
     for (nh = 0; nh < nhalo; nh++) {
       for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
-	for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
+        for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
 
-	  index = cs_index(psi->cs, nlocal[0] + 1 + nh, jc, kc);
+          index = cs_index(psi->cs, nlocal[0] + 1 + nh, jc, kc);
 
-	  if (periodic[X]) {
-	    /* Subtract external potential */
-	    psidata[addr_rank0(psi->nsites, index)] -= psi->e0[X]*ntotal[X];
-	  }
-	  else {
-	    /* Borrow fluid site at end ... */
-	    index1 = cs_index(psi->cs, nlocal[X], jc, kc);
-	    psidata[addr_rank0(psi->nsites, index)] =
-	      psidata[addr_rank0(psi->nsites, index1)];
-	  }
-	}
+          if (periodic[X]) {
+            /* Subtract external potential */
+            psidata[addr_rank0(psi->nsites, index)] -= psi->e0[X] * ntotal[X];
+          }
+          else {
+            /* Borrow fluid site at end ... */
+            index1 = cs_index(psi->cs, nlocal[X], jc, kc);
+            psidata[addr_rank0(psi->nsites, index)] =
+              psidata[addr_rank0(psi->nsites, index1)];
+          }
+        }
       }
     }
   }
@@ -716,45 +716,45 @@ int psi_halo_psijump(psi_t * psi) {
 
     for (nh = 0; nh < nhalo; nh++) {
       for (ic = 1 - nhalo; ic <= nlocal[X] + nhalo; ic++) {
-	for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
+        for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
 
-	  index = cs_index(psi->cs, ic, 0 - nh, kc);
+          index = cs_index(psi->cs, ic, 0 - nh, kc);
 
-	    if (periodic[Y]) {
-	      /* Add external potential */
-	      psidata[addr_rank0(psi->nsites, index)] += psi->e0[Y]*ntotal[Y];
-	    }
-	    else {
-	      /* Not periodic ... just borrow from fluid site jc = 1 */
-	      index1 = cs_index(psi->cs, ic, 1, kc);
-	      psidata[addr_rank0(psi->nsites, index)] =
-		psidata[addr_rank0(psi->nsites, index1)];
-	    }
-	}
+          if (periodic[Y]) {
+            /* Add external potential */
+            psidata[addr_rank0(psi->nsites, index)] += psi->e0[Y] * ntotal[Y];
+          }
+          else {
+            /* Not periodic ... just borrow from fluid site jc = 1 */
+            index1 = cs_index(psi->cs, ic, 1, kc);
+            psidata[addr_rank0(psi->nsites, index)] =
+              psidata[addr_rank0(psi->nsites, index1)];
+          }
+        }
       }
     }
 
   }
 
-  if (mpicoords[Y] == mpi_cartsz[Y]-1) {
+  if (mpicoords[Y] == mpi_cartsz[Y] - 1) {
 
     for (nh = 0; nh < nhalo; nh++) {
       for (ic = 1 - nhalo; ic <= nlocal[X] + nhalo; ic++) {
-	for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
+        for (kc = 1 - nhalo; kc <= nlocal[Z] + nhalo; kc++) {
 
-	  index = cs_index(psi->cs, ic, nlocal[Y] + 1 + nh, kc);
+          index = cs_index(psi->cs, ic, nlocal[Y] + 1 + nh, kc);
 
-	  if (periodic[Y]) {
-	    /* Subtract external potential */
-	    psidata[addr_rank0(psi->nsites, index)] -= psi->e0[Y]*ntotal[Y];
-	  }
-	  else {
-	    /* Borrow fluid site at end */
-	    index1 = cs_index(psi->cs, ic, nlocal[Y], kc);
-	    psidata[addr_rank0(psi->nsites, index)] =
-	      psidata[addr_rank0(psi->nsites, index1)];
-	  }
-	}
+          if (periodic[Y]) {
+            /* Subtract external potential */
+            psidata[addr_rank0(psi->nsites, index)] -= psi->e0[Y] * ntotal[Y];
+          }
+          else {
+            /* Borrow fluid site at end */
+            index1 = cs_index(psi->cs, ic, nlocal[Y], kc);
+            psidata[addr_rank0(psi->nsites, index)] =
+              psidata[addr_rank0(psi->nsites, index1)];
+          }
+        }
       }
     }
 
@@ -764,45 +764,45 @@ int psi_halo_psijump(psi_t * psi) {
 
     for (nh = 0; nh < nhalo; nh++) {
       for (ic = 1 - nhalo; ic <= nlocal[X] + nhalo; ic++) {
-	for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
+        for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
 
-	  index = cs_index(psi->cs, ic, jc, 0 - nh);
+          index = cs_index(psi->cs, ic, jc, 0 - nh);
 
-	  if (periodic[Z]) {
-	    /* Add external potential */
-	    psidata[addr_rank0(psi->nsites, index)] += psi->e0[Z]*ntotal[Z];
-	  }
-	  else {
-	    /* Borrow fluid site kc = 1 */
-	    index1 = cs_index(psi->cs, ic, jc, 1);
-	    psidata[addr_rank0(psi->nsites, index)] =
-	      psidata[addr_rank0(psi->nsites, index1)];
-	  }
-	}
+          if (periodic[Z]) {
+            /* Add external potential */
+            psidata[addr_rank0(psi->nsites, index)] += psi->e0[Z] * ntotal[Z];
+          }
+          else {
+            /* Borrow fluid site kc = 1 */
+            index1 = cs_index(psi->cs, ic, jc, 1);
+            psidata[addr_rank0(psi->nsites, index)] =
+              psidata[addr_rank0(psi->nsites, index1)];
+          }
+        }
       }
     }
 
   }
 
-  if (mpicoords[Z] == mpi_cartsz[Z]-1) {
+  if (mpicoords[Z] == mpi_cartsz[Z] - 1) {
 
     for (nh = 0; nh < nhalo; nh++) {
       for (ic = 1 - nhalo; ic <= nlocal[X] + nhalo; ic++) {
-	for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
+        for (jc = 1 - nhalo; jc <= nlocal[Y] + nhalo; jc++) {
 
-	  index = cs_index(psi->cs, ic, jc, nlocal[Z] + 1 + nh);
+          index = cs_index(psi->cs, ic, jc, nlocal[Z] + 1 + nh);
 
-	  if (periodic[Z]) {
-	    /* Subtract external potential */
-	    psidata[addr_rank0(psi->nsites, index)] -= psi->e0[Z]*ntotal[Z];
-	  }
-	  else {
-	    /* Borrow fluid site at end ... */
-	    index1 = cs_index(psi->cs, ic, jc, nlocal[Z]);
-	    psidata[addr_rank0(psi->nsites, index)] =
-	      psidata[addr_rank0(psi->nsites, index1)];
-	  }
-	}
+          if (periodic[Z]) {
+            /* Subtract external potential */
+            psidata[addr_rank0(psi->nsites, index)] -= psi->e0[Z] * ntotal[Z];
+          }
+          else {
+            /* Borrow fluid site at end ... */
+            index1 = cs_index(psi->cs, ic, jc, nlocal[Z]);
+            psidata[addr_rank0(psi->nsites, index)] =
+              psidata[addr_rank0(psi->nsites, index1)];
+          }
+        }
       }
     }
 
@@ -817,7 +817,7 @@ int psi_halo_psijump(psi_t * psi) {
  *
  *****************************************************************************/
 
-int psi_force_method(psi_t * psi, int * flag) {
+int psi_force_method(psi_t* psi, int* flag) {
 
   assert(psi);
 
@@ -832,7 +832,7 @@ int psi_force_method(psi_t * psi, int * flag) {
  *
  *****************************************************************************/
 
-int psi_force_method_set(psi_t * psi, int flag) {
+int psi_force_method_set(psi_t* psi, int flag) {
 
   assert(psi);
   assert(flag >= 0 && flag < PSI_FORCE_NTYPES);
@@ -848,7 +848,7 @@ int psi_force_method_set(psi_t * psi, int flag) {
  *
  *****************************************************************************/
 
-int psi_output_step(psi_t * psi, int its) {
+int psi_output_step(psi_t* psi, int its) {
 
   assert(psi);
 
@@ -882,7 +882,7 @@ int psi_output_step(psi_t * psi, int its) {
  *
  *****************************************************************************/
 
-int psi_electroneutral(psi_t * psi, map_t * map) {
+int psi_electroneutral(psi_t* psi, map_t* map) {
 
   int ic, jc, kc, index;
   int nlocal[3];
@@ -923,12 +923,12 @@ int psi_electroneutral(psi_t * psi, map_t * map) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(psi->cs, ic, jc, kc);
+        index = cs_index(psi->cs, ic, jc, kc);
 
-	for (n = 0; n < nk; n++) {
-	  psi_rho(psi, index, n, &rho);
-	  qloc += valency[n]*rho;
-	}
+        for (n = 0; n < nk; n++) {
+          psi_rho(psi, index, n, &rho);
+          qloc += valency[n] * rho;
+        }
 
       }
     }
@@ -940,8 +940,8 @@ int psi_electroneutral(psi_t * psi, map_t * map) {
   rhoi = fabs(qtot) / vf;
 
   nc = -1;
-  if (qtot*valency[0] >= 0) nc = 1;
-  if (qtot*valency[1] >= 0) nc = 0;
+  if (qtot * valency[0] >= 0) nc = 1;
+  if (qtot * valency[1] >= 0) nc = 0;
   assert(nc == 0 || nc == 1);
 
   for (ic = 1; ic <= nlocal[X]; ic++) {
@@ -949,7 +949,7 @@ int psi_electroneutral(psi_t * psi, map_t * map) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
         index = cs_index(psi->cs, ic, jc, kc);
-	map_status(map, index, &status);
+        map_status(map, index, &status);
 
         if (status == MAP_FLUID) {
           psi_rho(psi, index, nc, &rho);
@@ -973,20 +973,20 @@ int psi_electroneutral(psi_t * psi, map_t * map) {
  *
  *****************************************************************************/
 
-int psi_io_write(psi_t * psi, int nstep) {
+int psi_io_write(psi_t* psi, int nstep) {
 
   int ifail = 0;
-  io_event_t io1 = {0};
-  io_event_t io2 = {0};
-  const char * extra = "electrokinetics";
-  cJSON * json = NULL;
+  io_event_t io1 = { 0 };
+  io_event_t io2 = { 0 };
+  const char* extra = "electrokinetics";
+  cJSON* json = NULL;
 
   ifail = psi_options_to_json(&psi->options, &json);
   if (ifail == 0) {
     io1.extra_name = extra;
     io2.extra_name = extra;
-    io1.extra_json  = json;
-    io2.extra_json  = json;
+    io1.extra_json = json;
+    io2.extra_json = json;
   }
 
   ifail += field_io_write(psi->psi, nstep, &io1);

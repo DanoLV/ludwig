@@ -18,6 +18,8 @@
 #define LUDWIG_RUNTIME_H
 
 #include "pe.h"
+//CHANGE2
+#include "colloids.h"
 
 typedef enum {RT_KEY_OK = 0, RT_KEY_MISSING, RT_KEY_INVALID} rt_err_t;
 typedef enum {RT_NONE, RT_INFO, RT_FATAL} rt_enum_t;
@@ -30,6 +32,16 @@ int rt_read_input_file(rt_t * rt, const char * filename);
 int rt_info(rt_t * rt);
 int rt_int_parameter(rt_t * rt, const char * key, int * ivalue);
 int rt_int_parameter_vector(rt_t * rt, const char * key, int ivalue[3]);
+//CHANGE2
+int rt_int_parameter_rank2_tensor(rt_t * rt, const char * key, int ivalue[][NUM_INT_PART_TYPES]);
+//CHANGE3
+int rt_int_parameter_rank4_tensor(rt_t * rt, const char * key, int ivalue[][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES]);
+//CHANGE2
+int rt_double_parameter_rank2_tensor(rt_t * rt, const char * key, double ivalue[][NUM_INT_PART_TYPES]);
+//CHANGE3
+int rt_double_parameter_rank3_tensor(rt_t * rt, const char * key, double ivalue[][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES]);
+int rt_double_parameter_rank4_tensor(rt_t * rt, const char * key, double ivalue[][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES]);
+
 int rt_double_parameter(rt_t * rt, const char * key, double * value);
 int rt_double_parameter_vector(rt_t * rt, const char * key, double value[3]);
 int rt_string_parameter(rt_t * rt, const char * key, char * s,

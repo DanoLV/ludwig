@@ -34,16 +34,16 @@
 #include "psi_sor.h"
 #include "util.h"
 
-/* Function table */
+ /* Function table */
 
 static psi_solver_vt_t vt_ = {
-  (psi_solver_free_ft)  psi_solver_sor_free,
-  (psi_solver_solve_ft) psi_solver_sor_solve
+  (psi_solver_free_ft)psi_solver_sor_free,
+  (psi_solver_solve_ft)psi_solver_sor_solve
 };
 
 static psi_solver_vt_t vart_ = {
-  (psi_solver_free_ft)  psi_solver_sor_free,
-  (psi_solver_solve_ft) psi_solver_sor_var_epsilon_solve
+  (psi_solver_free_ft)psi_solver_sor_free,
+  (psi_solver_solve_ft)psi_solver_sor_var_epsilon_solve
 };
 
 /*****************************************************************************
@@ -52,15 +52,15 @@ static psi_solver_vt_t vart_ = {
  *
  *****************************************************************************/
 
-int psi_solver_sor_create(psi_t * psi, psi_solver_sor_t ** sor) {
+int psi_solver_sor_create(psi_t* psi, psi_solver_sor_t** sor) {
 
   int ifail = 0;
-  psi_solver_sor_t * solver = NULL;
+  psi_solver_sor_t* solver = NULL;
 
   assert(psi);
   assert(sor);
 
-  solver = (psi_solver_sor_t *) calloc(1, sizeof(psi_solver_sor_t));
+  solver = (psi_solver_sor_t*)calloc(1, sizeof(psi_solver_sor_t));
   if (solver == NULL) {
     ifail = -1;
   }
@@ -81,13 +81,13 @@ int psi_solver_sor_create(psi_t * psi, psi_solver_sor_t ** sor) {
  *
  *****************************************************************************/
 
-int psi_solver_sor_free(psi_solver_sor_t ** sor) {
+int psi_solver_sor_free(psi_solver_sor_t** sor) {
 
   assert(sor);
   assert(*sor);
 
   free(*sor);
-  *sor  = NULL;
+  *sor = NULL;
 
   return 0;
 }
@@ -129,11 +129,11 @@ int psi_solver_sor_free(psi_solver_sor_t ** sor) {
  *
  *****************************************************************************/
 
-int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
+int psi_solver_sor_solve(psi_solver_sor_t* sor, int its) {
 
   int niteration = 1000;       /* Maximum number of iterations */
   const int ncheck = 5;        /* Check global residual every n iterations */
-  
+
   int nhalo;
   int nlocal[3];
   int nsites;
@@ -151,8 +151,8 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
 
   MPI_Comm comm;               /* Cartesian communicator */
 
-  psi_t * psi = sor->psi;
-  double * __restrict__ psidata = psi->psi->data;
+  psi_t* psi = sor->psi;
+  double* __restrict__ psidata = psi->psi->data;
 
   cs_ltot(psi->cs, ltot);
   cs_nhalo(psi->cs, &nhalo);
@@ -172,7 +172,7 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
 
   /* Compute initial norm of the residual */
 
-  radius = 1.0 - 0.5*pow(4.0*atan(1.0)/dmax(ltot[X],ltot[Z]), 2);
+  radius = 1.0 - 0.5 * pow(4.0 * atan(1.0) / dmax(ltot[X], ltot[Z]), 2);
 
   psi_epsilon(psi, &epsilon);
   psi_maxits(psi, &niteration);
@@ -186,15 +186,15 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
     for (int jc = 1; jc <= nlocal[Y]; jc++) {
       for (int kc = 1; kc <= nlocal[Z]; kc++) {
 
-	int index = cs_index(psi->cs, ic, jc, kc);
+        int index = cs_index(psi->cs, ic, jc, kc);
 
-	psi_rho_elec(psi, index, &rho_elec);
+        psi_rho_elec(psi, index, &rho_elec);
 
-	/* Non-dimensional potential in Poisson eqn requires e/kT */
-	/* This is just the L2 norm of the right hand side. */
+        /* Non-dimensional potential in Poisson eqn requires e/kT */
+        /* This is just the L2 norm of the right hand side. */
 
-	residual = eunit*beta*rho_elec;
-	rnorm_local[0] += residual*residual;
+        residual = eunit * beta * rho_elec;
+        rnorm_local[0] += residual * residual;
       }
     }
   }
@@ -214,42 +214,42 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
     for (int pass = 0; pass < 2; pass++) {
 
       for (int ic = 1; ic <= nlocal[X]; ic++) {
-	for (int jc = 1; jc <= nlocal[Y]; jc++) {
-	  int kst = 1 + (ic + jc + pass) % 2;
-	  for (int kc = kst; kc <= nlocal[Z]; kc += 2) {
+        for (int jc = 1; jc <= nlocal[Y]; jc++) {
+          int kst = 1 + (ic + jc + pass) % 2;
+          for (int kc = kst; kc <= nlocal[Z]; kc += 2) {
 
-	    int index = cs_index(psi->cs, ic, jc, kc);
+            int index = cs_index(psi->cs, ic, jc, kc);
 
-	    psi_rho_elec(psi, index, &rho_elec);
+            psi_rho_elec(psi, index, &rho_elec);
 
-	    /* 6-point stencil of Laplacian */
+            /* 6-point stencil of Laplacian */
 
-	    dpsi
-	      = psidata[addr_rank0(nsites, index + xs)]
-	      + psidata[addr_rank0(nsites, index - xs)]
-	      + psidata[addr_rank0(nsites, index + ys)]
-	      + psidata[addr_rank0(nsites, index - ys)]
-	      + psidata[addr_rank0(nsites, index + zs)]
-	      + psidata[addr_rank0(nsites, index - zs)]
-	      - 6.0*psidata[addr_rank0(nsites, index)];
+            dpsi
+              = psidata[addr_rank0(nsites, index + xs)]
+              + psidata[addr_rank0(nsites, index - xs)]
+              + psidata[addr_rank0(nsites, index + ys)]
+              + psidata[addr_rank0(nsites, index - ys)]
+              + psidata[addr_rank0(nsites, index + zs)]
+              + psidata[addr_rank0(nsites, index - zs)]
+              - 6.0 * psidata[addr_rank0(nsites, index)];
 
-	    /* Non-dimensional potential in Poisson eqn requires e/kT */
+            /* Non-dimensional potential in Poisson eqn requires e/kT */
 
-	    residual = epsilon*dpsi + eunit*beta*rho_elec;
-	    psidata[addr_rank0(nsites, index)]
-	      -= omega*residual / (-6.0*epsilon);
-	    rnorm_local[1] += residual*residual;
-	  }
-	}
+            residual = epsilon * dpsi + eunit * beta * rho_elec;
+            psidata[addr_rank0(nsites, index)]
+              -= omega * residual / (-6.0 * epsilon);
+            rnorm_local[1] += residual * residual;
+          }
+        }
       }
 
       /* Recompute relaxation parameter and next pass */
 
       if (n == 0 && pass == 0) {
-	omega = 1.0 / (1.0 - 0.5*radius*radius);
+        omega = 1.0 / (1.0 - 0.5 * radius * radius);
       }
       else {
-	omega = 1.0 / (1.0 - 0.25*radius*radius*omega);
+        omega = 1.0 / (1.0 - 0.25 * radius * radius * omega);
       }
       assert(1.0 < omega && omega < 2.0);
 
@@ -261,7 +261,7 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
     if ((n % ncheck) == 0) {
 
       /* Compare residual and exit if small enough */
-      pe_t * pe = psi->pe;
+      pe_t* pe = psi->pe;
 
       rnorm_local[1] = sqrt(rnorm_local[1]);
 
@@ -269,30 +269,30 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
 
       if (rnorm[1] < psi->solver.abstol) {
 
-	if (its % psi->solver.nfreq == 0) {
-	  pe_info(pe, "\n");
-	  pe_info(pe, "SOR solver converged to absolute tolerance\n");
-	  pe_info(pe, "SOR residual %14.7e at %d iterations\n", rnorm[1], n);
-	}
-	break;
+        if (its % psi->solver.nfreq == 0) {
+          pe_info(pe, "\n");
+          pe_info(pe, "SOR solver converged to absolute tolerance\n");
+          pe_info(pe, "SOR residual %14.7e at %d iterations\n", rnorm[1], n);
+        }
+        break;
       }
 
-      if (rnorm[1] < psi->solver.reltol*rnorm[0]) {
+      if (rnorm[1] < psi->solver.reltol * rnorm[0]) {
 
-	if (its % psi->solver.nfreq == 0) {
-	  pe_info(pe, "\n");
-	  pe_info(pe, "SOR solver converged to relative tolerance\n");
-	  pe_info(pe, "SOR residual %14.7e at %d iterations\n", rnorm[1], n);
-	}
-	break;
+        if (its % psi->solver.nfreq == 0) {
+          pe_info(pe, "\n");
+          pe_info(pe, "SOR solver converged to relative tolerance\n");
+          pe_info(pe, "SOR residual %14.7e at %d iterations\n", rnorm[1], n);
+        }
+        break;
       }
     }
- 
-    if (n == niteration-1) {
+
+    if (n == niteration - 1) {
       pe_info(psi->pe, "\n");
-      pe_info(psi->pe, "SOR solver exceeded %d iterations\n", n+1);
+      pe_info(psi->pe, "SOR solver exceeded %d iterations\n", n + 1);
       pe_info(psi->pe, "SOR residual %le (initial) %le (final)\n\n",
-	      rnorm[0], rnorm[1]);
+        rnorm[0], rnorm[1]);
     }
   }
 
@@ -305,15 +305,15 @@ int psi_solver_sor_solve(psi_solver_sor_t * sor, int its) {
  *
  *****************************************************************************/
 
-int psi_solver_sor_var_epsilon_create(psi_t * psi, var_epsilon_t user,
-				      psi_solver_sor_t ** sor) {
+int psi_solver_sor_var_epsilon_create(psi_t* psi, var_epsilon_t user,
+              psi_solver_sor_t** sor) {
   int ifail = 0;
-  psi_solver_sor_t * solver = NULL;
+  psi_solver_sor_t* solver = NULL;
 
   assert(psi);
   assert(sor);
 
-  solver = (psi_solver_sor_t *) calloc(1, sizeof(psi_solver_sor_t));
+  solver = (psi_solver_sor_t*)calloc(1, sizeof(psi_solver_sor_t));
   if (solver == NULL) {
     ifail = -1;
   }
@@ -343,7 +343,7 @@ int psi_solver_sor_var_epsilon_create(psi_t * psi, var_epsilon_t user,
  *
  ****************************************************************************/
 
-int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
+int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t* sor, int its) {
 
   int niteration = 2000;       /* Maximum number of iterations */
   const int ncheck = 1;        /* Check global residual every n iterations */
@@ -368,8 +368,8 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
 
   MPI_Comm comm;               /* Cartesian communicator */
 
-  psi_t * psi = sor->psi;
-  double * __restrict__ psidata = psi->psi->data;
+  psi_t* psi = sor->psi;
+  double* __restrict__ psidata = psi->psi->data;
 
   cs_ltot(psi->cs, ltot);
   cs_nlocal(psi->cs, nlocal);
@@ -386,7 +386,7 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
 
   /* Compute initial norm of the residual */
 
-  radius = 1.0 - 0.5*pow(4.0*atan(1.0)/dmax(ltot[X],ltot[Z]), 2);
+  radius = 1.0 - 0.5 * pow(4.0 * atan(1.0) / dmax(ltot[X], ltot[Z]), 2);
 
   psi_maxits(psi, &niteration);
   psi_beta(psi, &beta);
@@ -401,11 +401,11 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
     for (int jc = 1; jc <= nlocal[Y]; jc++) {
       for (int kc = 1; kc <= nlocal[Z]; kc++) {
 
-	int index = cs_index(psi->cs, ic, jc, kc);
-	psi_rho_elec(psi, index, &rho_elec);
+        int index = cs_index(psi->cs, ic, jc, kc);
+        psi_rho_elec(psi, index, &rho_elec);
 
-	residual = eunit*beta*rho_elec;
-	rnorm_local[0] += residual*residual;
+        residual = eunit * beta * rho_elec;
+        rnorm_local[0] += residual * residual;
       }
     }
   }
@@ -425,58 +425,58 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
     for (int pass = 0; pass < 2; pass++) {
 
       for (int ic = 1; ic <= nlocal[X]; ic++) {
-	for (int jc = 1; jc <= nlocal[Y]; jc++) {
-	  int kst = 1 + (ic + jc + pass) % 2;
-	  for (int kc = kst; kc <= nlocal[Z]; kc += 2) {
+        for (int jc = 1; jc <= nlocal[Y]; jc++) {
+          int kst = 1 + (ic + jc + pass) % 2;
+          for (int kc = kst; kc <= nlocal[Z]; kc += 2) {
 
-	    int index = cs_index(psi->cs, ic, jc, kc);
-	    depsi  = 0.0;
+            int index = cs_index(psi->cs, ic, jc, kc);
+            depsi = 0.0;
 
-	    psi_rho_elec(psi, index, &rho_elec);
-	    sor->epsilon(sor->fe, index, &eps0);
+            psi_rho_elec(psi, index, &rho_elec);
+            sor->epsilon(sor->fe, index, &eps0);
 
-	    /* Laplacian part of operator */
+            /* Laplacian part of operator */
 
-	    depsi += eps0*(-6.0*psidata[addr_rank0(nsites, index)]
-			   + psidata[addr_rank0(nsites, index + xs)]
-			   + psidata[addr_rank0(nsites, index - xs)]
-			   + psidata[addr_rank0(nsites, index + ys)]
-			   + psidata[addr_rank0(nsites, index - ys)]
-			   + psidata[addr_rank0(nsites, index + zs)]
-			   + psidata[addr_rank0(nsites, index - zs)]);
+            depsi += eps0 * (-6.0 * psidata[addr_rank0(nsites, index)]
+               + psidata[addr_rank0(nsites, index + xs)]
+               + psidata[addr_rank0(nsites, index - xs)]
+               + psidata[addr_rank0(nsites, index + ys)]
+               + psidata[addr_rank0(nsites, index - ys)]
+               + psidata[addr_rank0(nsites, index + zs)]
+               + psidata[addr_rank0(nsites, index - zs)]);
 
-	    /* Additional terms in generalised Poisson equation */
+            /* Additional terms in generalised Poisson equation */
 
-	    sor->epsilon(sor->fe, index + xs, &eps1);
-	    depsi += 0.25*eps1*(psidata[addr_rank0(nsites, index + xs)]
-			      - psidata[addr_rank0(nsites, index - xs)]);
+            sor->epsilon(sor->fe, index + xs, &eps1);
+            depsi += 0.25 * eps1 * (psidata[addr_rank0(nsites, index + xs)]
+                  - psidata[addr_rank0(nsites, index - xs)]);
 
-	    sor->epsilon(sor->fe, index - xs, &eps1);
-	    depsi -= 0.25*eps1*(psidata[addr_rank0(nsites, index + xs)]
-			      - psidata[addr_rank0(nsites, index - xs)]);
+            sor->epsilon(sor->fe, index - xs, &eps1);
+            depsi -= 0.25 * eps1 * (psidata[addr_rank0(nsites, index + xs)]
+                  - psidata[addr_rank0(nsites, index - xs)]);
 
-	    sor->epsilon(sor->fe, index + ys, &eps1);
-	    depsi += 0.25*eps1*(psidata[addr_rank0(nsites, index + ys)]
-			      - psidata[addr_rank0(nsites, index - ys)]);
+            sor->epsilon(sor->fe, index + ys, &eps1);
+            depsi += 0.25 * eps1 * (psidata[addr_rank0(nsites, index + ys)]
+                  - psidata[addr_rank0(nsites, index - ys)]);
 
-	    sor->epsilon(sor->fe, index - ys, &eps1);
-	    depsi -= 0.25*eps1*(psidata[addr_rank0(nsites, index + ys)]
-			      - psidata[addr_rank0(nsites, index - ys)]);
+            sor->epsilon(sor->fe, index - ys, &eps1);
+            depsi -= 0.25 * eps1 * (psidata[addr_rank0(nsites, index + ys)]
+                  - psidata[addr_rank0(nsites, index - ys)]);
 
-	    sor->epsilon(sor->fe, index + zs, &eps1);
-	    depsi += 0.25*eps1*(psidata[addr_rank0(nsites, index + zs)]
-			      - psidata[addr_rank0(nsites, index - zs)]);
+            sor->epsilon(sor->fe, index + zs, &eps1);
+            depsi += 0.25 * eps1 * (psidata[addr_rank0(nsites, index + zs)]
+                  - psidata[addr_rank0(nsites, index - zs)]);
 
-	    sor->epsilon(sor->fe, index - zs, &eps1);
-	    depsi -= 0.25*eps1*(psidata[addr_rank0(nsites, index + zs)]
-			      - psidata[addr_rank0(nsites, index - zs)]);
+            sor->epsilon(sor->fe, index - zs, &eps1);
+            depsi -= 0.25 * eps1 * (psidata[addr_rank0(nsites, index + zs)]
+                  - psidata[addr_rank0(nsites, index - zs)]);
 
-	    /* Non-dimensional potential in Poisson eqn requires e/kT */
-	    residual = depsi + eunit*beta*rho_elec;
-	    psidata[addr_rank0(nsites,index)] -= omega*residual / (-6.0*eps0);
-	    rnorm_local[1] += residual*residual;
-	  }
-	}
+            /* Non-dimensional potential in Poisson eqn requires e/kT */
+            residual = depsi + eunit * beta * rho_elec;
+            psidata[addr_rank0(nsites, index)] -= omega * residual / (-6.0 * eps0);
+            rnorm_local[1] += residual * residual;
+          }
+        }
       }
 
       psi_halo_psi(psi);
@@ -485,8 +485,8 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
     }
 
     /* Recompute relation parameter */
-    /* Note: The default Chebychev acceleration causes a convergence problem */ 
-    omega = 1.0 / (1.0 - 0.25*radius*radius*omega);
+    /* Note: The default Chebychev acceleration causes a convergence problem */
+    omega = 1.0 / (1.0 - 0.25 * radius * radius * omega);
 
     if ((n % ncheck) == 0) {
 
@@ -497,34 +497,34 @@ int psi_solver_sor_var_epsilon_solve(psi_solver_sor_t * sor, int its) {
 
       if (rnorm[1] < psi->solver.abstol) {
 
-	if (its % psi->solver.nfreq == 0) {
-	  pe_info(psi->pe, "\n");
-	  pe_info(psi->pe, "SOR (heterogeneous) solver converged to "
-		  "absolute tolerance\n");
-	  pe_info(psi->pe, "SOR residual %14.7e at %d iterations\n",
-		  rnorm[1], n);
-	}
-	break;
+        if (its % psi->solver.nfreq == 0) {
+          pe_info(psi->pe, "\n");
+          pe_info(psi->pe, "SOR (heterogeneous) solver converged to "
+            "absolute tolerance\n");
+          pe_info(psi->pe, "SOR residual %14.7e at %d iterations\n",
+            rnorm[1], n);
+        }
+        break;
       }
 
-      if (rnorm[1] < psi->solver.reltol*rnorm[0]) {
+      if (rnorm[1] < psi->solver.reltol * rnorm[0]) {
 
-	if (its % psi->solver.nfreq == 0) {
-	  pe_info(psi->pe, "\n");
-	  pe_info(psi->pe, "SOR (heterogeneous) solver converged to "
-		  "relative tolerance\n");
-	  pe_info(psi->pe, "SOR residual %14.7e at %d iterations\n",
-		  rnorm[1], n);
-	}
-	break;
+        if (its % psi->solver.nfreq == 0) {
+          pe_info(psi->pe, "\n");
+          pe_info(psi->pe, "SOR (heterogeneous) solver converged to "
+            "relative tolerance\n");
+          pe_info(psi->pe, "SOR residual %14.7e at %d iterations\n",
+            rnorm[1], n);
+        }
+        break;
       }
 
-      if (n == niteration-1) {
-	pe_info(psi->pe, "\n");
-	pe_info(psi->pe, "SOR solver (heterogeneous) exceeded %d iterations\n",
-		n+1);
-	pe_info(psi->pe, "SOR residual %le (initial) %le (final)\n\n",
-		rnorm[0], rnorm[1]);
+      if (n == niteration - 1) {
+        pe_info(psi->pe, "\n");
+        pe_info(psi->pe, "SOR solver (heterogeneous) exceeded %d iterations\n",
+          n + 1);
+        pe_info(psi->pe, "SOR residual %le (initial) %le (final)\n\n",
+          rnorm[0], rnorm[1]);
       }
     }
   }

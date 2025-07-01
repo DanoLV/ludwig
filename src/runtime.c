@@ -42,6 +42,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+//CHANGE2
+#include <math.h>
 
 #include "runtime.h"
 
@@ -168,14 +170,14 @@ int rt_read_input_file(rt_t * rt, const char * input_file_name) {
     else {
 
       while (fgets(line, NKEY_LENGTH, fp_input)) {
-	nline += 1;
-	/* Look at the line and add it if it's a key. */
-	if (rt_is_valid_key_pair(rt, line, nline)) {
-	  rt_add_key_pair(rt, line, nline);
-	}
-	if (rt->nkeys > NKEY_MAX) {
-	  pe_fatal(rt->pe, "Too many keys! Increase NKEY_MAX %d\n", NKEY_MAX);
-	}
+	      nline += 1;
+        /* Look at the line and add it if it's a key. */
+        if (rt_is_valid_key_pair(rt, line, nline)) {
+          rt_add_key_pair(rt, line, nline);
+        }
+        if (rt->nkeys > NKEY_MAX) {
+          pe_fatal(rt->pe, "Too many keys! Increase NKEY_MAX %d\n", NKEY_MAX);
+        }
       }
     }
 
@@ -389,6 +391,284 @@ int rt_int_parameter_vector(rt_t * rt, const char * key, int v[3]) {
     if (sscanf(str_value, "%d_%d_%d", &v[0], &v[1], &v[2]) != 3) {
       pe_fatal(rt->pe, "Could not parse input key %s as int[3]\n", key);
     }
+  }
+
+  return key_present;
+}
+
+//CHANGE2
+
+/*****************************************************************************
+ *
+ *  rt_int_parameter_rank2_tensor
+ *
+ *  Query keys for a rank2 tensor of int. The tensor size is (NUM_INT_PART_TYPES*NUM_INT_PART_TYPES).
+ *
+ *****************************************************************************/
+
+ int rt_int_parameter_rank2_tensor(rt_t * rt, const char * key, int v[][NUM_INT_PART_TYPES]) {
+
+  int key_present = 0;
+  char str_value[NKEY_LENGTH];
+
+  char delim[] = "_";
+  char *ptr;
+
+  assert(rt);
+
+  key_present = rt_look_up_key(rt, key, str_value);
+
+  if (key_present) {
+      char str_value_cp[NKEY_LENGTH];
+      strcpy(str_value_cp,str_value);
+
+      ptr=strtok(str_value, delim);
+      int times=0;
+      while(ptr!=NULL) {
+        times+=1;
+        ptr = strtok(NULL, delim);
+      }
+
+      int n_actual=(int)sqrt(times);
+
+      ptr=strtok(str_value_cp, delim);
+      for(int i=0;i<n_actual;i++) 
+          for(int j=0;j<n_actual;j++) {
+            v[i][j]=atoi(ptr);
+            ptr = strtok(NULL, delim);
+          }
+
+      for(int i=0;i<NUM_INT_PART_TYPES;i++) 
+          for(int j=0;j<NUM_INT_PART_TYPES;j++)  
+              if(i>=n_actual || j>=n_actual)
+                  v[i][j]=1;
+
+      if(n_actual!=NUM_INT_PART_TYPES)
+        pe_info(rt->pe, "input key %s is in the form of double[%d][%d]. %d values have been actually inputted. \n",key,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,times);
+  }
+
+  return key_present;
+}
+
+
+//CHANGE2
+/*****************************************************************************
+ *
+ *  rt_double_parameter_rank2_tensor
+ *
+ *  Query keys for a rank2 tensor of double. The tensor size is (NUM_INT_PART_TYPES*NUM_INT_PART_TYPES).
+ *
+ *****************************************************************************/
+
+int rt_double_parameter_rank2_tensor(rt_t * rt, const char * key, double v[][NUM_INT_PART_TYPES]) {
+
+  int key_present = 0;
+  char str_value[NKEY_LENGTH];
+
+  char delim[] = "_";
+  char *ptr;
+
+  assert(rt);
+
+  key_present = rt_look_up_key(rt, key, str_value);
+
+  if (key_present) {
+      char str_value_cp[NKEY_LENGTH];
+      strcpy(str_value_cp,str_value);
+
+      ptr=strtok(str_value, delim);
+      int times=0;
+      while(ptr!=NULL) {
+        times+=1;
+        ptr = strtok(NULL, delim);
+      }
+
+      int n_actual=(int)sqrt(times);
+
+      ptr=strtok(str_value_cp, delim);
+      for(int i=0;i<n_actual;i++) 
+          for(int j=0;j<n_actual;j++) {
+            v[i][j]=atof(ptr);
+            ptr = strtok(NULL, delim);
+          }
+
+      for(int i=0;i<NUM_INT_PART_TYPES;i++) 
+          for(int j=0;j<NUM_INT_PART_TYPES;j++)  
+              if(i>=n_actual || j>=n_actual)
+                  v[i][j]=1E-5;
+
+      if(n_actual!=NUM_INT_PART_TYPES)
+        pe_info(rt->pe, "input key %s is in the form of double[%d][%d]. %d values have been actually inputted. \n",key,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,times);
+  }
+
+  return key_present;
+}
+
+//CHANGE3
+/*****************************************************************************
+ *
+ *  rt_double_parameter_rank3_tensor
+ *
+ *  Query keys for a rank3 tensor of double. The tensor size is (NUM_INT_PART_TYPES*NUM_INT_PART_TYPES*NUM_INT_PART_TYPES).
+ *
+ *****************************************************************************/
+
+int rt_double_parameter_rank3_tensor(rt_t * rt, const char * key, double v[][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES]) {
+
+  int key_present = 0;
+  char str_value[NKEY_LENGTH];
+
+  char delim[] = "_";
+  char *ptr;
+
+  assert(rt);
+
+  key_present = rt_look_up_key(rt, key, str_value);
+
+  if (key_present) {
+      char str_value_cp[NKEY_LENGTH];
+      strcpy(str_value_cp,str_value);
+
+      ptr=strtok(str_value, delim);
+      int times=0;
+      while(ptr!=NULL) {
+        times+=1;
+        ptr = strtok(NULL, delim);
+      }
+
+      int n_actual=(int)pow(times,1.0/3.0);
+
+      ptr=strtok(str_value_cp, delim);
+      for(int i=0;i<n_actual;i++)
+          for(int j=0;j<n_actual;j++) 
+              for(int k=0;k<n_actual;k++) {
+                  v[i][j][k]=atof(ptr);
+                  ptr = strtok(NULL, delim);
+              }
+
+      for(int i=0;i<NUM_INT_PART_TYPES;i++) 
+          for(int j=0;j<NUM_INT_PART_TYPES;j++)  
+              for(int k=0;k<NUM_INT_PART_TYPES;k++)  
+                  if(i>=n_actual || j>=n_actual || k>=n_actual)
+                        v[i][j][k]=1E-5;
+
+      if(n_actual!=NUM_INT_PART_TYPES)
+        pe_info(rt->pe, "input key %s is in the form of double[%d][%d][%d]. %d values have been actually inputted. \n",key,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,times);
+  }
+
+  return key_present;
+}
+
+//CHANGE3
+
+/*****************************************************************************
+ *
+ *  rt_int_parameter_rank4_tensor
+ *
+ *  Query keys for a rank4 tensor of int. The tensor size is (NUM_INT_PART_TYPES*NUM_INT_PART_TYPES*NUM_INT_PART_TYPES*NUM_INT_PART_TYPES).
+ *
+ *****************************************************************************/
+
+int rt_int_parameter_rank4_tensor(rt_t * rt, const char * key, int v[][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES]) {
+
+  int key_present = 0;
+  char str_value[NKEY_LENGTH];
+
+  char delim[] = "_";
+  char *ptr;
+
+  assert(rt);
+
+  key_present = rt_look_up_key(rt, key, str_value);
+
+  if (key_present) {
+      char str_value_cp[NKEY_LENGTH];
+      strcpy(str_value_cp,str_value);
+
+      ptr=strtok(str_value, delim);
+      int times=0;
+      while(ptr!=NULL) {
+        times+=1;
+        ptr = strtok(NULL, delim);
+      }
+
+      int n_actual=(int)pow(times,0.25);
+
+      ptr=strtok(str_value_cp, delim);
+      for(int i=0;i<n_actual;i++)
+          for(int j=0;j<n_actual;j++) 
+              for(int k=0;k<n_actual;k++) 
+                  for(int l=0;l<n_actual;l++) {
+                      v[i][j][k][l]=atoi(ptr);
+                      ptr = strtok(NULL, delim);
+                  }
+
+      for(int i=0;i<NUM_INT_PART_TYPES;i++) 
+          for(int j=0;j<NUM_INT_PART_TYPES;j++)  
+            for(int k=0;k<NUM_INT_PART_TYPES;k++)  
+                for(int l=0;l<NUM_INT_PART_TYPES;l++)  
+                    if(i>=n_actual || j>=n_actual || k>=n_actual || l>=n_actual)
+                        v[i][j][k][l]=1;
+
+      if(n_actual!=NUM_INT_PART_TYPES)
+        pe_info(rt->pe, "input key %s is in the form of int[%d][%d][%d][%d]. %d values have been actually inputted. \n",key,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,times);
+  }
+
+  return key_present;
+}
+
+//CHANGE3
+/*****************************************************************************
+ *
+ *  rt_double_parameter_rank4_tensor
+ *
+ *  Query keys for a rank4 tensor of double. The tensor size is (NUM_INT_PART_TYPES*NUM_INT_PART_TYPES*NUM_INT_PART_TYPES*NUM_INT_PART_TYPES).
+ *
+ *****************************************************************************/
+
+int rt_double_parameter_rank4_tensor(rt_t * rt, const char * key, double v[][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES]) {
+
+  int key_present = 0;
+  char str_value[NKEY_LENGTH];
+
+  char delim[] = "_";
+  char *ptr;
+
+  assert(rt);
+
+  key_present = rt_look_up_key(rt, key, str_value);
+
+  if (key_present) {
+      char str_value_cp[NKEY_LENGTH];
+      strcpy(str_value_cp,str_value);
+
+      ptr=strtok(str_value, delim);
+      int times=0;
+      while(ptr!=NULL) {
+        times+=1;
+        ptr = strtok(NULL, delim);
+      }
+
+      int n_actual=(int)pow(times,0.25);
+
+      ptr=strtok(str_value_cp, delim);
+      for(int i=0;i<n_actual;i++)
+          for(int j=0;j<n_actual;j++) 
+              for(int k=0;k<n_actual;k++) 
+                  for(int l=0;l<n_actual;l++) {
+                      v[i][j][k][l]=atof(ptr);
+                      ptr = strtok(NULL, delim);
+                  }
+
+      for(int i=0;i<NUM_INT_PART_TYPES;i++) 
+          for(int j=0;j<NUM_INT_PART_TYPES;j++)  
+            for(int k=0;k<NUM_INT_PART_TYPES;k++)  
+                for(int l=0;l<NUM_INT_PART_TYPES;l++)  
+                    if(i>=n_actual || j>=n_actual || k>=n_actual || l>=n_actual)
+                        v[i][j][k][l]=1E-5;
+
+      if(n_actual!=NUM_INT_PART_TYPES)
+        pe_info(rt->pe, "input key %s is in the form of double[%d][%d][%d][%d]. %d values have been actually inputted. \n",key,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,NUM_INT_PART_TYPES,times);
   }
 
   return key_present;

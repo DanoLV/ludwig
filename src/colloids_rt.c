@@ -35,6 +35,13 @@
 #include "pair_lj_cut.h"
 #include "pair_yukawa.h"
 #include "bond_fene.h"
+ //CHANGE3
+#include "bond_harmonic.h"
+// #include "angle_cosine.h"
+//CHANGE3
+#include "angle_harmonic.h"
+#include "angle_dihedral.h"
+
 #include "angle_cosine.h"
 #include "wall_ss_cut.h"
 
@@ -45,32 +52,39 @@
 
 #include "build.h"
 
-int lubrication_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter);
-int pair_ss_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter);
-int pair_yukawa_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter);
-int pair_lj_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter);
-int bond_fene_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact);
-int angle_cosine_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact);
-int pair_ss_cut_ij_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * intrct);
+int lubrication_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter);
+int pair_ss_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter);
+int pair_yukawa_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter);
+int pair_lj_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter);
+int bond_fene_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact);
+int angle_cosine_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact);
+//CHANGE3
+int bond_harmonic_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact);
+// int angle_cosine_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact);
+//CHANGE3
+int angle_harmonic_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact);
+int angle_dihedral_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact);
 
-int wall_ss_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, wall_t * wall,
-		     interact_t * inter);
+int pair_ss_cut_ij_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* intrct);
 
-int colloids_rt_dynamics(cs_t * cs, colloids_info_t * cinfo, wall_t * wall,
-			 map_t * map, const lb_model_t * model);
-int colloids_rt_gravity(pe_t * pe, rt_t * rt, colloids_info_t * cinfo);
-int colloids_rt_init_few(pe_t * pe, rt_t * rt, colloids_info_t * cinfo, int nc);
-int colloids_rt_init_from_file(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
-			       colloid_io_t * cio);
-int colloids_rt_init_random(pe_t * pe, cs_t * cs, rt_t * rt, wall_t * wall,
-			    colloids_info_t * cinfo);
-int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
-			   const char * stub,
-			   colloid_state_t * state);
-int colloids_rt_cell_list_checks(pe_t * pe, cs_t * cs,
-				 const lb_model_t * model,
-				 colloids_info_t ** pinfo,
-				 interact_t * interact);
+int wall_ss_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, wall_t* wall,
+         interact_t* inter);
+
+int colloids_rt_dynamics(cs_t* cs, colloids_info_t* cinfo, wall_t* wall,
+       map_t* map, const lb_model_t* model);
+int colloids_rt_gravity(pe_t* pe, rt_t* rt, colloids_info_t* cinfo);
+int colloids_rt_init_few(pe_t* pe, rt_t* rt, colloids_info_t* cinfo, int nc);
+int colloids_rt_init_from_file(pe_t* pe, rt_t* rt, colloids_info_t* cinfo,
+             colloid_io_t* cio);
+int colloids_rt_init_random(pe_t* pe, cs_t* cs, rt_t* rt, wall_t* wall,
+          colloids_info_t* cinfo);
+int colloids_rt_state_stub(pe_t* pe, rt_t* rt, colloids_info_t* cinfo,
+         const char* stub,
+         colloid_state_t* state);
+int colloids_rt_cell_list_checks(pe_t* pe, cs_t* cs,
+         const lb_model_t* model,
+         colloids_info_t** pinfo,
+         interact_t* interact);
 
 /*****************************************************************************
  *
@@ -86,17 +100,17 @@ int colloids_rt_cell_list_checks(pe_t * pe, cs_t * cs,
  *
  *****************************************************************************/
 
-int colloids_init_rt(pe_t * pe, rt_t * rt, cs_t * cs, colloids_info_t ** pinfo,
-		     colloid_io_t ** pcio,
-		     interact_t ** interact, wall_t * wall, map_t * map,
-		     const lb_model_t * model) {
+int colloids_init_rt(pe_t* pe, rt_t* rt, cs_t* cs, colloids_info_t** pinfo,
+         colloid_io_t** pcio,
+         interact_t** interact, wall_t* wall, map_t* map,
+         const lb_model_t* model) {
   int nc;
   int init_one = 0;
   int init_two = 0;
   int init_three = 0;
   int init_from_file = 0;
   int init_random = 0;
-  int ncell[3] = {2, 2, 2};
+  int ncell[3] = { 2, 2, 2 };
   char keyvalue[BUFSIZ] = "";
 
   assert(pe);
@@ -150,6 +164,11 @@ int colloids_init_rt(pe_t * pe, rt_t * rt, cs_t * cs, colloids_info_t ** pinfo,
   pair_lj_cut_init(pe, cs, rt, *interact);
   pair_yukawa_init(pe, cs, rt, *interact);
   bond_fene_init(pe, cs, rt, *interact);
+  //CHANGE3
+  bond_harmonic_init(pe, cs, rt, *interact);
+  angle_harmonic_init(pe, cs, rt, *interact);
+  angle_dihedral_init(pe, cs, rt, *interact);
+  //CHANGE3
   angle_cosine_init(pe, cs, rt, *interact);
 
   pair_ss_cut_ij_init(pe, cs, rt, *interact);
@@ -199,13 +218,13 @@ int colloids_init_rt(pe_t * pe, rt_t * rt, cs_t * cs, colloids_info_t ** pinfo,
  *
  *****************************************************************************/
 
-int colloids_rt_dynamics(cs_t * cs, colloids_info_t * cinfo, wall_t * wall,
-			 map_t * map, const lb_model_t * model) {
+int colloids_rt_dynamics(cs_t* cs, colloids_info_t* cinfo, wall_t* wall,
+       map_t* map, const lb_model_t* model) {
 
   int nsubgrid_local = 0;
   int nsubgrid = 0;
   MPI_Comm comm;
-  colloid_t * pc = NULL;
+  colloid_t* pc = NULL;
 
   assert(cs);
   assert(cinfo);
@@ -214,7 +233,7 @@ int colloids_rt_dynamics(cs_t * cs, colloids_info_t * cinfo, wall_t * wall,
 
   colloids_info_local_head(cinfo, &pc);
 
-  for ( ; pc; pc = pc->nextlocal) {
+  for (; pc; pc = pc->nextlocal) {
     if (pc->s.bc == COLLOID_BC_SUBGRID) nsubgrid_local += 1;
   }
 
@@ -240,13 +259,13 @@ int colloids_rt_dynamics(cs_t * cs, colloids_info_t * cinfo, wall_t * wall,
  *
  *****************************************************************************/
 
-int colloids_rt_init_few(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
-			 int nc) {
+int colloids_rt_init_few(pe_t* pe, rt_t* rt, colloids_info_t* cinfo,
+       int nc) {
 
-  colloid_t * pc = NULL;
-  colloid_state_t * state1 = NULL;
-  colloid_state_t * state2 = NULL;
-  colloid_state_t * state3 = NULL;
+  colloid_t* pc = NULL;
+  colloid_state_t* state1 = NULL;
+  colloid_state_t* state2 = NULL;
+  colloid_state_t* state3 = NULL;
 
   assert(pe);
   assert(rt);
@@ -254,7 +273,7 @@ int colloids_rt_init_few(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
 
   if (nc >= 1) {
     pe_info(pe, "Requested one colloid via input:\n");
-    state1 = (colloid_state_t *) calloc(1, sizeof(colloid_state_t));
+    state1 = (colloid_state_t*)calloc(1, sizeof(colloid_state_t));
     assert(state1 != NULL);
 
     colloids_rt_state_stub(pe, rt, cinfo, "colloid_one", state1);
@@ -266,7 +285,7 @@ int colloids_rt_init_few(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
 
   if (nc >= 2) {
     pe_info(pe, "Requested second colloid via input:\n");
-    state2 = (colloid_state_t *) calloc(1, sizeof(colloid_state_t));
+    state2 = (colloid_state_t*)calloc(1, sizeof(colloid_state_t));
     assert(state2 != NULL);
     colloids_rt_state_stub(pe, rt, cinfo, "colloid_two", state2);
     colloids_info_add_local(cinfo, 2, state2->r, &pc);
@@ -277,7 +296,7 @@ int colloids_rt_init_few(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
 
   if (nc >= 3) {
     pe_info(pe, "Requested third colloid via input:\n");
-    state3 = (colloid_state_t *) calloc(1, sizeof(colloid_state_t));
+    state3 = (colloid_state_t*)calloc(1, sizeof(colloid_state_t));
     assert(state3 != NULL);
     colloids_rt_state_stub(pe, rt, cinfo, "colloid_three", state3);
     colloids_info_add_local(cinfo, 3, state3->r, &pc);
@@ -299,12 +318,12 @@ int colloids_rt_init_few(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int colloids_rt_init_from_file(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
-			       colloid_io_t * cio) {
+int colloids_rt_init_from_file(pe_t* pe, rt_t* rt, colloids_info_t* cinfo,
+             colloid_io_t* cio) {
 
   int ntstep;
-  char filename[BUFSIZ] = {0};
-  physics_t * phys = NULL;
+  char filename[BUFSIZ] = { 0 };
+  physics_t* phys = NULL;
 
   assert(pe);
   assert(rt);
@@ -315,10 +334,10 @@ int colloids_rt_init_from_file(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
   ntstep = physics_control_timestep(phys);
 
   if (ntstep == 0) {
-    snprintf(filename, BUFSIZ-1, "config.cds.init");
+    snprintf(filename, BUFSIZ - 1, "config.cds.init");
   }
   else {
-    snprintf(filename, BUFSIZ-1, "config.cds%8.8d", ntstep);
+    snprintf(filename, BUFSIZ - 1, "config.cds%8.8d", ntstep);
   }
 
   colloid_io_read(cio, filename);
@@ -332,18 +351,18 @@ int colloids_rt_init_from_file(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int colloids_rt_init_random(pe_t * pe, cs_t * cs, rt_t * rt, wall_t * wall,
-			    colloids_info_t * cinfo) {
+int colloids_rt_init_random(pe_t* pe, cs_t* cs, rt_t* rt, wall_t* wall,
+          colloids_info_t* cinfo) {
 
   int nc;
   double dh = 0.0;
-  colloid_state_t * state0 = NULL;
+  colloid_state_t* state0 = NULL;
 
   assert(pe);
   assert(rt);
   assert(cinfo);
 
-  state0 = (colloid_state_t *) calloc(1, sizeof(colloid_state_t));
+  state0 = (colloid_state_t*)calloc(1, sizeof(colloid_state_t));
   assert(state0 != NULL);
 
   colloids_rt_state_stub(pe, rt, cinfo, "colloid_random", state0);
@@ -374,27 +393,27 @@ int colloids_rt_init_random(pe_t * pe, cs_t * cs, rt_t * rt, wall_t * wall,
  *
  *****************************************************************************/
 
-int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
-			   const char * stub,
-			   colloid_state_t * state) {
+int colloids_rt_state_stub(pe_t* pe, rt_t* rt, colloids_info_t* cinfo,
+         const char* stub,
+         colloid_state_t* state) {
   int nrt, nrt1;
   char key[BUFSIZ] = "";
   char key1[BUFSIZ] = "";
   char value[BUFSIZ] = "";
 
-  const char * format_i1 = "%-28s  %d\n";
-  const char * format_i3 = "%-28s  %d %d %d\n";
-  const char * format_e1 = "%-28s %14.7e\n";
-  const char * format_e3 = "%-28s %14.7e %14.7e %14.7e\n";
-  const char * format_s1 = "%-28s  %s\n";
+  const char* format_i1 = "%-28s  %d\n";
+  const char* format_i3 = "%-28s  %d %d %d\n";
+  const char* format_e1 = "%-28s %14.7e\n";
+  const char* format_e3 = "%-28s %14.7e %14.7e %14.7e\n";
+  const char* format_s1 = "%-28s  %s\n";
 
   /* For ellipsoids */
   int nrteuler = 0;
-  int nrtv1    = 0;
-  int nrtv2    = 0;
-  double elev1[3] = {0};
-  double elev2[3] = {0};
-  double euler[3] = {0};
+  int nrtv1 = 0;
+  int nrtv2 = 0;
+  double elev1[3] = { 0 };
+  double elev2[3] = { 0 };
+  double euler[3] = { 0 };
 
   assert(pe);
   assert(rt);
@@ -405,31 +424,31 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
 
   state->rebuild = 1;
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "nbonds");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "nbonds");
   nrt = rt_int_parameter(rt, key, &state->nbonds);
   if (nrt) pe_info(pe, format_i1, key, state->nbonds);
 
   if (state->nbonds > 0) {
-    snprintf(key, BUFSIZ-1, "%s_%s", stub, "bond1");
+    snprintf(key, BUFSIZ - 1, "%s_%s", stub, "bond1");
     nrt = rt_int_parameter(rt, key, &state->bond[0]);
     if (nrt) pe_info(pe, format_i1, key, state->bond[0]);
   }
 
   if (state->nbonds > 1) {
-    snprintf(key, BUFSIZ-1, "%s_%s", stub, "bond2");
+    snprintf(key, BUFSIZ - 1, "%s_%s", stub, "bond2");
     nrt = rt_int_parameter(rt, key, &state->bond[1]);
     if (nrt) pe_info(pe, format_i1, key, state->bond[1]);
   }
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "nangles");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "nangles");
   nrt = rt_int_parameter(rt, key, &state->nangles);
   if (nrt) pe_info(pe, format_i1, key, state->nangles);
 
-  snprintf(key1, BUFSIZ-1, "%s_%s", stub, "isfixedrxyz");
+  snprintf(key1, BUFSIZ - 1, "%s_%s", stub, "isfixedrxyz");
   nrt1 = rt_int_parameter_vector(rt, key1, state->isfixedrxyz);
   /* Defer output until isfxiedr is known */
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "isfixedr");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "isfixedr");
   nrt = rt_int_parameter(rt, key, &state->isfixedr);
   if (nrt) {
     pe_info(pe, format_i1, key, state->isfixedr);
@@ -439,13 +458,13 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
     state->isfixedrxyz[Z] = state->isfixedr;
   }
   if (nrt1) pe_info(pe, format_i3, key1, state->isfixedrxyz[X],
-		    state->isfixedrxyz[Y], state->isfixedrxyz[Z]);
+        state->isfixedrxyz[Y], state->isfixedrxyz[Z]);
 
-  snprintf(key1, BUFSIZ-1, "%s_%s", stub, "isfixedvxyz");
+  snprintf(key1, BUFSIZ - 1, "%s_%s", stub, "isfixedvxyz");
   nrt1 = rt_int_parameter_vector(rt, key1, state->isfixedvxyz);
   /* Defer output until isfixedv is known */
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "isfixedv");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "isfixedv");
   nrt = rt_int_parameter(rt, key, &state->isfixedv);
   if (nrt) {
     pe_info(pe, format_i1, key, state->isfixedv);
@@ -455,17 +474,17 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
     state->isfixedvxyz[Z] = state->isfixedv;
   }
   if (nrt1) pe_info(pe, format_i3, key1, state->isfixedvxyz[X],
-		    state->isfixedvxyz[Y], state->isfixedvxyz[Z]);
+        state->isfixedvxyz[Y], state->isfixedvxyz[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "isfixedw");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "isfixedw");
   nrt = rt_int_parameter(rt, key, &state->isfixedw);
   if (nrt) pe_info(pe, format_i1, key, state->isfixedw);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "isfixeds");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "isfixeds");
   nrt = rt_int_parameter(rt, key, &state->isfixeds);
   if (nrt) pe_info(pe, format_i1, key, state->isfixeds);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "type");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "type");
   nrt = rt_string_parameter(rt, key, value, BUFSIZ);
 
   if (nrt) {
@@ -478,7 +497,7 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
     /* New regime */
     /* Default */
 
-    state->bc    = COLLOID_BC_BBL;
+    state->bc = COLLOID_BC_BBL;
     state->shape = COLLOID_SHAPE_SPHERE;
     state->active = 0;
     state->magnetic = 0;
@@ -486,91 +505,91 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
     /* Boundary conditions */
     {
       int nbc = 0;
-      snprintf(key, BUFSIZ-1, "%s_%s", stub, "bc");
+      snprintf(key, BUFSIZ - 1, "%s_%s", stub, "bc");
       nbc = rt_string_parameter(rt, key, value, BUFSIZ);
       if (nbc) {
-	pe_info(pe, format_s1, stub, value);
-	if (strcmp(value, "bbl") == 0) {
-	  state->bc = COLLOID_BC_BBL;
-	}
-	else if (strcmp(value, "subgrid") == 0) {
-	  state->bc = COLLOID_BC_SUBGRID;
-	}
-	else {
-	  pe_fatal(pe, "colloid bc %s not recognised\n", value);
-	}
+        pe_info(pe, format_s1, stub, value);
+        if (strcmp(value, "bbl") == 0) {
+          state->bc = COLLOID_BC_BBL;
+        }
+        else if (strcmp(value, "subgrid") == 0) {
+          state->bc = COLLOID_BC_SUBGRID;
+        }
+        else {
+          pe_fatal(pe, "colloid bc %s not recognised\n", value);
+        }
       }
     }
 
     /* Shape */
     {
       int nshape = 0;
-      snprintf(key, BUFSIZ-1, "%s_%s", stub, "shape");
+      snprintf(key, BUFSIZ - 1, "%s_%s", stub, "shape");
       nshape = rt_string_parameter(rt, key, value, BUFSIZ);
       if (nshape) {
-	pe_info(pe, format_s1, stub, value);
-	if (strcmp(value, "disk") == 0) {
-	  state->shape = COLLOID_SHAPE_DISK;
-	}
-	else if (strcmp(value, "sphere") == 0) {
-	  state->shape = COLLOID_SHAPE_SPHERE;
-	}
-	else if (strcmp(value, "ellipsoid") == 0) {
-	  state->shape = COLLOID_SHAPE_ELLIPSOID;
-	}
-	else {
-	  pe_fatal(pe, "colloid shape %s not recognised\n", value);
-	}
+        pe_info(pe, format_s1, stub, value);
+        if (strcmp(value, "disk") == 0) {
+          state->shape = COLLOID_SHAPE_DISK;
+        }
+        else if (strcmp(value, "sphere") == 0) {
+          state->shape = COLLOID_SHAPE_SPHERE;
+        }
+        else if (strcmp(value, "ellipsoid") == 0) {
+          state->shape = COLLOID_SHAPE_ELLIPSOID;
+        }
+        else {
+          pe_fatal(pe, "colloid shape %s not recognised\n", value);
+        }
       }
     }
 
     /* Active */
-    snprintf(key, BUFSIZ-1, "%s_%s", stub, "active");
+    snprintf(key, BUFSIZ - 1, "%s_%s", stub, "active");
     state->active = rt_switch(rt, key);
     if (state->active) pe_info(pe, format_s1, stub, "active");
 
     /* Magnetic */
-    snprintf(key, BUFSIZ-1, "%s_%s", stub, "magnetic");
+    snprintf(key, BUFSIZ - 1, "%s_%s", stub, "magnetic");
     state->magnetic = rt_switch(rt, key);
   }
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "rng");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "rng");
   nrt = rt_int_parameter(rt, key, &state->rng);
   if (nrt) pe_info(pe, format_i1, key, state->rng);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "interact_type");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "interact_type");
   nrt = rt_int_parameter(rt, key, &state->inter_type);
   if (nrt) pe_info(pe, format_i1, key, state->inter_type);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "a0");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "a0");
   nrt = rt_double_parameter(rt, key, &state->a0);
   if (nrt) pe_info(pe, format_e1, key, state->a0);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "ah");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "ah");
   nrt = rt_double_parameter(rt, key, &state->ah);
   if (nrt) pe_info(pe, format_e1, key, state->ah);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "al");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "al");
   nrt = rt_double_parameter(rt, key, &state->al);
   if (nrt) pe_info(pe, format_e1, key, state->al);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "r");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "r");
   nrt = rt_double_parameter_vector(rt, key, state->r);
   if (nrt) pe_info(pe, format_e3, key, state->r[X], state->r[Y], state->r[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "v");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "v");
   nrt = rt_double_parameter_vector(rt, key, state->v);
   if (nrt) pe_info(pe, format_e3, key, state->v[X], state->v[Y], state->v[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "w");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "w");
   nrt = rt_double_parameter_vector(rt, key, state->w);
   if (nrt) pe_info(pe, format_e3, key, state->w[X], state->w[Y], state->w[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "s");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "s");
   nrt = rt_double_parameter_vector(rt, key, state->s);
   if (nrt) pe_info(pe, format_e3, key, state->s[X], state->s[Y], state->s[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "m");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "m");
   nrt = rt_double_parameter_vector(rt, key, state->m);
 
   /* Initial direction for spherical squirmers */
@@ -585,8 +604,8 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
       /* Ensure m is non-zero, and force a unit vector */
       double rmod = modulus(state->m);
       if (rmod <= 0.0) {
-	pe_info(pe, "Must specify colloid_m as non-zero\n");
-	pe_exit(pe, "Please check and try again\n");
+        pe_info(pe, "Must specify colloid_m as non-zero\n");
+        pe_exit(pe, "Please check and try again\n");
       }
       state->m[X] /= rmod;
       state->m[Y] /= rmod;
@@ -596,35 +615,35 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
 
   if (nrt) pe_info(pe, format_e3, key, state->m[X], state->m[Y], state->m[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "b1");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "b1");
   nrt = rt_double_parameter(rt, key, &state->b1);
   if (nrt) pe_info(pe, format_e1, key, state->b1);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "b2");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "b2");
   nrt = rt_double_parameter(rt, key, &state->b2);
   if (nrt) pe_info(pe, format_e1, key, state->b2);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "c");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "c");
   nrt = rt_double_parameter(rt, key, &state->c);
   if (nrt) pe_info(pe, format_e1, key, state->c);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "h");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "h");
   nrt = rt_double_parameter(rt, key, &state->h);
   if (nrt) pe_info(pe, format_e1, key, state->h);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "q0");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "q0");
   nrt = rt_double_parameter(rt, key, &state->q0);
   if (nrt) pe_info(pe, format_e1, key, state->q0);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "q1");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "q1");
   nrt = rt_double_parameter(rt, key, &state->q1);
   if (nrt) pe_info(pe, format_e1, key, state->q1);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "epsilon");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "epsilon");
   nrt = rt_double_parameter(rt, key, &state->epsilon);
   if (nrt) pe_info(pe, format_e1, key, state->epsilon);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "elabc");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "elabc");
   nrt = rt_double_parameter_vector(rt, key, state->elabc);
 
   if (nrt) {
@@ -634,7 +653,7 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
     double c = state->elabc[2];
     pe_info(pe, format_e3, key, a, b, c);
 
-    if (a < b || b < c)  {
+    if (a < b || b < c) {
       pe_info(pe, "Error specifying principal semi-axes of ellipse\n");
       pe_info(pe, "Please specify a_b_c with a >= b >= c\n");
       pe_exit(pe, "Please check and try again\n");
@@ -654,22 +673,22 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
     }
   }
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "euler");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "euler");
   nrteuler = rt_double_parameter_vector(rt, key, euler);
   if (nrteuler) {
     pe_info(pe, format_e3, key, euler[X], euler[Y], euler[Z]);
-    euler[X] = euler[X]/180.0*pi;
-    euler[Y] = euler[Y]/180.0*pi;
-    euler[Z] = euler[Z]/180.0*pi;
+    euler[X] = euler[X] / 180.0 * pi;
+    euler[Y] = euler[Y] / 180.0 * pi;
+    euler[Z] = euler[Z] / 180.0 * pi;
   }
 
   /* For vectors, both are necessary */
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "elev1");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "elev1");
   nrtv1 = rt_double_parameter_vector(rt, key, elev1);
   if (nrtv1) pe_info(pe, format_e3, key, elev1[X], elev1[Y], elev1[Z]);
 
-  snprintf(key, BUFSIZ-1, "%s_%s", stub, "elev2");
+  snprintf(key, BUFSIZ - 1, "%s_%s", stub, "elev2");
   nrtv2 = rt_double_parameter_vector(rt, key, elev2);
   if (nrtv2) pe_info(pe, format_e3, key, elev2[X], elev2[Y], elev2[Z]);
 
@@ -702,12 +721,12 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
    * e.g., for anchoring */
 
   if (state->shape == COLLOID_SHAPE_ELLIPSOID) {
-    double v1[3] = {1.0, 0.0, 0.0}; /* x-axis */
+    double v1[3] = { 1.0, 0.0, 0.0 }; /* x-axis */
     util_q4_rotate_vector(state->quat, v1, state->m);
     if (state->active) {
       pe_info(pe,
-	      "Squirmer swimming direction: %14.7e %14.7e %14.7e\n",
-	      state->m[X], state->m[Y], state->m[Z]);
+        "Squirmer swimming direction: %14.7e %14.7e %14.7e\n",
+        state->m[X], state->m[Y], state->m[Z]);
     }
   }
 
@@ -725,11 +744,11 @@ int colloids_rt_state_stub(pe_t * pe, rt_t * rt, colloids_info_t * cinfo,
  *
  *****************************************************************************/
 
-int colloids_rt_gravity(pe_t * pe, rt_t * rt, colloids_info_t * cinfo) {
+int colloids_rt_gravity(pe_t* pe, rt_t* rt, colloids_info_t* cinfo) {
 
   int nc;
   double rho0;
-  double g[3] = {0.0, 0.0, 0.0};
+  double g[3] = { 0.0, 0.0, 0.0 };
 
   assert(cinfo);
 
@@ -743,11 +762,11 @@ int colloids_rt_gravity(pe_t * pe, rt_t * rt, colloids_info_t * cinfo) {
     pe_info(pe, "\n");
     pe_info(pe, "Sedimentation force on:       yes\n");
     pe_info(pe, "Sedimentation force:         %14.7e %14.7e %14.7e\n",
-	 g[X], g[Y], g[Z]);
+   g[X], g[Y], g[Z]);
   }
 
   {
-    double b[3] = {0};
+    double b[3] = { 0 };
     int isb = rt_double_parameter_vector(rt, "colloid_buoyancy", b);
 
     colloids_buoyancy_set(cinfo, b);
@@ -755,9 +774,9 @@ int colloids_rt_gravity(pe_t * pe, rt_t * rt, colloids_info_t * cinfo) {
     if (isb) {
       pe_info(pe, "\n");
       pe_info(pe, "Colloid buoyancy force:      %14.7e %14.7e %14.7e\n",
-	      b[X], b[Y], b[Z]);
+        b[X], b[Y], b[Z]);
       if (cinfo->isgravity) {
-	pe_exit(pe, "Buoyancy and gravity both set; use one only!\n");
+        pe_exit(pe, "Buoyancy and gravity both set; use one only!\n");
       }
     }
   }
@@ -788,10 +807,10 @@ int colloids_rt_gravity(pe_t * pe, rt_t * rt, colloids_info_t * cinfo) {
  *
  *****************************************************************************/
 
-int colloids_rt_cell_list_checks(pe_t * pe, cs_t * cs,
-				 const lb_model_t * model,
-				 colloids_info_t ** pinfo,
-				 interact_t * interact) {
+int colloids_rt_cell_list_checks(pe_t* pe, cs_t* cs,
+         const lb_model_t* model,
+         colloids_info_t** pinfo,
+         interact_t* interact) {
   int nc;
   int nlocal[3];
   int nbest[3];
@@ -823,9 +842,9 @@ int colloids_rt_cell_list_checks(pe_t * pe, cs_t * cs,
 
   a0max = dmax(1.0, a0max);
 
-  nbest[X] = (int) floor(1.0*(nlocal[X]) / (dmax(a0max + nhalo - 0.5, 2.0)));
-  nbest[Y] = (int) floor(1.0*(nlocal[Y]) / (dmax(a0max + nhalo - 0.5, 2.0)));
-  nbest[Z] = (int) floor(1.0*(nlocal[Z]) / (dmax(a0max + nhalo - 0.5, 2.0)));
+  nbest[X] = (int)floor(1.0 * (nlocal[X]) / (dmax(a0max + nhalo - 0.5, 2.0)));
+  nbest[Y] = (int)floor(1.0 * (nlocal[Y]) / (dmax(a0max + nhalo - 0.5, 2.0)));
+  nbest[Z] = (int)floor(1.0 * (nlocal[Z]) / (dmax(a0max + nhalo - 0.5, 2.0)));
 
 
   pe_info(pe, "\n");
@@ -838,12 +857,12 @@ int colloids_rt_cell_list_checks(pe_t * pe, cs_t * cs,
     colloids_info_ahmax(*pinfo, &ahmax);
     interact_rcmax(interact, &rcmax);
     interact_hcmax(interact, &hcmax);
-    rmax = dmax(2.0*ahmax + hcmax, rcmax);
+    rmax = dmax(2.0 * ahmax + hcmax, rcmax);
     rmax = dmax(rmax, 1.5);                  /* subgrid particles again */
     rmax = dmax(rmax, a0max + nhalo - 0.5);  /* halo, as above */
-    nbest[X] = (int) floor(1.0*nlocal[X] / rmax);
-    nbest[Y] = (int) floor(1.0*nlocal[Y] / rmax);
-    nbest[Z] = (int) floor(1.0*nlocal[Z] / rmax);
+    nbest[X] = (int)floor(1.0 * nlocal[X] / rmax);
+    nbest[Y] = (int)floor(1.0 * nlocal[Y] / rmax);
+    nbest[Z] = (int)floor(1.0 * nlocal[Z] / rmax);
 
     pe_info(pe, "Hydrodynamic radius maximum: %14.7e\n", ahmax);
     pe_info(pe, "Surface-surface interaction: %14.7e\n", hcmax);
@@ -875,9 +894,9 @@ int colloids_rt_cell_list_checks(pe_t * pe, cs_t * cs,
  *
  *****************************************************************************/
 
-int colloids_init_ewald_rt(pe_t * pe, rt_t * rt, cs_t * cs,
-			   colloids_info_t * cinfo,
-			   ewald_t ** pewald) {
+int colloids_init_ewald_rt(pe_t* pe, rt_t* rt, cs_t* cs,
+         colloids_info_t* cinfo,
+         ewald_t** pewald) {
 
   int ncolloid;
   int iarg;
@@ -916,12 +935,12 @@ int colloids_init_ewald_rt(pe_t * pe, rt_t * rt, cs_t * cs,
  *
  *****************************************************************************/
 
-int lubrication_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
+int lubrication_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter) {
 
   int n, on = 0;
   double rcnorm = 0.0;
   double rctang = 0.0;
-  lubr_t * lubr = NULL;
+  lubr_t* lubr = NULL;
 
   assert(pe);
   assert(rt);
@@ -957,16 +976,16 @@ int lubrication_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
  *
  *****************************************************************************/
 
-int pair_ss_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
+int pair_ss_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter) {
 
   int n;
   int on = 0;
-  double epsilon ;
+  double epsilon;
   double sigma;
   int nu;
   double cutoff;
 
-  pair_ss_cut_t * pair = NULL;
+  pair_ss_cut_t* pair = NULL;
 
   assert(pe);
   assert(rt);
@@ -1003,7 +1022,7 @@ int pair_ss_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
  *
  *****************************************************************************/
 
-int pair_ss_cut_ij_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * intrct) {
+int pair_ss_cut_ij_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* intrct) {
 
   int ison = 0;
 
@@ -1016,29 +1035,29 @@ int pair_ss_cut_ij_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * intrct) {
 
   if (ison) {
     int ntypes = 0;
-    int nsymm  = 0;
-    double epsilon[BUFSIZ] = {0};
-    double sigma[BUFSIZ] = {0};
-    double nu[BUFSIZ] = {0};
-    double hc[BUFSIZ] = {0};
-    pair_ss_cut_ij_t * pair = NULL;
+    int nsymm = 0;
+    double epsilon[BUFSIZ] = { 0 };
+    double sigma[BUFSIZ] = { 0 };
+    double nu[BUFSIZ] = { 0 };
+    double hc[BUFSIZ] = { 0 };
+    pair_ss_cut_ij_t* pair = NULL;
 
-    rt_key_required(rt, "pair_ss_cut_ij_ntypes",  RT_FATAL);
+    rt_key_required(rt, "pair_ss_cut_ij_ntypes", RT_FATAL);
     rt_key_required(rt, "pair_ss_cut_ij_epsilon", RT_FATAL);
-    rt_key_required(rt, "pair_ss_cut_ij_sigma",   RT_FATAL);
-    rt_key_required(rt, "pair_ss_cut_ij_nu",      RT_FATAL);
-    rt_key_required(rt, "pair_ss_cut_ij_hc",      RT_FATAL);
+    rt_key_required(rt, "pair_ss_cut_ij_sigma", RT_FATAL);
+    rt_key_required(rt, "pair_ss_cut_ij_nu", RT_FATAL);
+    rt_key_required(rt, "pair_ss_cut_ij_hc", RT_FATAL);
 
     rt_int_parameter(rt, "pair_ss_cut_ij_ntypes", &ntypes);
     if (ntypes < 1) pe_fatal(pe, "pair_ss_cut_ij_ntypes < 1 (%d)\n", ntypes);
     if (ntypes >= BUFSIZ) pe_fatal(pe, "pair_ss_cut_ij_ntypes INTERNAL\n");
 
-    nsymm = ntypes*(ntypes + 1)/2;
+    nsymm = ntypes * (ntypes + 1) / 2;
 
     rt_double_nvector(rt, "pair_ss_cut_ij_epsilon", nsymm, epsilon, RT_FATAL);
-    rt_double_nvector(rt, "pair_ss_cut_ij_sigma",   nsymm, sigma,   RT_FATAL);
-    rt_double_nvector(rt, "pair_ss_cut_ij_nu",      nsymm, nu,      RT_FATAL);
-    rt_double_nvector(rt, "pair_ss_cut_ij_hc",      nsymm, hc,      RT_FATAL);
+    rt_double_nvector(rt, "pair_ss_cut_ij_sigma", nsymm, sigma, RT_FATAL);
+    rt_double_nvector(rt, "pair_ss_cut_ij_nu", nsymm, nu, RT_FATAL);
+    rt_double_nvector(rt, "pair_ss_cut_ij_hc", nsymm, hc, RT_FATAL);
 
     pair_ss_cut_ij_create(pe, cs, ntypes, epsilon, sigma, nu, hc, &pair);
     pair_ss_cut_ij_register(pair, intrct);
@@ -1054,7 +1073,7 @@ int pair_ss_cut_ij_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * intrct) {
  *
  *****************************************************************************/
 
-int pair_yukawa_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
+int pair_yukawa_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact) {
 
   int n;
   int on = 0;
@@ -1062,7 +1081,7 @@ int pair_yukawa_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
   double kappa;
   double cutoff;
 
-  pair_yukawa_t * yukawa = NULL;
+  pair_yukawa_t* yukawa = NULL;
 
   assert(pe);
   assert(rt);
@@ -1093,7 +1112,7 @@ int pair_yukawa_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
  *
  *****************************************************************************/
 
-int pair_lj_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
+int pair_lj_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* inter) {
 
   int n;
   int on = 0;
@@ -1101,7 +1120,7 @@ int pair_lj_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
   double sigma;
   double cutoff;
 
-  pair_lj_cut_t * lj = NULL;
+  pair_lj_cut_t* lj = NULL;
 
   assert(pe);
   assert(rt);
@@ -1132,14 +1151,14 @@ int pair_lj_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * inter) {
  *
  *****************************************************************************/
 
-int bond_fene_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
+int bond_fene_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact) {
 
   int n;
   int on = 0;
   double kappa;
   double r0;
 
-  bond_fene_t * fene = NULL;
+  bond_fene_t* fene = NULL;
 
   assert(pe);
   assert(rt);
@@ -1153,10 +1172,47 @@ int bond_fene_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
     n = rt_double_parameter(rt, "bond_fene_r0", &r0);
     if (n == 0) pe_fatal(pe, "Must set bond_fene_r0 in input for fene bond\n");
 
-    bond_fene_create(pe, cs,&fene);
+    bond_fene_create(pe, cs, &fene);
     bond_fene_param_set(fene, kappa, r0);
     bond_fene_register(fene, interact);
     bond_fene_info(fene);
+  }
+
+  return 0;
+}
+
+//CHANGE3
+/*****************************************************************************
+ *
+ *  bond_harmonic_init
+ *
+ *****************************************************************************/
+
+int bond_harmonic_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact) {
+
+  int n;
+  int on = 0;
+  double kappa[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+  double r0[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+
+  bond_harmonic_t* harmonic = NULL;
+
+  assert(pe);
+  assert(rt);
+  assert(interact);
+
+  rt_int_parameter(rt, "bond_harmonic_on", &on);
+
+  if (on) {
+    n = rt_double_parameter_rank2_tensor(rt, "bond_harmonic_k", kappa);
+    if (n == 0) pe_fatal(pe, "Must set bond_harmonic_k in input for harmonic bond\n");
+    n = rt_double_parameter_rank2_tensor(rt, "bond_harmonic_r0", r0);
+    if (n == 0) pe_fatal(pe, "Must set bond_harmonic_r0 in input for harmonic bond\n");
+
+    bond_harmonic_create(pe, cs, &harmonic);
+    bond_harmonic_param_set(harmonic, kappa, r0);
+    bond_harmonic_register(harmonic, interact);
+    bond_harmonic_info(harmonic);
   }
 
   return 0;
@@ -1168,18 +1224,18 @@ int bond_fene_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
  *
  *****************************************************************************/
 
-int angle_cosine_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
+int angle_cosine_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact) {
 
   int n;
   int on = 0;
   double kappa;
 
-  angle_cosine_t * angle = NULL;
+  angle_cosine_t* angle = NULL;
 
   assert(rt);
   assert(interact);
 
-  rt_int_parameter(rt,"angle_cosine_on", &on);
+  rt_int_parameter(rt, "angle_cosine_on", &on);
 
   if (on) {
     n = rt_double_parameter(rt, "angle_cosine_k", &kappa);
@@ -1189,6 +1245,83 @@ int angle_cosine_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
     angle_cosine_param_set(angle, kappa);
     angle_cosine_register(angle, interact);
     angle_cosine_info(angle);
+  }
+
+  return 0;
+}
+//CHANGE3
+/*****************************************************************************
+ *
+ *  angle_harmonic_init
+ *
+ *****************************************************************************/
+
+int angle_harmonic_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact) {
+
+  int n;
+  int on = 0;
+  double kappa[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+  double theta0[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+
+  angle_harmonic_t* angle = NULL;
+
+  assert(rt);
+  assert(interact);
+
+  rt_int_parameter(rt, "angle_harmonic_on", &on);
+
+  if (on) {
+    n = rt_double_parameter_rank3_tensor(rt, "angle_harmonic_k", kappa);
+    if (n == 0) pe_fatal(pe, "Must set anagle_harmonic_k in input for angle\n");
+
+    n = rt_double_parameter_rank3_tensor(rt, "angle_harmonic_theta0", theta0);
+    if (n == 0) pe_fatal(pe, "Must set anagle_harmonic_theta0 in input for angle\n");
+
+    angle_harmonic_create(pe, cs, &angle);
+    angle_harmonic_param_set(angle, kappa, theta0);
+    angle_harmonic_register(angle, interact);
+    angle_harmonic_info(angle);
+  }
+
+  return 0;
+}
+
+//CHANGE3
+/*****************************************************************************
+ *
+ *  angle_dihedral_init
+ *
+ *****************************************************************************/
+
+int angle_dihedral_init(pe_t* pe, cs_t* cs, rt_t* rt, interact_t* interact) {
+
+  int n;
+  int on = 0;
+  double kappa[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+  double phi0[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+  int mu[NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES][NUM_INT_PART_TYPES];
+
+  angle_dihedral_t* angle = NULL;
+
+  assert(rt);
+  assert(interact);
+
+  rt_int_parameter(rt, "angle_dihedral_on", &on);
+
+  if (on) {
+    n = rt_double_parameter_rank4_tensor(rt, "angle_dihedral_k", kappa);
+    if (n == 0) pe_fatal(pe, "Must set anagle_dihedral_k in input for angle\n");
+
+    n = rt_double_parameter_rank4_tensor(rt, "angle_dihedral_phi0", phi0);
+    if (n == 0) pe_fatal(pe, "Must set anagle_dihedral_phi0 in input for angle\n");
+
+    n = rt_int_parameter_rank4_tensor(rt, "angle_dihedral_mu", mu);
+    if (n == 0) pe_fatal(pe, "Must set anagle_dihedral_mu in input for angle\n");
+
+    angle_dihedral_create(pe, cs, &angle);
+    angle_dihedral_param_set(angle, kappa, mu, phi0);
+    angle_dihedral_register(angle, interact);
+    angle_dihedral_info(angle);
   }
 
   return 0;
@@ -1221,16 +1354,16 @@ int angle_cosine_init(pe_t * pe, cs_t * cs, rt_t * rt, interact_t * interact) {
  *
  *****************************************************************************/
 
-int colloids_init_halo_range_check(pe_t * pe, cs_t * cs,
-				   colloids_info_t * cinfo) {
+int colloids_init_halo_range_check(pe_t* pe, cs_t* cs,
+           colloids_info_t* cinfo) {
 
   int ifail = 0;
   int ncolloid = 0;
-  int ncell[3] = {0};
-  int nlocal[3] = {0};
+  int ncell[3] = { 0 };
+  int nlocal[3] = { 0 };
   int nhalo = 1;       /* Always, for purpose of BBL. */
 
-  int nar[3] = {0};    /* See point (a) above */
+  int nar[3] = { 0 };    /* See point (a) above */
 
   double a0max = 0.0;  /* Maximum colloid a0 present */
   double lcell[3];
@@ -1251,9 +1384,9 @@ int colloids_init_halo_range_check(pe_t * pe, cs_t * cs,
   if (cs->param->periodic[Y] == 0 && cs->param->mpi_cartsz[Y] == 1) nar[Y] = 1;
   if (cs->param->periodic[Z] == 0 && cs->param->mpi_cartsz[Z] == 1) nar[Z] = 1;
 
-  if (nar[X] == 0 && (2.0*a0max >= 1.0*(nlocal[X] - nhalo))) ifail = 1;
-  if (nar[Y] == 0 && (2.0*a0max >= 1.0*(nlocal[Y] - nhalo))) ifail = 1;
-  if (nar[Z] == 0 && (2.0*a0max >= 1.0*(nlocal[Z] - nhalo))) ifail = 1;
+  if (nar[X] == 0 && (2.0 * a0max >= 1.0 * (nlocal[X] - nhalo))) ifail = 1;
+  if (nar[Y] == 0 && (2.0 * a0max >= 1.0 * (nlocal[Y] - nhalo))) ifail = 1;
+  if (nar[Z] == 0 && (2.0 * a0max >= 1.0 * (nlocal[Z] - nhalo))) ifail = 1;
   if (ifail == 1) {
     pe_fatal(pe, "Particle diameter larger than (nlocal - 1) domain size\n");
   }
@@ -1294,8 +1427,8 @@ int colloids_init_halo_range_check(pe_t * pe, cs_t * cs,
  *
  *****************************************************************************/
 
-int wall_ss_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, wall_t * wall,
-		     interact_t * interact) {
+int wall_ss_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, wall_t* wall,
+         interact_t* interact) {
 
   int have_wall_ss_cut = 0;
 
@@ -1307,8 +1440,8 @@ int wall_ss_cut_init(pe_t * pe, cs_t * cs, rt_t * rt, wall_t * wall,
 
   if (have_wall_ss_cut) {
 
-    wall_ss_cut_t * wall_ss_cut = NULL;
-    wall_ss_cut_options_t opts = {0};
+    wall_ss_cut_t* wall_ss_cut = NULL;
+    wall_ss_cut_options_t opts = { 0 };
 
     rt_key_required(rt, "wall_ss_cut_epsilon", RT_FATAL);
     rt_key_required(rt, "wall_ss_cut_sigma", RT_FATAL);

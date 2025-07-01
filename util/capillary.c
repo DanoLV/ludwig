@@ -31,47 +31,51 @@
 #include "fe_ternary.h"
 #include "util_fopen.h"
 
-/* SYSTEM SIZE */
-/* Set the system size as desired. Clearly, this must match the system
- * set in the main input file for Ludwig. */
+ /* SYSTEM SIZE */
+ /* Set the system size as desired. Clearly, this must match the system
+  * set in the main input file for Ludwig. */
 
 const int xmax = 20;
 const int ymax = 20;
 const int zmax = 20;
 
-const int crystalline_cell_size = 10; /* Must divide all lengths */
+const int crystalline_cell_size = 1; /* Must divide all lengths */
 
 /* CROSS SECTION */
 /* You can choose a square or circular cross section */
 
-enum {CIRCLE, SQUARE, XWALL, YWALL, ZWALL, XWALL_OBSTACLES, XWALL_BOTTOM,
-      SPECIAL_CROSS, SIMPLE_CUBIC, BODY_CENTRED_CUBIC, FACE_CENTRED_CUBIC};
+enum {
+  CIRCLE, SQUARE, XWALL, YWALL, ZWALL, XWALL_OBSTACLES, XWALL_BOTTOM,
+  SPECIAL_CROSS, SIMPLE_CUBIC, BODY_CENTRED_CUBIC, FACE_CENTRED_CUBIC, CUBO
+};
 
-const int xsection = XWALL;
+const int xsection = SQUARE;
 
 /* "Obstacles": Modify the local geometry of the wall */
 
 int obstacle_number = 1; /* number of obstacles per wall */
 int obstacle_length = 6; /* along the wall direction */
 int obstacle_height = 8; /* perpendicular from wall */
-int obstacle_depth  = 6; /* perpendicular to length and height */
-			 /* NOTE: obstacle_depth == xmax/ymax/zmax
-				  means obstacles don't have a z-boundary */
+int obstacle_depth = 6; /* perpendicular to length and height */
+/* NOTE: obstacle_depth == xmax/ymax/zmax
+   means obstacles don't have a z-boundary */
 
-/* OUTPUT */
-/* You can generate a file with solid/fluid status information only,
- * or one which includes the wetting parameters or charge Q. */
+   /* OUTPUT */
+   /* You can generate a file with solid/fluid status information only,
+    * or one which includes the wetting parameters or charge Q. */
 
-enum {STATUS_ONLY, STATUS_WITH_C_H, STATUS_WITH_SIGMA,
-      STATUS_WITH_H1_H2};
+enum {
+  STATUS_ONLY, STATUS_WITH_C_H, STATUS_WITH_SIGMA,
+  STATUS_WITH_H1_H2
+};
 const int output_type = STATUS_WITH_SIGMA;
 
-int map_special_cross(map_t * map);
+int map_special_cross(map_t* map);
 
-int map_xwall_obstacles(map_t * map, double sigma);
-int capillary_write_ascii_serial(pe_t * pe, cs_t * cs, map_t * map);
-int capillary_fe_symm_info(pe_t * pe, const fe_symm_param_t * fe);
-int capillary_fe_ternary_info(pe_t * pe, const fe_ternary_param_t * fe);
+int map_xwall_obstacles(map_t* map, double sigma);
+int capillary_write_ascii_serial(pe_t* pe, cs_t* cs, map_t* map);
+int capillary_fe_symm_info(pe_t* pe, const fe_symm_param_t* fe);
+int capillary_fe_ternary_info(pe_t* pe, const fe_ternary_param_t* fe);
 
 /*****************************************************************************
  *
@@ -79,14 +83,14 @@ int capillary_fe_ternary_info(pe_t * pe, const fe_ternary_param_t * fe);
  *
  *****************************************************************************/
 
-int main(int argc, char ** argv) {
+int main(int argc, char** argv) {
 
-  pe_t * pe = NULL;
-  cs_t * cs = NULL;
+  pe_t* pe = NULL;
+  cs_t* cs = NULL;
 
   int ndata = 0;
   double data[2];  /* ndata = 2 max at the moment. for uniform cases */
-  map_t * map = NULL;
+  map_t* map = NULL;
 
   int k_pic = 1;   /* k-value section to screen */
 
@@ -96,7 +100,7 @@ int main(int argc, char ** argv) {
 
   cs_create(pe, &cs);
   {
-    int ntotal[3] = {xmax, ymax, zmax};
+    int ntotal[3] = { xmax, ymax, zmax };
     cs_ntotal_set(cs, ntotal);
   }
   cs_init(cs);
@@ -104,62 +108,62 @@ int main(int argc, char ** argv) {
   switch (output_type) {
   case STATUS_WITH_C_H:
 
-    {
-      /* SYMMETRIC FREE ENERGY */
-      /* Some default values for free energy: */
-      fe_symm_param_t fe = {.a =    -0.0625,
-			    .b =     0.0625,
-			    .kappa = 0.053,
-			    .c     = 0.0,
-			    .h     = 0.0};
+  {
+    /* SYMMETRIC FREE ENERGY */
+    /* Some default values for free energy: */
+    fe_symm_param_t fe = { .a = -0.0625,
+        .b = 0.0625,
+        .kappa = 0.053,
+        .c = 0.0,
+        .h = 0.0 };
 
-      capillary_fe_symm_info(pe, &fe);
+    capillary_fe_symm_info(pe, &fe);
 
-      /* We must have this order "C, H" ... */
-      ndata = 2;
-      data[0] = fe.c;
-      data[1] = fe.h;
-    }
+    /* We must have this order "C, H" ... */
+    ndata = 2;
+    data[0] = fe.c;
+    data[1] = fe.h;
+  }
 
-    break;
+  break;
 
   case STATUS_WITH_SIGMA:
     /* Just a surface charge... */
-    {
-      const double sigma0 = 0.125;
-      ndata = 1;
-      data[0] = sigma0;
-      printf("Surface charge sigma = %f\n", sigma0);
-    }
-    break;
+  {
+    const double sigma0 = 0.125;
+    ndata = 1;
+    data[0] = sigma0;
+    printf("Surface charge sigma = %f\n", sigma0);
+  }
+  break;
 
   case STATUS_WITH_H1_H2:
 
-    {
-      /* TERNARY FREE ENERGY PARAMETERS */
-      /* Set the fluid and solid free energy parameters. The fluid parameters
-       * must match those used in the main calculation. See Semprebon et al.
-       * Phys. Rev. E (2016) for details. */
+  {
+    /* TERNARY FREE ENERGY PARAMETERS */
+    /* Set the fluid and solid free energy parameters. The fluid parameters
+     * must match those used in the main calculation. See Semprebon et al.
+     * Phys. Rev. E (2016) for details. */
 
-      fe_ternary_param_t fe = { .alpha   =  1.0,
-			        .kappa1  =  0.012,
-			        .kappa2  =  0.05,
-			        .kappa3  =  0.05,
-			        .h1      =  0.0007,
-			        .h2      = -0.005
-      };
+    fe_ternary_param_t fe = { .alpha = 1.0,
+            .kappa1 = 0.012,
+            .kappa2 = 0.05,
+            .kappa3 = 0.05,
+            .h1 = 0.0007,
+            .h2 = -0.005
+    };
 
-      /* Constraint for h3: not independent */
-      fe.h3 = fe.kappa3*(-(fe.h1/fe.kappa1) - (fe.h2/fe.kappa2));
+    /* Constraint for h3: not independent */
+    fe.h3 = fe.kappa3 * (-(fe.h1 / fe.kappa1) - (fe.h2 / fe.kappa2));
 
-      capillary_fe_ternary_info(pe, &fe);
+    capillary_fe_ternary_info(pe, &fe);
 
-      /* We should have this order for additional data: h1, h2; no h3. */
-      ndata = 2;
-      data[0] = fe.h1;
-      data[1] = fe.h2;
-    }
-    break;
+    /* We should have this order for additional data: h1, h2; no h3. */
+    ndata = 2;
+    data[0] = fe.h1;
+    data[1] = fe.h2;
+  }
+  break;
 
   default:
     ndata = 0;
@@ -187,6 +191,13 @@ int main(int argc, char ** argv) {
     map_init_status_circle_xy(map);
     map_init_data_uniform(map, MAP_BOUNDARY, data);
     /* Case of z1_h, z2_h is special and needs to be recovered */
+    k_pic = 1;
+    break;
+
+  case CUBO:
+    /* Cubo */
+    map_init_status_simple_cubic(map, crystalline_cell_size);
+    map_init_data_uniform(map, MAP_BOUNDARY, data);
     k_pic = 1;
     break;
 
@@ -231,17 +242,17 @@ int main(int argc, char ** argv) {
     map_init_status_wall(map, X);
 
     {
-      int nlocal[3] = {0};
-      int noffset[3] = {0};
+      int nlocal[3] = { 0 };
+      int noffset[3] = { 0 };
       cs_nlocal(cs, nlocal);
       cs_nlocal_offset(cs, noffset);
       if (noffset[X] == 0) {
-	for (int jc = 1; jc <= nlocal[Y]; jc++) {
-	  for (int kc = 1; kc <= nlocal[Z]; kc++) {
-	    int index = cs_index(cs, 1, jc, kc);
-	    map_data_set(map, index, data);
-	  }
-	}
+        for (int jc = 1; jc <= nlocal[Y]; jc++) {
+          for (int kc = 1; kc <= nlocal[Z]; kc++) {
+            int index = cs_index(cs, 1, jc, kc);
+            map_data_set(map, index, data);
+          }
+        }
       }
     }
     break;
@@ -320,14 +331,14 @@ int main(int argc, char ** argv) {
  *
  *****************************************************************************/
 
-int map_special_cross(map_t * map) {
+int map_special_cross(map_t* map) {
 
   const int w = 5;
   const int w_arm = 4;
-  int nlocal[3] = {0};
+  int nlocal[3] = { 0 };
   int x0, x1, j0, j1;
 
-  cs_t * cs = NULL;
+  cs_t* cs = NULL;
 
   assert(map);
 
@@ -356,36 +367,36 @@ int map_special_cross(map_t * map) {
   for (int ic = 1; ic <= nlocal[X]; ic++) {
     for (int jc = 1; jc <= nlocal[Y]; jc++) {
       for (int kc = 1; kc <= nlocal[Z]; kc++) {
-	int index = cs_index(cs, ic, jc, kc);
-	map_status_set(map, index, MAP_BOUNDARY);
+        int index = cs_index(cs, ic, jc, kc);
+        map_status_set(map, index, MAP_BOUNDARY);
       }
     }
   }
 
   /* Centred peridoic channel in x-direction */
 
-  j0 = (nlocal[Y]+1)/2 - (w-1)/2;
-  j1 = (nlocal[Y]+1)/2 + (w-1)/2;
+  j0 = (nlocal[Y] + 1) / 2 - (w - 1) / 2;
+  j1 = (nlocal[Y] + 1) / 2 + (w - 1) / 2;
 
   for (int ic = 1; ic <= nlocal[X]; ic++) {
     for (int jc = j0; jc <= j1; jc++) {
-      for (int kc = 2; kc <= nlocal[Z]-1; kc++) {
-	int index = cs_index(cs, ic, jc, kc);
-	map_status_set(map, index, MAP_FLUID);
+      for (int kc = 2; kc <= nlocal[Z] - 1; kc++) {
+        int index = cs_index(cs, ic, jc, kc);
+        map_status_set(map, index, MAP_FLUID);
       }
     }
   }
 
   /* The 'arms' of the cross */
 
-  x0 = (nlocal[X] - w_arm + 1)/2 + (nlocal[X] % 2);
+  x0 = (nlocal[X] - w_arm + 1) / 2 + (nlocal[X] % 2);
   x1 = x0 + w_arm - 1;
 
   for (int ic = x0; ic <= x1; ic++) {
-    for (int jc = 2; jc <= nlocal[Y]-1; jc++) {
-      for (int kc = 2; kc <= nlocal[Z]-1; kc++) {
-	int index = cs_index(cs, ic, jc, kc);
-	map_status_set(map, index, MAP_FLUID);
+    for (int jc = 2; jc <= nlocal[Y] - 1; jc++) {
+      for (int kc = 2; kc <= nlocal[Z] - 1; kc++) {
+        int index = cs_index(cs, ic, jc, kc);
+        map_status_set(map, index, MAP_FLUID);
       }
     }
   }
@@ -401,17 +412,17 @@ int map_special_cross(map_t * map) {
  *
  *****************************************************************************/
 
-int map_xwall_obstacles(map_t * map, double sigma) {
+int map_xwall_obstacles(map_t* map, double sigma) {
 
-  cs_t * cs = NULL;
-  int nlocal[3] = {0};
+  cs_t* cs = NULL;
+  int nlocal[3] = { 0 };
 
-  int obst_start[2*obstacle_number][3];
-  int obst_stop[2*obstacle_number][3];
+  int obst_start[2 * obstacle_number][3];
+  int obst_stop[2 * obstacle_number][3];
 
   /* Eliminate global variables here... */
   int nobs = obstacle_number;
-  int obsext[3] = {obstacle_height, obstacle_length, obstacle_depth};
+  int obsext[3] = { obstacle_height, obstacle_length, obstacle_depth };
 
   assert(map);
 
@@ -423,26 +434,26 @@ int map_xwall_obstacles(map_t * map, double sigma) {
   for (int iobst = 0; iobst < nobs; iobst++) {
     /* bottom */
     obst_start[iobst][X] = 1;
-    obst_stop[iobst][X]  = obst_start[iobst][X] + obsext[X];
+    obst_stop[iobst][X] = obst_start[iobst][X] + obsext[X];
     /* top */
-    obst_start[nobs+iobst][X] = nlocal[X] - obsext[X];
-    obst_stop[nobs+iobst][X]  = nlocal[X] - 1;
+    obst_start[nobs + iobst][X] = nlocal[X] - obsext[X];
+    obst_stop[nobs + iobst][X] = nlocal[X] - 1;
   }
 
   /* y-extent: (iobst % nobs) to be sure same at top and bottom */
 
-  for (int iobst = 0; iobst < 2*nobs; iobst++) {
-    double dy = (nlocal[Y] - nobs*obsext[Y])/nobs;
-    double y0 = 1 + dy/2 + (iobst % nobs)*(dy + obsext[Y]);
+  for (int iobst = 0; iobst < 2 * nobs; iobst++) {
+    double dy = (nlocal[Y] - nobs * obsext[Y]) / nobs;
+    double y0 = 1 + dy / 2 + (iobst % nobs) * (dy + obsext[Y]);
     obst_start[iobst][Y] = y0;
-    obst_stop[iobst][Y]  = y0 + obsext[Y] - 1;
+    obst_stop[iobst][Y] = y0 + obsext[Y] - 1;
   }
 
   /* z-extent is fixed: all centrally positioned */
 
-  for (int iobst = 0; iobst < 2*nobs; iobst++) {
-    obst_start[iobst][Z] = 1 + (nlocal[Z] - obsext[Z])/2;
-    obst_stop[iobst][Z]  =     obst_start[iobst][Z] + obsext[Z] - 1;
+  for (int iobst = 0; iobst < 2 * nobs; iobst++) {
+    obst_start[iobst][Z] = 1 + (nlocal[Z] - obsext[Z]) / 2;
+    obst_stop[iobst][Z] = obst_start[iobst][Z] + obsext[Z] - 1;
   }
 
 
@@ -450,23 +461,23 @@ int map_xwall_obstacles(map_t * map, double sigma) {
     for (int jc = 1; jc <= nlocal[Y]; jc++) {
       for (int kc = 1; kc <= nlocal[Y]; kc++) {
 
-	int index = cs_index(cs, ic, jc, kc);
-	int status = MAP_FLUID;
+        int index = cs_index(cs, ic, jc, kc);
+        int status = MAP_FLUID;
 
-	/* walls, then obstacles */
+        /* walls, then obstacles */
 
-	if (ic == 1 || ic == nlocal[X]) status = MAP_BOUNDARY;
+        if (ic == 1 || ic == nlocal[X]) status = MAP_BOUNDARY;
 
-	for (int iobst = 0; iobst < 2*obstacle_number ; iobst++) {
+        for (int iobst = 0; iobst < 2 * obstacle_number; iobst++) {
 
-	  int isi = (obst_start[iobst][X] <= ic && ic <= obst_stop[iobst][X]);
-	  int isj = (obst_start[iobst][Y] <= jc && jc <= obst_stop[iobst][Y]);
-	  int isk = (obst_start[iobst][Z] <= kc && kc <= obst_stop[iobst][Z]);
+          int isi = (obst_start[iobst][X] <= ic && ic <= obst_stop[iobst][X]);
+          int isj = (obst_start[iobst][Y] <= jc && jc <= obst_stop[iobst][Y]);
+          int isk = (obst_start[iobst][Z] <= kc && kc <= obst_stop[iobst][Z]);
 
-	  if (isi && isj && isk) status = MAP_BOUNDARY;
-	}
+          if (isi && isj && isk) status = MAP_BOUNDARY;
+        }
 
-	map_status_set(map, index, status);
+        map_status_set(map, index, status);
       }
     }
   }
@@ -474,8 +485,8 @@ int map_xwall_obstacles(map_t * map, double sigma) {
   /* Set surface charge. This is only at surfaces (not interior solid).
    * So examine fluid sites, and set if we have solid nearest neighbour... */
 
-  /* halo_status */
-  /* Separate routine... */
+   /* halo_status */
+   /* Separate routine... */
 
   assert(map->ndata == 1);
 
@@ -485,44 +496,44 @@ int map_xwall_obstacles(map_t * map, double sigma) {
     for (int jc = 1; jc <= nlocal[Y]; jc++) {
       for (int kc = 1; kc <= nlocal[Z]; kc++) {
 
-	int index = cs_index(cs, ic, jc, kc);
-	int status = -1;
-	double data[1] = {sigma};
-	map_status(map, index, &status);
-	if (status == MAP_BOUNDARY) continue;
+        int index = cs_index(cs, ic, jc, kc);
+        int status = -1;
+        double data[1] = { sigma };
+        map_status(map, index, &status);
+        if (status == MAP_BOUNDARY) continue;
 
-	/* Look at 6 adjacent sites */
-	{
-	  int im1 = cs_index(cs, ic-1, jc, kc);
-	  map_status(map, im1, &status);
-	  if (status == MAP_BOUNDARY) map_data_set(map, im1, data);
-	}
-	{
-	  int ip1 = cs_index(cs, ic+1, jc, kc);
-	  map_status(map, ip1, &status);
-	  if (status == MAP_BOUNDARY) map_data_set(map, ip1, data);
-	}
-	{
-	  int jm1 = cs_index(cs, ic, jc-1, kc);
-	  map_status(map, jm1, &status);
-	  if (status == MAP_BOUNDARY) map_data_set(map, jm1, data);
-	}
-	{
-	  int jp1 = cs_index(cs, ic, jc+1, kc);
-	  map_status(map, jp1, &status);
-	  if (status == MAP_BOUNDARY) map_data_set(map, jp1, data);
-	}
-	{
-	  int km1 = cs_index(cs, ic, jc, kc-1);
-	  map_status(map, km1, &status);
-	  if (status == MAP_BOUNDARY) map_data_set(map, km1, data);
-	}
-	{
-	  int kp1 = cs_index(cs, ic, jc, kc+1);
-	  map_status(map, kp1, &status);
-	  if (status == MAP_BOUNDARY) map_data_set(map, kp1, data);
-	}
-	/* next site */
+        /* Look at 6 adjacent sites */
+        {
+          int im1 = cs_index(cs, ic - 1, jc, kc);
+          map_status(map, im1, &status);
+          if (status == MAP_BOUNDARY) map_data_set(map, im1, data);
+        }
+        {
+          int ip1 = cs_index(cs, ic + 1, jc, kc);
+          map_status(map, ip1, &status);
+          if (status == MAP_BOUNDARY) map_data_set(map, ip1, data);
+        }
+        {
+          int jm1 = cs_index(cs, ic, jc - 1, kc);
+          map_status(map, jm1, &status);
+          if (status == MAP_BOUNDARY) map_data_set(map, jm1, data);
+        }
+        {
+          int jp1 = cs_index(cs, ic, jc + 1, kc);
+          map_status(map, jp1, &status);
+          if (status == MAP_BOUNDARY) map_data_set(map, jp1, data);
+        }
+        {
+          int km1 = cs_index(cs, ic, jc, kc - 1);
+          map_status(map, km1, &status);
+          if (status == MAP_BOUNDARY) map_data_set(map, km1, data);
+        }
+        {
+          int kp1 = cs_index(cs, ic, jc, kc + 1);
+          map_status(map, kp1, &status);
+          if (status == MAP_BOUNDARY) map_data_set(map, kp1, data);
+        }
+        /* next site */
       }
     }
   }
@@ -538,12 +549,12 @@ int map_xwall_obstacles(map_t * map, double sigma) {
  *
  *****************************************************************************/
 
-int capillary_write_ascii_serial(pe_t * pe, cs_t * cs, map_t * map) {
+int capillary_write_ascii_serial(pe_t* pe, cs_t* cs, map_t* map) {
 
-  const char * filename = "capillary.dat";
+  const char* filename = "capillary.dat";
 
-  int nlocal[3] = {0};
-  FILE * fp = NULL;
+  int nlocal[3] = { 0 };
+  FILE* fp = NULL;
 
   assert(pe);
   assert(cs);
@@ -561,18 +572,18 @@ int capillary_write_ascii_serial(pe_t * pe, cs_t * cs, map_t * map) {
     for (int jc = 1; jc <= nlocal[Y]; jc++) {
       for (int kc = 1; kc <= nlocal[Z]; kc++) {
 
-	int index = cs_index(cs, ic, jc, kc);
-	int status = -1;
-	double data[map->ndata];
+        int index = cs_index(cs, ic, jc, kc);
+        int status = -1;
+        double data[map->ndata];
 
-	map_status(map, index, &status);
-	map_data(map, index, data);
+        map_status(map, index, &status);
+        map_data(map, index, data);
 
-	fprintf(fp, "%4d %4d %4d %3d", ic, jc, kc, status);
-	for (int idata = 0; idata < map->ndata; idata++) {
-	  fprintf(fp, " %22.15e", data[idata]);
-	}
-	fprintf(fp, "\n");
+        fprintf(fp, "%4d %4d %4d %3d", ic, jc, kc, status);
+        for (int idata = 0; idata < map->ndata; idata++) {
+          fprintf(fp, " %22.15e", data[idata]);
+        }
+        fprintf(fp, "\n");
       }
     }
   }
@@ -590,18 +601,18 @@ int capillary_write_ascii_serial(pe_t * pe, cs_t * cs, map_t * map) {
  *
  *****************************************************************************/
 
-int capillary_fe_symm_info(pe_t * pe, const fe_symm_param_t * fe) {
+int capillary_fe_symm_info(pe_t* pe, const fe_symm_param_t* fe) {
 
   assert(pe);
   assert(fe);
 
   {
 
-    double h = fe->h*sqrt(1.0/(fe->kappa*fe->b));
-    double costheta = 0.5*(-pow(1.0 - h, 1.5) + pow(1.0 + h, 1.5));
+    double h = fe->h * sqrt(1.0 / (fe->kappa * fe->b));
+    double costheta = 0.5 * (-pow(1.0 - h, 1.5) + pow(1.0 + h, 1.5));
     double theta = acos(costheta);
 
-    double pi = 4.0*atan(1.0);
+    double pi = 4.0 * atan(1.0);
 
     pe_info(pe, "Free energy parameters:\n");
     pe_info(pe, "free energy parameter kappa = %f\n", fe->kappa);
@@ -610,7 +621,7 @@ int capillary_fe_symm_info(pe_t * pe, const fe_symm_param_t * fe) {
     pe_info(pe, "dimensionless parameter h   = %f\n", h);
     pe_info(pe, "cos(theta)                  = %f\n", costheta);
     pe_info(pe, "contact angle theta         = %f radians\n", theta);
-    pe_info(pe, "                            = %f degrees\n", theta*180.0/pi);
+    pe_info(pe, "                            = %f degrees\n", theta * 180.0 / pi);
   }
 
   return 0;
@@ -622,16 +633,16 @@ int capillary_fe_symm_info(pe_t * pe, const fe_symm_param_t * fe) {
  *
  *****************************************************************************/
 
-int capillary_fe_ternary_info(pe_t * pe, const fe_ternary_param_t * fe) {
+int capillary_fe_ternary_info(pe_t* pe, const fe_ternary_param_t* fe) {
 
-  double f1,f2,f3,cos_theta12,cos_theta23,cos_theta31;
-  double theta12,theta23,theta31;
+  double f1, f2, f3, cos_theta12, cos_theta23, cos_theta31;
+  double theta12, theta23, theta31;
 
   assert(pe);
   assert(fe);
 
   {
-    double alpha  = fe->alpha;
+    double alpha = fe->alpha;
     double kappa1 = fe->kappa1;
     double kappa2 = fe->kappa2;
     double kappa3 = fe->kappa3;
@@ -640,36 +651,36 @@ int capillary_fe_ternary_info(pe_t * pe, const fe_ternary_param_t * fe) {
     printf("free energy parameter kappa1 = %f\n", kappa1);
     printf("free energy parameter kappa2 = %f\n", kappa2);
     printf("free energy parameter kappa3 = %f\n", kappa3);
-    printf("free energy parameter alpha = %f\n",  alpha);
+    printf("free energy parameter alpha = %f\n", alpha);
 
-    f1=pow(alpha*kappa1+4*fe->h1,1.5)-pow(alpha*kappa1-4*fe->h1,1.5);
-    f1=f1/sqrt(alpha*kappa1);
-    f2=pow(alpha*kappa2+4*fe->h2,1.5)-pow(alpha*kappa2-4*fe->h2,1.5);
-    f2=f2/sqrt(alpha*kappa2);
-    f3=pow(alpha*kappa3+4*fe->h3,1.5)-pow(alpha*kappa3-4*fe->h3,1.5);
-    f3=f3/sqrt(alpha*kappa3);
+    f1 = pow(alpha * kappa1 + 4 * fe->h1, 1.5) - pow(alpha * kappa1 - 4 * fe->h1, 1.5);
+    f1 = f1 / sqrt(alpha * kappa1);
+    f2 = pow(alpha * kappa2 + 4 * fe->h2, 1.5) - pow(alpha * kappa2 - 4 * fe->h2, 1.5);
+    f2 = f2 / sqrt(alpha * kappa2);
+    f3 = pow(alpha * kappa3 + 4 * fe->h3, 1.5) - pow(alpha * kappa3 - 4 * fe->h3, 1.5);
+    f3 = f3 / sqrt(alpha * kappa3);
 
-    cos_theta12=f1/(2.0*(kappa1 + kappa2))-f2/(2.0*(kappa1 + kappa2));
-    cos_theta23=f2/(2.0*(kappa2 + kappa3))-f3/(2.0*(kappa2 + kappa3));
-    cos_theta31=f3/(2.0*(kappa3 + kappa1))-f1/(2.0*(kappa3 + kappa1));
+    cos_theta12 = f1 / (2.0 * (kappa1 + kappa2)) - f2 / (2.0 * (kappa1 + kappa2));
+    cos_theta23 = f2 / (2.0 * (kappa2 + kappa3)) - f3 / (2.0 * (kappa2 + kappa3));
+    cos_theta31 = f3 / (2.0 * (kappa3 + kappa1)) - f1 / (2.0 * (kappa3 + kappa1));
 
     printf("dimensionless parameters cos(theta12)   = %f\n", cos_theta12);
     printf("dimensionless parameters cos(theta23)   = %f\n", cos_theta23);
     printf("dimensionless parameters cos(theta13)   = %f\n", cos_theta31);
 
-    theta12=acos(cos_theta12);
-    theta23=acos(cos_theta23);
-    theta31=acos(cos_theta31);
+    theta12 = acos(cos_theta12);
+    theta23 = acos(cos_theta23);
+    theta31 = acos(cos_theta31);
 
     printf("contact angle theta12         = %f radians\n", theta12);
 
-    theta12=theta12*180.0/(4.0*atan(1.0));
+    theta12 = theta12 * 180.0 / (4.0 * atan(1.0));
     printf("contact angle theta12         = %f degrees\n", theta12);
     printf("contact angle theta23         = %f radians\n", theta23);
-    theta23=theta23*180.0/(4.0*atan(1.0));
+    theta23 = theta23 * 180.0 / (4.0 * atan(1.0));
     printf("contact angle theta23         = %f degrees\n", theta23);
     printf("contact angle theta31         = %f radians\n", theta31);
-    theta31=theta31*180.0/(4.0*atan(1.0));
+    theta31 = theta31 * 180.0 / (4.0 * atan(1.0));
     printf("contact angle theta31         = %f degrees\n", theta31);
   }
 

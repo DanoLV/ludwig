@@ -45,7 +45,7 @@ __host__ int is_bigendian() {
 
   const int i = 1;
 
-  return (*(char *) &i == 0);
+  return (*(char*)&i == 0);
 }
 
 /****************************************************************************
@@ -56,10 +56,10 @@ __host__ int is_bigendian() {
  *
  *****************************************************************************/
 
-__host__ double reverse_byte_order_double(char * c) {
+__host__ double reverse_byte_order_double(char* c) {
 
   double result;
-  char * p = (char *) &result;
+  char* p = (char*)&result;
   unsigned int b;
 
   for (b = 0; b < sizeof(double); b++) {
@@ -83,38 +83,38 @@ __host__ double reverse_byte_order_double(char * c) {
  *****************************************************************************/
 
 __host__
-int util_reverse_byte_order(void * arg, void * result, MPI_Datatype type) {
+int util_reverse_byte_order(void* arg, void* result, MPI_Datatype type) {
 
-  char * p = NULL;
-  char * carg = NULL;
+  char* p = NULL;
+  char* carg = NULL;
   size_t b;
 
   assert(arg);
   assert(result);
 
-  carg = (char *) arg;
+  carg = (char*)arg;
 
   if (type == MPI_INT) {
 
     int iresult;
-    p = (char *) &iresult;
+    p = (char*)&iresult;
 
     for (b = 0; b < sizeof(int); b++) {
       p[b] = carg[sizeof(int) - (b + 1)];
     }
 
-    *((int *) result) = iresult;
+    *((int*)result) = iresult;
   }
   else if (type == MPI_DOUBLE) {
 
     double dresult;
-    p = (char *) &dresult;
+    p = (char*)&dresult;
 
     for (b = 0; b < sizeof(double); b++) {
       p[b] = carg[sizeof(double) - (b + 1)];
     }
 
-    *((double *) result) = dresult;
+    *((double*)result) = dresult;
   }
   else {
     printf("Not implemented data type\n");
@@ -133,7 +133,7 @@ int util_reverse_byte_order(void * arg, void * result, MPI_Datatype type) {
 __host__ __device__
 double dot_product(const double a[3], const double b[3]) {
 
-  return (a[X]*b[X] + a[Y]*b[Y] + a[Z]*b[Z]);
+  return (a[X] * b[X] + a[Y] * b[Y] + a[Z] * b[Z]);
 }
 
 /*****************************************************************************
@@ -145,9 +145,9 @@ double dot_product(const double a[3], const double b[3]) {
 __host__ __device__
 void cross_product(const double a[3], const double b[3], double result[3]) {
 
-  result[X] = a[Y]*b[Z] - a[Z]*b[Y];
-  result[Y] = a[Z]*b[X] - a[X]*b[Z];
-  result[Z] = a[X]*b[Y] - a[Y]*b[X];
+  result[X] = a[Y] * b[Z] - a[Z] * b[Y];
+  result[Y] = a[Z] * b[X] - a[X] * b[Z];
+  result[Z] = a[X] * b[Y] - a[Y] * b[X];
 
   return;
 }
@@ -161,7 +161,7 @@ void cross_product(const double a[3], const double b[3], double result[3]) {
 __host__ __device__
 double modulus(const double a[3]) {
 
-  return sqrt(a[X]*a[X] + a[Y]*a[Y] + a[Z]*a[Z]);
+  return sqrt(a[X] * a[X] + a[Y] * a[Y] + a[Z] * a[Z]);
 }
 
 /*****************************************************************************
@@ -188,11 +188,11 @@ void rotate_vector(double v[3], const double w[3]) {
   double theta, ct, st;
   double vdotw;
 
-  theta = sqrt(w[X]*w[X] + w[Y]*w[Y] + w[Z]*w[Z]);
+  theta = sqrt(w[X] * w[X] + w[Y] * w[Y] + w[Z] * w[Z]);
 
   if (theta == 0.0) {
     /* There is no rotation. */
-   }
+  }
   else {
     /* Work out the unit axis of rotation */
 
@@ -204,14 +204,14 @@ void rotate_vector(double v[3], const double w[3]) {
 
     st = sin(theta);
     ct = cos(theta);
-    vdotw = v[X]*what[X] + v[Y]*what[Y] + v[Z]*what[Z];
+    vdotw = v[X] * what[X] + v[Y] * what[Y] + v[Z] * what[Z];
 
-    vrot[X] = ct*v[X] + st*(what[Y]*v[Z] - what[Z]*v[Y]);
-    vrot[Y] = ct*v[Y] + st*(what[Z]*v[X] - what[X]*v[Z]);
-    vrot[Z] = ct*v[Z] + st*(what[X]*v[Y] - what[Y]*v[X]);
-    v[X] = (1.0 - ct)*vdotw*what[X] + vrot[X];
-    v[Y] = (1.0 - ct)*vdotw*what[Y] + vrot[Y];
-    v[Z] = (1.0 - ct)*vdotw*what[Z] + vrot[Z];
+    vrot[X] = ct * v[X] + st * (what[Y] * v[Z] - what[Z] * v[Y]);
+    vrot[Y] = ct * v[Y] + st * (what[Z] * v[X] - what[X] * v[Z]);
+    vrot[Z] = ct * v[Z] + st * (what[X] * v[Y] - what[Y] * v[X]);
+    v[X] = (1.0 - ct) * vdotw * what[X] + vrot[X];
+    v[Y] = (1.0 - ct) * vdotw * what[Y] + vrot[Y];
+    v[Z] = (1.0 - ct) * vdotw * what[Z] + vrot[Z];
   }
 
   return;
@@ -226,7 +226,7 @@ void rotate_vector(double v[3], const double w[3]) {
  *
  *****************************************************************************/
 
-int util_random_unit_vector(int * state, double rhat[3]) {
+int util_random_unit_vector(int* state, double rhat[3]) {
 
   double r[2];
   double zeta1, zeta2, zsq;
@@ -234,14 +234,14 @@ int util_random_unit_vector(int * state, double rhat[3]) {
   do {
     util_ranlcg_reap_uniform(state, r);
     util_ranlcg_reap_uniform(state, r + 1);
-    zeta1 = 1.0 - 2.0*r[0];
-    zeta2 = 1.0 - 2.0*r[1];
-    zsq   = zeta1*zeta1 + zeta2*zeta2;
+    zeta1 = 1.0 - 2.0 * r[0];
+    zeta2 = 1.0 - 2.0 * r[1];
+    zsq = zeta1 * zeta1 + zeta2 * zeta2;
   } while (zsq > 1.0);
 
-  rhat[0] = 2.0*zeta1*sqrt(1.0 - zsq);
-  rhat[1] = 2.0*zeta2*sqrt(1.0 - zsq);
-  rhat[2] = 1.0 - 2.0*zsq;
+  rhat[0] = 2.0 * zeta1 * sqrt(1.0 - zsq);
+  rhat[1] = 2.0 * zeta2 * sqrt(1.0 - zsq);
+  rhat[2] = 1.0 - 2.0 * zsq;
 
   return 0;
 }
@@ -332,7 +332,7 @@ __host__ int util_jacobi(double a[3][3], double vals[3], double vecs[3][3]) {
 
     for (ia = 0; ia < 2; ia++) {
       for (ib = ia + 1; ib < 3; ib++) {
-	sum += fabs(a[ia][ib]);
+        sum += fabs(a[ia][ib]);
       }
     }
 
@@ -340,67 +340,67 @@ __host__ int util_jacobi(double a[3][3], double vals[3], double vecs[3][3]) {
     if (sum < DBL_MIN) return 0;
 
     if (iterate < 4)
-      tresh = 0.2*sum/(3*3);
+      tresh = 0.2 * sum / (3 * 3);
     else
       tresh = 0.0;
 
     for (ia = 0; ia < 2; ia++) {
       for (ib = ia + 1; ib < 3; ib++) {
 
-	g = 100.0*fabs(a[ia][ib]);
+        g = 100.0 * fabs(a[ia][ib]);
 
-	if (iterate > 4 && (((fabs(vals[ia]) + g) - fabs(vals[ia])) == 0.0) &&
-	    (((fabs(vals[ib]) + g) - fabs(vals[ib])) == 0.0)) {
-	  a[ia][ib] = 0.0;
-	}
-	else if (fabs(a[ia][ib]) > tresh) {
-	  h = vals[ib] - vals[ia];
-	  if (((fabs(h) + g) - fabs(h)) == 0.0) {
-	    t = (a[ia][ib])/h;
-	  }
-	  else {
-	    theta = 0.5*h/a[ia][ib];
-	    t = 1.0/(fabs(theta) + sqrt(1.0 + theta*theta));
-	    if (theta < 0.0) t = -t;
-	  }
+        if (iterate > 4 && (((fabs(vals[ia]) + g) - fabs(vals[ia])) == 0.0) &&
+            (((fabs(vals[ib]) + g) - fabs(vals[ib])) == 0.0)) {
+          a[ia][ib] = 0.0;
+        }
+        else if (fabs(a[ia][ib]) > tresh) {
+          h = vals[ib] - vals[ia];
+          if (((fabs(h) + g) - fabs(h)) == 0.0) {
+            t = (a[ia][ib]) / h;
+          }
+          else {
+            theta = 0.5 * h / a[ia][ib];
+            t = 1.0 / (fabs(theta) + sqrt(1.0 + theta * theta));
+            if (theta < 0.0) t = -t;
+          }
 
-	  c = 1.0/sqrt(1 + t*t);
-	  s = t*c;
-	  tau = s/(1.0 + c);
-	  h = t*a[ia][ib];
-	  z[ia] -= h;
-	  z[ib] += h;
-	  vals[ia] -= h;
-	  vals[ib] += h;
-	  a[ia][ib] = 0.0;
+          c = 1.0 / sqrt(1 + t * t);
+          s = t * c;
+          tau = s / (1.0 + c);
+          h = t * a[ia][ib];
+          z[ia] -= h;
+          z[ib] += h;
+          vals[ia] -= h;
+          vals[ib] += h;
+          a[ia][ib] = 0.0;
 
-	  for (ic = 0; ic <= ia - 1; ic++) {
-	    assert(ic < 3);
-	    g = a[ic][ia];
-	    h = a[ic][ib];
-	    a[ic][ia] = g - s*(h + g*tau);
-	    a[ic][ib] = h + s*(g - h*tau);
-	  }
-	  for (ic = ia + 1; ic <= ib - 1; ic++) {
-	    assert(ic < 3);
-	    g = a[ia][ic];
-	    h = a[ic][ib];
-	    a[ia][ic] = g - s*(h + g*tau);
-	    a[ic][ib] = h + s*(g - h*tau);
-	  }
-	  for (ic = ib + 1; ic < 3; ic++) {
-	    g = a[ia][ic];
-	    h = a[ib][ic];
-	    a[ia][ic] = g - s*(h + g*tau);
-	    a[ib][ic] = h + s*(g - h*tau);
-	  }
-	  for (ic = 0; ic < 3; ic++) {
-	    g = vecs[ic][ia];
-	    h = vecs[ic][ib];
-	    vecs[ic][ia] = g - s*(h + g*tau);
-	    vecs[ic][ib] = h + s*(g - h*tau);
-	  }
-	}
+          for (ic = 0; ic <= ia - 1; ic++) {
+            assert(ic < 3);
+            g = a[ic][ia];
+            h = a[ic][ib];
+            a[ic][ia] = g - s * (h + g * tau);
+            a[ic][ib] = h + s * (g - h * tau);
+          }
+          for (ic = ia + 1; ic <= ib - 1; ic++) {
+            assert(ic < 3);
+            g = a[ia][ic];
+            h = a[ic][ib];
+            a[ia][ic] = g - s * (h + g * tau);
+            a[ic][ib] = h + s * (g - h * tau);
+          }
+          for (ic = ib + 1; ic < 3; ic++) {
+            g = a[ia][ic];
+            h = a[ib][ic];
+            a[ia][ic] = g - s * (h + g * tau);
+            a[ib][ic] = h + s * (g - h * tau);
+          }
+          for (ic = 0; ic < 3; ic++) {
+            g = vecs[ic][ia];
+            h = vecs[ic][ib];
+            vecs[ic][ia] = g - s * (h + g * tau);
+            vecs[ic][ib] = h + s * (g - h * tau);
+          }
+        }
       }
     }
 
@@ -451,7 +451,7 @@ static __host__ void util_swap(int ia, int ib, double a[3], double b[3][3]) {
  *
  *****************************************************************************/
 
-int util_discrete_area_disk(double a0, const double r0[2], double * vn) {
+int util_discrete_area_disk(double a0, const double r0[2], double* vn) {
 
   int ifail = 0;
 
@@ -473,8 +473,8 @@ int util_discrete_area_disk(double a0, const double r0[2], double * vn) {
 
     for (int ic = -nr; ic <= nr; ic++) {
       for (int jc = -nr; jc <= nr; jc++) {
-	double rsq = pow(1.0*ic - x0, 2) + pow(1.0*jc - y0, 2);
-	if (rsq < a0*a0) *vn += 1.0;
+        double rsq = pow(1.0 * ic - x0, 2) + pow(1.0 * jc - y0, 2);
+        if (rsq < a0 * a0) *vn += 1.0;
       }
     }
   }
@@ -501,7 +501,7 @@ int util_discrete_area_disk(double a0, const double r0[2], double * vn) {
  *****************************************************************************/
 
 __host__
-int util_discrete_volume_sphere(const double r0[3], double a0, double * vn) {
+int util_discrete_volume_sphere(const double r0[3], double a0, double* vn) {
 
   int ic, jc, kc, nr;
   double x0, y0, z0;    /* Reduced coordinate of argument r0 */
@@ -522,8 +522,8 @@ int util_discrete_volume_sphere(const double r0[3], double a0, double * vn) {
   for (ic = -nr; ic <= nr; ic++) {
     for (jc = -nr; jc <= nr; jc++) {
       for (kc = -nr; kc <= nr; kc++) {
-	rsq = pow(1.0*ic - x0, 2) + pow(1.0*jc - y0, 2) + pow(1.0*kc - z0, 2);
-	if (rsq < a0*a0) *vn += 1.0;
+        rsq = pow(1.0 * ic - x0, 2) + pow(1.0 * jc - y0, 2) + pow(1.0 * kc - z0, 2);
+        if (rsq < a0 * a0) *vn += 1.0;
       }
     }
   }
@@ -548,18 +548,18 @@ int util_discrete_volume_sphere(const double r0[3], double a0, double * vn) {
  *****************************************************************************/
 
 __host__
-int util_gauss_jordan(const int n, double * a, double * b) {
+int util_gauss_jordan(const int n, double* a, double* b) {
 
   int i, j, k, ia, ib;
   int irow, icol;
-  int * ipivot = NULL;
+  int* ipivot = NULL;
 
   double rpivot, tmp;
 
   assert(a);
   assert(b);
 
-  ipivot = (int*) calloc(n, sizeof(int));
+  ipivot = (int*)calloc(n, sizeof(int));
   if (ipivot == NULL) return -3;
 
   icol = -1;
@@ -573,16 +573,16 @@ int util_gauss_jordan(const int n, double * a, double * b) {
     tmp = 0.0;
     for (j = 0; j < n; j++) {
       if (ipivot[j] != 0) {
-	for (k = 0; k < n; k++) {
+        for (k = 0; k < n; k++) {
 
-	  if (ipivot[k] == -1) {
-	    if (fabs(a[j*n + k]) >= tmp) {
-	      tmp = fabs(a[j*n + k]);
-	      irow = j;
-	      icol = k;
-	    }
-	  }
-	}
+          if (ipivot[k] == -1) {
+            if (fabs(a[j * n + k]) >= tmp) {
+              tmp = fabs(a[j * n + k]);
+              irow = j;
+              icol = k;
+            }
+          }
+        }
       }
     }
 
@@ -593,36 +593,36 @@ int util_gauss_jordan(const int n, double * a, double * b) {
 
     if (irow != icol) {
       for (ia = 0; ia < n; ia++) {
-	tmp = a[irow*n + ia];
-	a[irow*n + ia] = a[icol*n + ia];
-	a[icol*n + ia] = tmp;
+        tmp = a[irow * n + ia];
+        a[irow * n + ia] = a[icol * n + ia];
+        a[icol * n + ia] = tmp;
       }
       tmp = b[irow];
       b[irow] = b[icol];
       b[icol] = tmp;
     }
 
-    if (a[icol*n + icol] == 0.0) {
+    if (a[icol * n + icol] == 0.0) {
       free(ipivot);
       return -1;
     }
 
-    rpivot = 1.0/a[icol*n + icol];
-    a[icol*n + icol] = 1.0;
+    rpivot = 1.0 / a[icol * n + icol];
+    a[icol * n + icol] = 1.0;
 
     for (ia = 0; ia < n; ia++) {
-      a[icol*n + ia] *= rpivot;
+      a[icol * n + ia] *= rpivot;
     }
     b[icol] *= rpivot;
 
     for (ia = 0; ia < n; ia++) {
       if (ia != icol) {
-	tmp = a[ia*n + icol];
-	a[ia*n + icol] = 0.0;
-	for (ib = 0; ib < n; ib++) {
-	  a[ia*n + ib] -= a[icol*n + ib]*tmp;
-	}
-	b[ia] -= b[icol]*tmp;
+        tmp = a[ia * n + icol];
+        a[ia * n + icol] = 0.0;
+        for (ib = 0; ib < n; ib++) {
+          a[ia * n + ib] -= a[icol * n + ib] * tmp;
+        }
+        b[ia] -= b[icol] * tmp;
       }
     }
   }
@@ -641,18 +641,18 @@ int util_gauss_jordan(const int n, double * a, double * b) {
  *****************************************************************************/
 
 __host__
-int util_matrix_create(int m, int n, double *** p) {
+int util_matrix_create(int m, int n, double*** p) {
 
   int ifail = 0;
   int i;
-  double ** matrix = NULL;
+  double** matrix = NULL;
 
-  matrix = (double**) calloc(m, sizeof(double *));
+  matrix = (double**)calloc(m, sizeof(double*));
   assert(matrix);
   if (matrix == NULL) return -1;
 
   for (i = 0; i < m; i++) {
-    matrix[i] = (double*) calloc(n, sizeof(double));
+    matrix[i] = (double*)calloc(n, sizeof(double));
     assert(matrix[i]);
     if (matrix[i] == NULL) ifail += 1;
   }
@@ -669,7 +669,7 @@ int util_matrix_create(int m, int n, double *** p) {
  *****************************************************************************/
 
 __host__
-int util_matrix_free(int m, double ***p) {
+int util_matrix_free(int m, double*** p) {
 
   int i;
   assert(p);
@@ -695,29 +695,29 @@ int util_matrix_free(int m, double ***p) {
  *
  *****************************************************************************/
 
-__host__ int util_matrix_invert(int n, double ** a) {
+__host__ int util_matrix_invert(int n, double** a) {
 
   int irow = -1;
   int icol = -1;
 
-  int * indexcol = NULL;
-  int * indexrow = NULL;
-  int * ipivot = NULL;
+  int* indexcol = NULL;
+  int* indexrow = NULL;
+  int* ipivot = NULL;
 
   assert(a);
 
-  indexcol = (int*) calloc(n, sizeof(int));
+  indexcol = (int*)calloc(n, sizeof(int));
   assert(indexcol);
   if (indexcol == NULL) return -3;
 
-  indexrow = (int*) calloc(n, sizeof(int));
+  indexrow = (int*)calloc(n, sizeof(int));
   assert(indexrow);
   if (indexrow == NULL) {
     free(indexcol);
     return -3;
   }
 
-  ipivot = (int*) calloc(n, sizeof(int));
+  ipivot = (int*)calloc(n, sizeof(int));
   assert(ipivot);
   if (ipivot == NULL) {
     free(indexrow);
@@ -734,16 +734,16 @@ __host__ int util_matrix_invert(int n, double ** a) {
     double tmp = 0.0;
     for (int j = 0; j < n; j++) {
       if (ipivot[j] != 0) {
-	for (int k = 0; k < n; k++) {
+        for (int k = 0; k < n; k++) {
 
-	  if (ipivot[k] == -1) {
-	    if (fabs(a[j][k]) >= tmp) {
-	      tmp = fabs(a[j][k]);
-	      irow = j;
-	      icol = k;
-	    }
-	  }
-	}
+          if (ipivot[k] == -1) {
+            if (fabs(a[j][k]) >= tmp) {
+              tmp = fabs(a[j][k]);
+              irow = j;
+              icol = k;
+            }
+          }
+        }
       }
     }
 
@@ -754,9 +754,9 @@ __host__ int util_matrix_invert(int n, double ** a) {
 
     if (irow != icol) {
       for (int ia = 0; ia < n; ia++) {
-	tmp = a[irow][ia];
-	a[irow][ia] = a[icol][ia];
-	a[icol][ia] = tmp;
+        tmp = a[irow][ia];
+        a[irow][ia] = a[icol][ia];
+        a[icol][ia] = tmp;
       }
     }
 
@@ -772,21 +772,21 @@ __host__ int util_matrix_invert(int n, double ** a) {
     }
 
     {
-      double rpivot = 1.0/a[icol][icol];
+      double rpivot = 1.0 / a[icol][icol];
       a[icol][icol] = 1.0;
 
       for (int ia = 0; ia < n; ia++) {
-	a[icol][ia] *= rpivot;
+        a[icol][ia] *= rpivot;
       }
     }
 
     for (int ia = 0; ia < n; ia++) {
       if (ia != icol) {
-	tmp = a[ia][icol];
-	a[ia][icol] = 0.0;
-	for (int ib = 0; ib < n; ib++) {
-	  a[ia][ib] -= a[icol][ib]*tmp;
-	}
+        tmp = a[ia][icol];
+        a[ia][icol] = 0.0;
+        for (int ib = 0; ib < n; ib++) {
+          a[ia][ib] -= a[icol][ib] * tmp;
+        }
       }
     }
     /* .. outer loop .. */
@@ -797,9 +797,9 @@ __host__ int util_matrix_invert(int n, double ** a) {
   for (int i = n - 1; i >= 0; i--) {
     if (indexrow[i] != indexcol[i]) {
       for (int j = 0; j < n; j++) {
-	double tmp = a[j][indexrow[i]];
-	a[j][indexrow[i]] = a[j][indexcol[i]];
-	a[j][indexcol[i]] = tmp;
+        double tmp = a[j][indexrow[i]];
+        a[j][indexrow[i]] = a[j][indexcol[i]];
+        a[j][indexcol[i]] = tmp;
       }
     }
   }
@@ -820,7 +820,7 @@ __host__ int util_matrix_invert(int n, double ** a) {
  *
  *****************************************************************************/
 
-__host__ int util_dpythag(double a, double b, double * p) {
+__host__ int util_dpythag(double a, double b, double* p) {
 
   double absa, absb, tmp;
 
@@ -828,16 +828,16 @@ __host__ int util_dpythag(double a, double b, double * p) {
   absb = fabs(b);
 
   if (absa > absb) {
-    tmp = absb/absa;
-    *p = absa*sqrt(1.0 + tmp*tmp);
+    tmp = absb / absa;
+    *p = absa * sqrt(1.0 + tmp * tmp);
   }
   else {
     if (absb == 0.0) {
       *p = 0.0;
     }
     else {
-      tmp = absa/absb;
-      *p = absb*sqrt(1.0 + tmp*tmp);
+      tmp = absa / absb;
+      *p = absb * sqrt(1.0 + tmp * tmp);
     }
   }
 
@@ -880,7 +880,7 @@ static __host__ long int util_ranlcg_multiply(long a, long s, long c, long m);
  *****************************************************************************/
 
 __host__
-int util_ranlcg_reap_gaussian(int * state, double r[2]) {
+int util_ranlcg_reap_gaussian(int* state, double r[2]) {
 
   double ranu[2];
   double f, rsq;
@@ -891,14 +891,14 @@ int util_ranlcg_reap_gaussian(int * state, double r[2]) {
   do {
     util_ranlcg_reap_uniform(state, ranu);
     util_ranlcg_reap_uniform(state, ranu + 1);
-    ranu[0] = 2.0*ranu[0] - 1.0;
-    ranu[1] = 2.0*ranu[1] - 1.0;
-    rsq = ranu[0]*ranu[0] + ranu[1]*ranu[1];
+    ranu[0] = 2.0 * ranu[0] - 1.0;
+    ranu[1] = 2.0 * ranu[1] - 1.0;
+    rsq = ranu[0] * ranu[0] + ranu[1] * ranu[1];
   } while (rsq >= 1.0 || rsq <= 0.0);
 
-  f = sqrt(-2.0*log(rsq)/rsq);
-  r[0] = f*ranu[0];
-  r[1] = f*ranu[1];
+  f = sqrt(-2.0 * log(rsq) / rsq);
+  r[0] = f * ranu[0];
+  r[1] = f * ranu[1];
 
   return 0;
 }
@@ -915,7 +915,7 @@ int util_ranlcg_reap_gaussian(int * state, double r[2]) {
  *****************************************************************************/
 
 __host__
-int util_ranlcg_reap_uniform(int * state, double * r) {
+int util_ranlcg_reap_uniform(int* state, double* r) {
 
   long int sl;
 
@@ -924,7 +924,7 @@ int util_ranlcg_reap_uniform(int * state, double * r) {
 
   sl = *state;
   sl = util_ranlcg_multiply(RANLCG_A, sl, RANLCG_C, RANLCG_M);
-  *r = sl*(1.0/RANLCG_M);
+  *r = sl * (1.0 / RANLCG_M);
 
   *state = sl;
 
@@ -1000,7 +1000,7 @@ static long int util_ranlcg_multiply(long a, long s, long c, long m) {
  *
  *****************************************************************************/
 
-__host__ int util_str_tolower(char * str, size_t maxlen) {
+__host__ int util_str_tolower(char* str, size_t maxlen) {
 
   size_t n, nlen;
 
@@ -1041,7 +1041,7 @@ __host__ int util_str_tolower(char * str, size_t maxlen) {
  *
  *****************************************************************************/
 
-__host__ int util_rectangle_conductance(double w, double h, double * q) {
+__host__ int util_rectangle_conductance(double w, double h, double* q) {
 
   int ierr = 0;
   PI_DOUBLE(pi);
@@ -1052,17 +1052,17 @@ __host__ int util_rectangle_conductance(double w, double h, double * q) {
     ierr = 1;
   }
   else {
-    double b = 0.5*w;
-    double c = 0.5*h;
+    double b = 0.5 * w;
+    double c = 0.5 * h;
     double asum = 0;
     /* As the terms in the sum decrease with k, run loop in reverse */
     /* Two thousand terms should converge to DBL_EPISLON*sum */
     for (int k = 2000; k > 0; k--) {
-      double ak = 0.5*(2*k - 1)*pi;
-      asum += tanh(ak*b/c)/pow(ak, 5);
+      double ak = 0.5 * (2 * k - 1) * pi;
+      asum += tanh(ak * b / c) / pow(ak, 5);
     }
 
-    *q = (4.0/3.0)*b*c*c*c*(1.0 - 6.0*(c/b)*asum);
+    *q = (4.0 / 3.0) * b * c * c * c * (1.0 - 6.0 * (c / b) * asum);
   }
 
   return ierr;

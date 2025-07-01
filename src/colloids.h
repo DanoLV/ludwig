@@ -21,6 +21,9 @@
 #include "colloid.h"
 #include "colloid_link.h"
 
+//CHANGE2
+#define NUM_INT_PART_TYPES 1 /* number of interaction paritcle types */
+
 /* Auxiliary for diagnostic quantities (for output) */
 
 typedef struct colloid_diagnostic_s colloid_diagnostic_t;

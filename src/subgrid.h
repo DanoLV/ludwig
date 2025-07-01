@@ -16,10 +16,16 @@
 #include "colloids.h"
 #include "hydro.h"
 #include "wall.h"
+/*CHANGE INIT - Subgrid charge */
+#include "psi_colloid.h" 
+/*CHANGE END - Subgrid charge */
 
 int subgrid_update(colloids_info_t * cinfo, hydro_t * hydro, int noise_flag);
 int subgrid_force_from_particles(colloids_info_t * cinfo, hydro_t * hydro,
 				 wall_t * wall);
 int subgrid_wall_lubrication(colloids_info_t * cinfo, wall_t * wall);
-
+/*CHANGE INIT - Subgrid charge */
+int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj);
+int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj);
+/*CHANGE END - Subgrid charge */
 #endif

@@ -39,6 +39,9 @@ build:
 	$(MAKE) extract_colloids
 	$(MAKE) coll_squ_subgrid_init
 	$(MAKE) multi_poly_init
+	$(MAKE) microgel_poly
+	$(MAKE) microgel_poly_filled
+	$(MAKE) microgel_poly_cross_density
 	$(MAKE) polarizer
 
 colloid_init: colloid_init.o
@@ -62,6 +65,15 @@ coll_squ_subgrid_init: coll_squ_subgrid_init.o
 multi_poly_init: multi_poly_init.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+microgel_poly: microgel_poly.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+microgel_poly_filled: microgel_poly_filled.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+microgel_poly_cross_density: microgel_poly_cross_density.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)	
+	
 polarizer: polarizer.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -89,7 +89,7 @@ int main(int argc, char ** argv) {
   int shape = COLLOID_SHAPE_SPHERE;
 
   int Npoly = 1;        /* number of polymers */
-  int Lpoly = 30;       /* length of a polymer */
+  int Lpoly = 2;       /* length of a polymer */
   double lbond = 1.0;   /* bond length */
 
   colloid_state_t * state;

@@ -48,44 +48,44 @@
 
 struct fe_electro_s {
   fe_t super;
-  pe_t * pe;             /* Parallel environment */
-  psi_t * psi;           /* A reference to the electrokinetic quantities */
-  double * mu_ref;       /* Reference mu currently unused (i.e., zero). */
-  fe_electro_t * target; /* Device copy */
+  pe_t* pe;             /* Parallel environment */
+  psi_t* psi;           /* A reference to the electrokinetic quantities */
+  double* mu_ref;       /* Reference mu currently unused (i.e., zero). */
+  fe_electro_t* target; /* Device copy */
 };
 
 static fe_vt_t fe_electro_hvt = {
-  (fe_free_ft)      fe_electro_free,
-  (fe_target_ft)    fe_electro_target,
-  (fe_fed_ft)       fe_electro_fed,
-  (fe_mu_ft)        fe_electro_mu,
-  (fe_mu_solv_ft)   fe_electro_mu_solv,
-  (fe_str_ft)       fe_electro_stress_ex,
-  (fe_str_ft)       fe_electro_stress_ex,
-  (fe_str_ft)       NULL,
-  (fe_hvector_ft)   NULL,
-  (fe_htensor_ft)   NULL,
-  (fe_htensor_v_ft) NULL,
-  (fe_stress_v_ft)  NULL,
-  (fe_stress_v_ft)  NULL,
-  (fe_stress_v_ft)  NULL
+  (fe_free_ft)fe_electro_free,
+  (fe_target_ft)fe_electro_target,
+  (fe_fed_ft)fe_electro_fed,
+  (fe_mu_ft)fe_electro_mu,
+  (fe_mu_solv_ft)fe_electro_mu_solv,
+  (fe_str_ft)fe_electro_stress_ex,
+  (fe_str_ft)fe_electro_stress_ex,
+  (fe_str_ft)NULL,
+  (fe_hvector_ft)NULL,
+  (fe_htensor_ft)NULL,
+  (fe_htensor_v_ft)NULL,
+  (fe_stress_v_ft)NULL,
+  (fe_stress_v_ft)NULL,
+  (fe_stress_v_ft)NULL
 };
 
 static  __constant__ fe_vt_t fe_electro_dvt = {
-  (fe_free_ft)      NULL,
-  (fe_target_ft)    NULL,
-  (fe_fed_ft)       NULL,
-  (fe_mu_ft)        NULL,
-  (fe_mu_solv_ft)   NULL,
-  (fe_str_ft)       NULL,
-  (fe_str_ft)       NULL,
-  (fe_str_ft)       NULL,
-  (fe_hvector_ft)   NULL,
-  (fe_htensor_ft)   NULL,
-  (fe_htensor_v_ft) NULL,
-  (fe_stress_v_ft)  NULL,
-  (fe_stress_v_ft)  NULL,
-  (fe_stress_v_ft)  NULL
+  (fe_free_ft)NULL,
+  (fe_target_ft)NULL,
+  (fe_fed_ft)NULL,
+  (fe_mu_ft)NULL,
+  (fe_mu_solv_ft)NULL,
+  (fe_str_ft)NULL,
+  (fe_str_ft)NULL,
+  (fe_str_ft)NULL,
+  (fe_hvector_ft)NULL,
+  (fe_htensor_ft)NULL,
+  (fe_htensor_v_ft)NULL,
+  (fe_stress_v_ft)NULL,
+  (fe_stress_v_ft)NULL,
+  (fe_stress_v_ft)NULL
 };
 
 /*****************************************************************************
@@ -103,16 +103,16 @@ static  __constant__ fe_vt_t fe_electro_dvt = {
  *
  *****************************************************************************/
 
-__host__ int fe_electro_create(pe_t * pe, psi_t * psi, fe_electro_t ** pobj) {
+__host__ int fe_electro_create(pe_t* pe, psi_t* psi, fe_electro_t** pobj) {
 
   int ndevice;
-  fe_electro_t * fe = NULL;
+  fe_electro_t* fe = NULL;
 
   assert(pe);
   assert(pobj);
   assert(psi);
 
-  fe = (fe_electro_t *) calloc(1, sizeof(fe_electro_t));
+  fe = (fe_electro_t*)calloc(1, sizeof(fe_electro_t));
   assert(fe);
   if (fe == NULL) pe_fatal(pe, "calloc() failed\n");
 
@@ -121,7 +121,7 @@ __host__ int fe_electro_create(pe_t * pe, psi_t * psi, fe_electro_t ** pobj) {
   fe->super.func = &fe_electro_hvt;
   fe->super.id = FE_ELECTRO;
 
-  tdpAssert( tdpGetDeviceCount(&ndevice) );
+  tdpAssert(tdpGetDeviceCount(&ndevice));
 
   if (ndevice == 0) {
     fe->target = fe;
@@ -129,14 +129,14 @@ __host__ int fe_electro_create(pe_t * pe, psi_t * psi, fe_electro_t ** pobj) {
   else {
     /* Allow this to go forward on the basis that no device calls are
      * available. */
-    fe_vt_t * vt = NULL;
+    fe_vt_t* vt = NULL;
 
-    tdpAssert(tdpMalloc((void **) &fe->target, sizeof(fe_electro_t)));
-    tdpAssert( tdpMemset(fe->target, 0, sizeof(fe_electro_t)) );
+    tdpAssert(tdpMalloc((void**)&fe->target, sizeof(fe_electro_t)));
+    tdpAssert(tdpMemset(fe->target, 0, sizeof(fe_electro_t)));
 
-    tdpGetSymbolAddress((void **) &vt, tdpSymbol(fe_electro_dvt));
-    tdpAssert(tdpMemcpy(&fe->target->super.func, &vt, sizeof(fe_vt_t *),
-			tdpMemcpyHostToDevice));
+    tdpGetSymbolAddress((void**)&vt, tdpSymbol(fe_electro_dvt));
+    tdpAssert(tdpMemcpy(&fe->target->super.func, &vt, sizeof(fe_vt_t*),
+      tdpMemcpyHostToDevice));
   }
 
   *pobj = fe;
@@ -150,13 +150,13 @@ __host__ int fe_electro_create(pe_t * pe, psi_t * psi, fe_electro_t ** pobj) {
  *
  *****************************************************************************/
 
-__host__ int fe_electro_free(fe_electro_t * fe) {
+__host__ int fe_electro_free(fe_electro_t* fe) {
 
   int ndevice = 0;
 
   assert(fe);
 
-  tdpAssert( tdpGetDeviceCount(&ndevice) );
+  tdpAssert(tdpGetDeviceCount(&ndevice));
   if (ndevice > 0) tdpAssert(tdpFree(fe->target));
 
   free(fe->mu_ref);
@@ -171,12 +171,12 @@ __host__ int fe_electro_free(fe_electro_t * fe) {
  *
  *****************************************************************************/
 
-__host__ int fe_electro_target(fe_electro_t * fe, fe_t ** target) {
+__host__ int fe_electro_target(fe_electro_t* fe, fe_t** target) {
 
   assert(fe);
   assert(target);
 
-  *target = (fe_t *) fe->target;
+  *target = (fe_t*)fe->target;
 
   return 0;
 }
@@ -195,7 +195,7 @@ __host__ int fe_electro_target(fe_electro_t * fe, fe_t ** target) {
  *****************************************************************************/
 
 __host__
-int fe_electro_fed(fe_electro_t * fe, int index, double * fed) {
+int fe_electro_fed(fe_electro_t* fe, int index, double* fed) {
 
   int n;
   int nk;
@@ -213,7 +213,7 @@ int fe_electro_fed(fe_electro_t * fe, int index, double * fed) {
   for (n = 0; n < nk; n++) {
     psi_rho(fe->psi, index, n, &rho);
     assert(rho >= 0.0); /* For log(rho + epsilon) */
-    e += rho*((log(rho + DBL_EPSILON) - 1.0) + 0.5*fe->psi->valency[n]*psi);
+    e += rho * ((log(rho + DBL_EPSILON) - 1.0) + 0.5 * fe->psi->valency[n] * psi);
   }
 
   *fed = e;
@@ -232,13 +232,13 @@ int fe_electro_fed(fe_electro_t * fe, int index, double * fed) {
  *****************************************************************************/
 
 __host__
-int fe_electro_mu(fe_electro_t * fe, int index, double * mu) {
+int fe_electro_mu(fe_electro_t* fe, int index, double* mu) {
 
   int n;
   double kt;
   double rho;
   double psi;
-  physics_t * phys = NULL;
+  physics_t* phys = NULL;
 
   assert(fe);
   assert(fe->psi);
@@ -251,7 +251,7 @@ int fe_electro_mu(fe_electro_t * fe, int index, double * mu) {
     psi_rho(fe->psi, index, n, &rho);
     assert(rho >= 0.0); /* For log(rho + epsilon) */
 
-    mu[n] = kt*log(rho + DBL_EPSILON) + fe->psi->valency[n]*fe->psi->e*psi;
+    mu[n] = kt * log(rho + DBL_EPSILON) + fe->psi->valency[n] * fe->psi->e * psi;
   }
 
   return 0;
@@ -267,7 +267,7 @@ int fe_electro_mu(fe_electro_t * fe, int index, double * mu) {
  ****************************************************************************/
 
 __host__
-int fe_electro_mu_solv(fe_electro_t * fe, int index, int k, double * mu) {
+int fe_electro_mu_solv(fe_electro_t* fe, int index, int k, double* mu) {
 
   assert(mu);
   *mu = 0.0;
@@ -289,7 +289,7 @@ int fe_electro_mu_solv(fe_electro_t * fe, int index, int k, double * mu) {
  *****************************************************************************/
 
 __host__
-int fe_electro_stress(fe_electro_t * fe, int index, double s[3][3]) {
+int fe_electro_stress(fe_electro_t* fe, int index, double s[3][3]) {
 
   int ia, ib, in;
   double epsilon;    /* Permittivity */
@@ -298,7 +298,7 @@ int fe_electro_stress(fe_electro_t * fe, int index, double s[3][3]) {
   int nk;
   double rho;
   double kt, eunit, reunit;
-  physics_t * phys = NULL;
+  physics_t* phys = NULL;
   KRONECKER_DELTA_CHAR(d);
 
   assert(fe);
@@ -307,7 +307,7 @@ int fe_electro_stress(fe_electro_t * fe, int index, double s[3][3]) {
   physics_kt(phys, &kt);
   psi_nk(fe->psi, &nk);
   psi_unit_charge(fe->psi, &eunit);
-  reunit = 1.0/eunit;
+  reunit = 1.0 / eunit;
 
   psi_epsilon(fe->psi, &epsilon);
   psi_electric_field(fe->psi, index, e);
@@ -315,18 +315,18 @@ int fe_electro_stress(fe_electro_t * fe, int index, double s[3][3]) {
   e2 = 0.0;
 
   for (ia = 0; ia < 3; ia++) {
-    e[ia] *= kt*reunit;
-    e2 += e[ia]*e[ia];
+    e[ia] *= kt * reunit;
+    e2 += e[ia] * e[ia];
   }
 
   for (ia = 0; ia < 3; ia++) {
     for (ib = 0; ib < 3; ib++) {
-      s[ia][ib] = -epsilon*(e[ia]*e[ib] - 0.5*d[ia][ib]*e2);
+      s[ia][ib] = -epsilon * (e[ia] * e[ib] - 0.5 * d[ia][ib] * e2);
 
       /* Ideal gas contribution */
       for (in = 0; in < nk; in++) {
-	psi_rho(fe->psi, index, in, &rho);
-	s[ia][ib] += d[ia][ib] * kt * rho;
+        psi_rho(fe->psi, index, in, &rho);
+        s[ia][ib] += d[ia][ib] * kt * rho;
 
       }
     }
@@ -345,14 +345,14 @@ int fe_electro_stress(fe_electro_t * fe, int index, double s[3][3]) {
  *****************************************************************************/
 
 __host__
-int fe_electro_stress_ex(fe_electro_t * fe, int index, double s[3][3]) {
+int fe_electro_stress_ex(fe_electro_t* fe, int index, double s[3][3]) {
 
   int ia, ib;
   double epsilon;    /* Permittivity */
   double e[3];       /* Total electric field */
   double e2;         /* Magnitude squared */
   double kt, eunit, reunit;
-  physics_t * phys = NULL;
+  physics_t* phys = NULL;
   KRONECKER_DELTA_CHAR(d);
 
   assert(fe);
@@ -360,7 +360,7 @@ int fe_electro_stress_ex(fe_electro_t * fe, int index, double s[3][3]) {
   physics_ref(&phys);
   physics_kt(phys, &kt);
   psi_unit_charge(fe->psi, &eunit);
-  reunit = 1.0/eunit;
+  reunit = 1.0 / eunit;
 
   psi_epsilon(fe->psi, &epsilon);
   psi_electric_field(fe->psi, index, e);
@@ -368,13 +368,13 @@ int fe_electro_stress_ex(fe_electro_t * fe, int index, double s[3][3]) {
   e2 = 0.0;
 
   for (ia = 0; ia < 3; ia++) {
-    e[ia] *= kt*reunit;
-    e2 += e[ia]*e[ia];
+    e[ia] *= kt * reunit;
+    e2 += e[ia] * e[ia];
   }
 
   for (ia = 0; ia < 3; ia++) {
     for (ib = 0; ib < 3; ib++) {
-      s[ia][ib] = -epsilon*(e[ia]*e[ib] - 0.5*d[ia][ib]*e2);
+      s[ia][ib] = -epsilon * (e[ia] * e[ib] - 0.5 * d[ia][ib] * e2);
     }
   }
 
