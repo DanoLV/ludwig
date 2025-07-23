@@ -419,6 +419,9 @@ static int ludwig_rt(ludwig_t* ludwig) {
     /*CHANGE END - Subgrid charge */
     pe_info(pe, "\nArranging initial charge neutrality.\n\n");
     psi_electroneutral(ludwig->psi, ludwig->map);
+    /*CHANGE INIT - Subgrid charge */
+    subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+    /*CHANGE END - Subgrid charge */
   }
 
   if (ludwig->pch && ludwig->phi) {
@@ -605,6 +608,7 @@ void ludwig_run(const char* inputfile) {
     if (ludwig->psi) {
       /* Set charge distribution according to updated map */
       psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
+
       /*CHANGE INIT - Subgrid charge */
       subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
       /*CHANGE END - Subgrid charge */
@@ -617,7 +621,7 @@ void ludwig_run(const char* inputfile) {
 
       TIMER_stop(TIMER_ELECTRO_POISSON);
 
-      /*CHANGE INIT - Subgrid charge */
+      /*CHANGE INIT - Subgrid charge */ //If I put this here subgrid particles always goes to (0.5;0.5;0.5) position 
       subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
       /*CHANGE END - Subgrid charge */
 
@@ -629,7 +633,6 @@ void ludwig_run(const char* inputfile) {
         /* Work-around for gpu regression tests ... */
         hydro_memcpy(ludwig->hydro, tdpMemcpyDeviceToHost);
       }
-
 
       /* Time splitting for high electrokinetic diffusions in Nernst Planck */
 
@@ -666,6 +669,7 @@ void ludwig_run(const char* inputfile) {
 
         }
 
+
         TIMER_start(TIMER_ELECTRO_NPEQ);
         nernst_planck_driver_d3qx(ludwig->psi, ludwig->fe, ludwig->hydro,
                 ludwig->map, ludwig->collinfo);
@@ -686,6 +690,11 @@ void ludwig_run(const char* inputfile) {
 
       nernst_planck_adjust_multistep(ludwig->psi);
       psi_zero_mean(ludwig->psi);
+
+      // /*CHANGE INIT - Subgrid charge */ //funciona?
+      // subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+      // /*CHANGE END - Subgrid charge */
+
     }
 
     /* order parameter dynamics (not if symmetric_lb) */
@@ -858,9 +867,6 @@ void ludwig_run(const char* inputfile) {
       bbl_update_colloids(ludwig->bbl, ludwig->wall, ludwig->collinfo);
     }
 
-
-
-
     /* There must be no halo updates between bounce back
      * and propagation, as the halo regions are active */
 
@@ -920,6 +926,13 @@ void ludwig_run(const char* inputfile) {
         field_io_write(ludwig->q, step, &event);
       }
     }
+
+    // /*CHANGE INIT - Subgrid charge */
+    // if (ludwig->psi)
+    // {
+    //   subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+    // }
+    // /*CHANGE END - Subgrid charge */
 
     if (ludwig->psi) {
       /* The potential and the charge densities (both controlled by "psi") */
@@ -2457,17 +2470,22 @@ int ludwig_report_statistics(ludwig_t* ludwig, int itimestep) {
     int ncolloid = 0;
     double psi_zeta = 0.0;
     psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
-    /*CHANGE INIT - Subgrid charge */
-    subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
-    /*CHANGE END - Subgrid charge */
+    // /*CHANGE INIT - Subgrid charge */
+    // subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
+    // /*CHANGE END - Subgrid charge */
     psi_stats_info(ludwig->psi);
     /* Zeta potential for one colloid only to follow psi_stats() */
     /* There should be an explicit option. */
     colloids_info_ntotal(ludwig->collinfo, &ncolloid);
     psi_colloid_zetapotential(ludwig->psi, ludwig->collinfo, &psi_zeta);
     if (ncolloid == 1) pe_info(ludwig->pe, "[psi_zeta] %14.7e\n", psi_zeta);
+    // /*CHANGE INIT - Subgrid charge */
+    // subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+    // /*CHANGE END - Subgrid charge */
+    psi_stats_info(ludwig->psi);
   }
 
+  /*CHANGE INIT*/
   if (ludwig->fe) {
     switch (ludwig->fe->id) {
     case FE_LC:

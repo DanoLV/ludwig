@@ -28,6 +28,11 @@
 #include <float.h>
 #include <stdlib.h>
 
+ /*CHANGE INIT - Subgrid charge */
+#include "psi_gradients.h"
+#include "subgrid.h"
+/*CHANGE END - Subgrid charge */
+
 #include "pe.h"
 #include "util.h"
 #include "coords.h"
@@ -36,9 +41,7 @@
 #include "stats_colloid.h"
 #include "driven_colloid.h"
 #include "interaction.h"
-/*CHANGE INIT - Subgrid charge */
-#include "psi_gradients.h"
-/*CHANGE END - Subgrid charge */
+
 
 struct interact_s {
   pe_t* pe;
@@ -505,20 +508,20 @@ int colloids_update_forces_external(colloids_info_t* cinfo,
 /*CHANGE INIT*/
 /*****************************************************************************
  *
- *  colloid_update_forces_external
+ *  subgrid_update_forces_electrokinetics
  *
- *  Accumulate single particle force contributions.
+ *  Accumulate single particle force contributions from electric fields.
  *
  *****************************************************************************/
- // int colloids_update_forces_external(colloids_info_t* cinfo,
- //             physics_t* phys) {
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
                                           physics_t* phys,
                                           psi_t* psi) {
-  int ic, jc, kc, ia;
+  int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
   int ncell[3];
   int index;
-  double kt, eunit, reunit;
+  int nlocal[3], offset[3];
+  double kt, eunit, reunit, dr;
+  double r[3], r0[3];
   double e0[3];          /* external field */
   double e[3];           /* total field */
   double dforce[3];
@@ -526,6 +529,8 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
   assert(cinfo);
 
+  cs_nlocal(cinfo->cs, nlocal);
+  cs_nlocal_offset(cinfo->cs, offset);
   colloids_info_ncell(cinfo, ncell);
   physics_kt(phys, &kt);
   psi_unit_charge(psi, &eunit);
@@ -545,12 +550,41 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
           if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-          psi_electric_field(psi, index, e);
+          /* Need to translate the colloid position to "local"
+           * coordinates, so that the correct range of lattice
+           * nodes is found */
 
-          pc->force[X] += kt * reunit * (e[X]) * (pc->s.q0 - pc->s.q1);
-          pc->force[Y] += kt * reunit * (e[Y]) * (pc->s.q0 - pc->s.q1);
-          pc->force[Z] += kt * reunit * (e[Z]) * (pc->s.q0 - pc->s.q1);
+          r0[X] = pc->s.r[X] - 1.0 * offset[X];
+          r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+          r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
 
+          /* Work out which local lattice sites are involved
+           * and loop around */
+
+          subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+          for (i = i_min; i <= i_max; i++) {
+            for (j = j_min; j <= j_max; j++) {
+              for (k = k_min; k <= k_max; k++) {
+
+                index = cs_index(cinfo->cs, i, j, k);
+
+                /* Separation between r0 and the coordinate position of
+                 * this site */
+
+                r[X] = r0[X] - 1.0 * i;
+                r[Y] = r0[Y] - 1.0 * j;
+                r[Z] = r0[Z] - 1.0 * k;
+
+                dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+                psi_electric_field(psi, index, e);
+                pc->force[X] += kt * reunit * (e[X]) * (pc->s.q0 - pc->s.q1) * dr;
+                pc->force[Y] += kt * reunit * (e[Y]) * (pc->s.q0 - pc->s.q1) * dr;
+                pc->force[Z] += kt * reunit * (e[Z]) * (pc->s.q0 - pc->s.q1) * dr;
+              }
+            }
+          }
         }
       }
     }

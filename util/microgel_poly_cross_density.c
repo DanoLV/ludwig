@@ -84,11 +84,15 @@ typedef struct
   double distance_threshold; /* Threshold for determining neighbors */
   double min_distance;       /* Minimum allowed distance between monomers */
   double density;            /* Density of interior monomers */
-  // --- NUEVOS PARAMETROS ---
   double avg_chain_length;    // Longitud media de las cadenas lineales
   double crosslink_density;   // Densidad de entrecruzamiento (probabilidad por monomero)
-  // -------------------------
 } MicrogelPolymer;
+
+typedef struct {
+  int monomer_index;  // ID o índice del monómero actual
+  int* neighbors;     // Lista de índices de monómeros cercanos
+  int num_neighbors;  // Cantidad de vecinos cercanos
+} NearbyMonomerList;
 
 /* Point Management Functions */
 void initPoint3D(Point3D* point, double x, double y, double z, int id);
@@ -116,6 +120,7 @@ void optimizeDistribution(MicrogelPolymer* polymer, int iterations);
 
 /* Neighbor Finding and Analysis Functions */
 void findNearestNeighbors(MicrogelPolymer* polymer);
+// NearbyMonomerList* findNearbyMonomers(const MicrogelPolymer* polymer, double factor)
 void verifyDistribution(const MicrogelPolymer* polymer);
 void printConnectivity(const MicrogelPolymer* polymer);
 void exportConnectivityData(const MicrogelPolymer* polymer, const char* filename);
@@ -1075,7 +1080,7 @@ void initExtendedMicrogelPolymer(MicrogelPolymer* polymer,
   }
 
   // Asignacion de los nuevos parametros
-  polymer->avg_chain_length = (estimated_total_monomers - polymer->nmon) / polymer->nmon; //LONGITUD MEDIA ASUMIENDO QUE SALE UNA CADENA DE CASA MONOMERO DE SUPERFICIE
+  polymer->avg_chain_length = (estimated_total_monomers - polymer->nmon) / polymer->nmon; //LONGITUD MEDIA ASUMIENDO QUE SALE UNA CADENA DE CAdA MONOMERO DE SUPERFICIE
   polymer->crosslink_density = crosslink_den;
 
   // Inicializar todos los monomeros a un estado por defecto (opcional)
@@ -1575,7 +1580,7 @@ void generatePolymerChains(MicrogelPolymer* polymer) {
 void createCrosslinks(MicrogelPolymer* polymer) {
   printf("Creando enlaces cruzados (cross-links)...\n");
   int crosslinks_added = 0;
-  int max_crosslink_attempts_per_monomer = 5; // Intentos para encontrar un compañero de entrecruzamiento
+  int max_crosslink_attempts_per_monomer = 10; // Intentos para encontrar un compañero de entrecruzamiento
 
   // Iterar a traves de todos los monomeros (excluyendo los superficiales si se desea,
   // pero para entrecruzamientos, cualquier monomero interior puede ser un objetivo).
@@ -1618,4 +1623,48 @@ int areBonded(MicrogelPolymer* polymer, int idx1, int idx2) {
     }
   }
   return 0;
+}
+
+NearbyMonomerList* findNearbyMonomers(const MicrogelPolymer* polymer, double factor) {
+  int N = polymer->total_nmon;
+  double max_dist = polymer->target_distance * factor;
+
+  NearbyMonomerList* result = malloc(N * sizeof(NearbyMonomerList));
+  if (!result) {
+    fprintf(stderr, "Error: No se pudo asignar memoria para NearbyMonomerList\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < N; i++) {
+    result[i].monomer_index = i;
+    result[i].num_neighbors = 0;
+
+    // Primero contar cuántos vecinos hay dentro del rango
+    for (int j = 0; j < N; j++) {
+      if (i == j) continue;
+      double dist = euclideanDistance(&polymer->monomers[i], &polymer->monomers[j]);
+      if (dist <= max_dist) {
+        result[i].num_neighbors++;
+      }
+    }
+
+    // Asignar memoria para los vecinos
+    result[i].neighbors = malloc(result[i].num_neighbors * sizeof(int));
+    if (!result[i].neighbors) {
+      fprintf(stderr, "Error: No se pudo asignar memoria para vecinos de monomero %d\n", i);
+      exit(1);
+    }
+
+    // Volver a recorrer y guardar los índices
+    int idx = 0;
+    for (int j = 0; j < N; j++) {
+      if (i == j) continue;
+      double dist = euclideanDistance(&polymer->monomers[i], &polymer->monomers[j]);
+      if (dist <= max_dist) {
+        result[i].neighbors[idx++] = j;
+      }
+    }
+  }
+
+  return result;
 }

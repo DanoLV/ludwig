@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "subgrid.h": "c",
+        "colloids.h": "c",
+        "cmath": "c",
+        "physics.h": "c",
+        "interaction.h": "c",
+        "stdlib.h": "c"
+    }
+}

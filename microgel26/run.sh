@@ -69,6 +69,3 @@ else
 ./calculos.py -nciclos $NT -npaso $paso -o datos.csv
 ./plot.py
 fi
-
-# ./coloideacsv.sh -n 50000 -i 0 -p 500
-# ./calculosvel.py -nciclos 50000 -npaso 500 -o datos.csv

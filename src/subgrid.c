@@ -68,7 +68,7 @@
 #include "psi_colloid.h" 
 /*CHANGE END - Subgrid charge */
 
-static double d_peskin(double);
+// static double d_peskin(double);
 static int subgrid_interpolation(colloids_info_t* cinfo, hydro_t* hydro);
 static const double drange_ = 1.0; /* Max. range of interpolation - 1 */
 
@@ -82,8 +82,6 @@ static const double drange_ = 1.0; /* Max. range of interpolation - 1 */
  *  If there are no subgrid particles, hydro is allowed to be NULL.
  *
  *****************************************************************************/
-
-
 int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
 				 wall_t* wall) {
 
@@ -170,23 +168,25 @@ int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
 
 								colloids_info_map(cinfo, index, &presolved);
 
-								if (presolved == NULL) {
-									hydro_f_local_add(hydro, index, force);
-								}
-								else {
-									double rd[3] = { 0 };
-									double torque[3] = { 0 };
-									presolved->force[X] += force[X];
-									presolved->force[Y] += force[Y];
-									presolved->force[Z] += force[Z];
-									rd[X] = 1.0 * i - (presolved->s.r[X] - 1.0 * offset[X]);
-									rd[Y] = 1.0 * j - (presolved->s.r[Y] - 1.0 * offset[Y]);
-									rd[Z] = 1.0 * k - (presolved->s.r[Z] - 1.0 * offset[Z]);
-									cross_product(rd, force, torque);
-									presolved->torque[X] += torque[X];
-									presolved->torque[Y] += torque[Y];
-									presolved->torque[Z] += torque[Z];
-								}
+								hydro_f_local_add(hydro, index, force);
+
+								// if (presolved == NULL) {
+								// 	hydro_f_local_add(hydro, index, force);
+								// }
+								// else {
+								// 	double rd[3] = { 0 };
+								// 	double torque[3] = { 0 };
+								// 	presolved->force[X] += force[X];
+								// 	presolved->force[Y] += force[Y];
+								// 	presolved->force[Z] += force[Z];
+								// 	rd[X] = 1.0 * i - (presolved->s.r[X] - 1.0 * offset[X]);
+								// 	rd[Y] = 1.0 * j - (presolved->s.r[Y] - 1.0 * offset[Y]);
+								// 	rd[Z] = 1.0 * k - (presolved->s.r[Z] - 1.0 * offset[Z]);
+								// 	cross_product(rd, force, torque);
+								// 	presolved->torque[X] += torque[X];
+								// 	presolved->torque[Y] += torque[Y];
+								// 	presolved->torque[Z] += torque[Z];
+								// }
 
 							}
 						}
@@ -219,6 +219,7 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 	int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max;
 	int index;
 	int nlocal[3], offset[3];
+	int periodic[3];
 	int ncell[3];
 	double rho0, rho1;
 	double r[3], r0[3];
@@ -232,6 +233,7 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 
 	cs_nlocal(cinfo->cs, nlocal);
 	cs_nlocal_offset(cinfo->cs, offset);
+	cs_periodic(cinfo->cs, periodic);
 	colloids_info_ncell(cinfo, ncell);
 
 	/* Loop through all cells (including the halo cells) */
@@ -279,15 +281,11 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 
 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
 
-								/* The dmax() here prevents -ve dq dropping density below zero */
-								// rho0 = dmax(0.0, p_colloid->s.q0) * dr;
-								// rho1 = dmax(0.0, p_colloid->s.q1) * dr;
-
 								psi_rho(obj, index, 0, &rho0);
-								rho0 =  rho0 + dmax(0.0,  p_colloid->s.q0) * dr;
+								rho0 = rho0 + p_colloid->s.q0 * dr;
 
 								psi_rho(obj, index, 1, &rho1);
-								rho1 = rho1 + dmax(0.0,  p_colloid->s.q1) * dr;
+								rho1 = rho1 + p_colloid->s.q1 * dr;
 
 								psi_rho_set(obj, index, 0, rho0);
 								psi_rho_set(obj, index, 1, rho1);
@@ -321,7 +319,7 @@ int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj)
 	int index;
 	int nlocal[3], offset[3];
 	int ncell[3];
-	double rho0, rho1;
+	double rho0, rho1, rhoaux;
 	double r[3], r0[3];
 	double dr;
 	colloid_t* p_colloid = NULL;  /* Subgrid colloid */
@@ -380,15 +378,11 @@ int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj)
 
 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
 
-								/* The dmax() here prevents -ve dq dropping density below zero */
-								// rho0 = dmax(0.0, p_colloid->s.q0) * dr;
-								// rho1 = dmax(0.0, p_colloid->s.q1) * dr;
-
 								psi_rho(obj, index, 0, &rho0);
-								rho0 = dmax(0.0, rho0 - p_colloid->s.q0) * dr;
+								rho0 = rho0 - p_colloid->s.q0 * dr;
 
 								psi_rho(obj, index, 1, &rho1);
-								rho1 = dmax(0.0, rho1 - p_colloid->s.q1) * dr;
+								rho1 = rho1 - p_colloid->s.q1 * dr;
 
 								psi_rho_set(obj, index, 0, rho0);
 								psi_rho_set(obj, index, 1, rho1);
@@ -658,7 +652,8 @@ int subgrid_wall_lubrication(colloids_info_t* cinfo, wall_t* wall) {
  *
  *****************************************************************************/
 
-static double d_peskin(double r) {
+ // static double d_peskin(double r) {
+double d_peskin(double r) {
 
 	double rmod;
 	double delta = 0.0;
@@ -673,4 +668,21 @@ static double d_peskin(double r) {
 	}
 
 	return delta;
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_get_lattice_index
+ *
+ *  Get indexes for neigbour lattice sites
+ *
+ *****************************************************************************/
+void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max)
+{
+	*i_min = imax(1, (int)floor(r0[X] - drange_));
+	*i_max = imin(nlocal[X], (int)ceil(r0[X] + drange_));
+	*j_min = imax(1, (int)floor(r0[Y] - drange_));
+	*j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
+	*k_min = imax(1, (int)floor(r0[Z] - drange_));
+	*k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
 }

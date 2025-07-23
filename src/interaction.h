@@ -19,6 +19,7 @@
 #include "psi.h"
 #include "colloids.h"
 #include "ewald.h"
+#include "subgrid.h"
 
 typedef enum interact_enum {
   INTERACT_PAIR = 0,
