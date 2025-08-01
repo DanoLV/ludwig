@@ -161,3 +161,35 @@ microgel26-20k_1e-03_0.5/run.sh
 .vscode/launch.json
 .gitignore
 .gitignore
+microgel26-500k_1e-05_1.0_0_0/calculos.py
+microgel26-500k_1e-05_1.0_0_0/calculosvel.py
+microgel26-500k_1e-05_1.0_0_0/coloideacsv.sh
+microgel26-500k_1e-05_1.0_0_0/config.cds.init.001-001-1 monomer
+microgel26-500k_1e-05_1.0_0_0/config.cds.init.001-001-microgel
+microgel26-500k_1e-05_1.0_0_0/del.sh
+microgel26-500k_1e-05_1.0_0_0/extract_colloids
+microgel26-500k_1e-05_1.0_0_0/input
+microgel26-500k_1e-05_1.0_0_0/ludwig_redo.sh
+microgel26-500k_1e-05_1.0_0_0/microgel_poly_cross_density
+microgel26-500k_1e-05_1.0_0_0/microgel_redo.sh
+microgel26-500k_1e-05_1.0_0_0/microgel_run.sh
+microgel26-500k_1e-05_1.0_0_0/plot.py
+microgel26-500k_1e-05_1.0_0_0/plotvel.py
+microgel26-500k_1e-05_1.0_0_0/readme.txt
+microgel26-500k_1e-05_1.0_0_0/run.sh
+microgel26-1000k_1e-03_0.1_0_0/calculos.py
+microgel26-1000k_1e-03_0.1_0_0/calculosvel.py
+microgel26-1000k_1e-03_0.1_0_0/coloideacsv.sh
+microgel26-1000k_1e-03_0.1_0_0/config.cds.init.001-001-1 monomer
+microgel26-1000k_1e-03_0.1_0_0/config.cds.init.001-001-microgel
+microgel26-1000k_1e-03_0.1_0_0/del.sh
+microgel26-1000k_1e-03_0.1_0_0/extract_colloids
+microgel26-1000k_1e-03_0.1_0_0/input
+microgel26-1000k_1e-03_0.1_0_0/ludwig_redo.sh
+microgel26-1000k_1e-03_0.1_0_0/microgel_poly_cross_density
+microgel26-1000k_1e-03_0.1_0_0/microgel_redo.sh
+microgel26-1000k_1e-03_0.1_0_0/microgel_run.sh
+microgel26-1000k_1e-03_0.1_0_0/plot.py
+microgel26-1000k_1e-03_0.1_0_0/plotvel.py
+microgel26-1000k_1e-03_0.1_0_0/readme.txt
+microgel26-1000k_1e-03_0.1_0_0/run.sh

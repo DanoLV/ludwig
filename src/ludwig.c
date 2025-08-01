@@ -691,10 +691,6 @@ void ludwig_run(const char* inputfile) {
       nernst_planck_adjust_multistep(ludwig->psi);
       psi_zero_mean(ludwig->psi);
 
-      // /*CHANGE INIT - Subgrid charge */ //funciona?
-      // subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
-      // /*CHANGE END - Subgrid charge */
-
     }
 
     /* order parameter dynamics (not if symmetric_lb) */
@@ -926,13 +922,6 @@ void ludwig_run(const char* inputfile) {
         field_io_write(ludwig->q, step, &event);
       }
     }
-
-    // /*CHANGE INIT - Subgrid charge */
-    // if (ludwig->psi)
-    // {
-    //   subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
-    // }
-    // /*CHANGE END - Subgrid charge */
 
     if (ludwig->psi) {
       /* The potential and the charge densities (both controlled by "psi") */

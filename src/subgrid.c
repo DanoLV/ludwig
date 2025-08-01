@@ -168,25 +168,23 @@ int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
 
 								colloids_info_map(cinfo, index, &presolved);
 
-								hydro_f_local_add(hydro, index, force);
-
-								// if (presolved == NULL) {
-								// 	hydro_f_local_add(hydro, index, force);
-								// }
-								// else {
-								// 	double rd[3] = { 0 };
-								// 	double torque[3] = { 0 };
-								// 	presolved->force[X] += force[X];
-								// 	presolved->force[Y] += force[Y];
-								// 	presolved->force[Z] += force[Z];
-								// 	rd[X] = 1.0 * i - (presolved->s.r[X] - 1.0 * offset[X]);
-								// 	rd[Y] = 1.0 * j - (presolved->s.r[Y] - 1.0 * offset[Y]);
-								// 	rd[Z] = 1.0 * k - (presolved->s.r[Z] - 1.0 * offset[Z]);
-								// 	cross_product(rd, force, torque);
-								// 	presolved->torque[X] += torque[X];
-								// 	presolved->torque[Y] += torque[Y];
-								// 	presolved->torque[Z] += torque[Z];
-								// }
+								if (presolved == NULL) {
+									hydro_f_local_add(hydro, index, force);
+								}
+								else {
+									double rd[3] = { 0 };
+									double torque[3] = { 0 };
+									presolved->force[X] += force[X];
+									presolved->force[Y] += force[Y];
+									presolved->force[Z] += force[Z];
+									rd[X] = 1.0 * i - (presolved->s.r[X] - 1.0 * offset[X]);
+									rd[Y] = 1.0 * j - (presolved->s.r[Y] - 1.0 * offset[Y]);
+									rd[Z] = 1.0 * k - (presolved->s.r[Z] - 1.0 * offset[Z]);
+									cross_product(rd, force, torque);
+									presolved->torque[X] += torque[X];
+									presolved->torque[Y] += torque[Y];
+									presolved->torque[Z] += torque[Z];
+								}
 
 							}
 						}
@@ -215,7 +213,7 @@ int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
  *****************************************************************************/
 int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 {
-	int ic, jc, kc;
+	int ic, jc, kc, icaux, jcaux, kcaux;
 	int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max;
 	int index;
 	int nlocal[3], offset[3];
@@ -223,8 +221,9 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 	int ncell[3];
 	double rho0, rho1;
 	double r[3], r0[3];
-	double dr;
+	double dr, drsum;
 	colloid_t* p_colloid = NULL;  /* Subgrid colloid */
+	colloid_t* p_colloidaux = NULL;  /* Subgrid colloid */
 
 	assert(cinfo);
 	assert(obj);
@@ -248,6 +247,9 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 
 					if (p_colloid->s.bc != COLLOID_BC_SUBGRID) continue;
 
+					// Search for particle related through halo to impose same charge distribution
+					// get_related_particle_halo(cinfo, ncell, ic, jc, kc, &icaux, &jcaux, &kcaux, &p_colloidaux);
+
 					/* Need to translate the colloid position to "local"
 					 * coordinates, so that the correct range of lattice
 					 * nodes is found */
@@ -255,17 +257,16 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 					r0[X] = p_colloid->s.r[X] - 1.0 * offset[X];
 					r0[Y] = p_colloid->s.r[Y] - 1.0 * offset[Y];
 					r0[Z] = p_colloid->s.r[Z] - 1.0 * offset[Z];
+					
+					// Work out which lattice sites are involved including Halo
+					i_min = imax(0, (int)floor(r0[X] - drange_));
+					i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + drange_));
+					j_min = imax(0, (int)floor(r0[Y] - drange_));
+					j_max = imin(nlocal[Y] + 1, (int)ceil(r0[Y] + drange_));
+					k_min = imax(0, (int)floor(r0[Z] - drange_));
+					k_max = imin(nlocal[Z] + 1, (int)ceil(r0[Z] + drange_));
 
-					/* Work out which local lattice sites are involved
-					 * and loop around */
-
-					i_min = imax(1, (int)floor(r0[X] - drange_));
-					i_max = imin(nlocal[X], (int)ceil(r0[X] + drange_));
-					j_min = imax(1, (int)floor(r0[Y] - drange_));
-					j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
-					k_min = imax(1, (int)floor(r0[Z] - drange_));
-					k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
-
+					drsum = 0.0;
 					for (i = i_min; i <= i_max; i++) {
 						for (j = j_min; j <= j_max; j++) {
 							for (k = k_min; k <= k_max; k++) {
@@ -280,7 +281,7 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 								r[Z] = r0[Z] - 1.0 * k;
 
 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-
+								drsum +=dr;
 								psi_rho(obj, index, 0, &rho0);
 								rho0 = rho0 + p_colloid->s.q0 * dr;
 
@@ -293,6 +294,7 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 							}
 						}
 					}
+					// drsum=drsum;
 					/* Next colloid */
 				}
 
@@ -353,15 +355,13 @@ int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj)
 					r0[Y] = p_colloid->s.r[Y] - 1.0 * offset[Y];
 					r0[Z] = p_colloid->s.r[Z] - 1.0 * offset[Z];
 
-					/* Work out which local lattice sites are involved
-					 * and loop around */
-
-					i_min = imax(1, (int)floor(r0[X] - drange_));
-					i_max = imin(nlocal[X], (int)ceil(r0[X] + drange_));
-					j_min = imax(1, (int)floor(r0[Y] - drange_));
-					j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
-					k_min = imax(1, (int)floor(r0[Z] - drange_));
-					k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
+					// Work out which lattice sites are involved including Halo
+					i_min = imax(0, (int)floor(r0[X] - drange_));
+					i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + drange_));
+					j_min = imax(0, (int)floor(r0[Y] - drange_));
+					j_max = imin(nlocal[Y] + 1, (int)ceil(r0[Y] + drange_));
+					k_min = imax(0, (int)floor(r0[Z] - drange_));
+					k_max = imin(nlocal[Z] + 1, (int)ceil(r0[Z] + drange_));
 
 					for (i = i_min; i <= i_max; i++) {
 						for (j = j_min; j <= j_max; j++) {
@@ -685,4 +685,47 @@ void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_m
 	*j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
 	*k_min = imax(1, (int)floor(r0[Z] - drange_));
 	*k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
+}
+
+void get_related_particle_halo(colloids_info_t* cinfo, int ncell[3], int ic, int jc, int kc, int* icaux, int* jcaux, int* kcaux, colloid_t** p_colloidaux)
+{
+	//----------------------------------------------------------------------------------
+	// Search for particle related through halo to impose same charge distribution
+	// i index
+	if (ic == 0) {
+		*icaux = ncell[X];
+	}
+	else if (ic == ncell[X] + 1) {
+		*icaux = 1;
+	}
+	else {
+		*icaux = ic;
+	}
+	// j index
+	if (jc == 0) {
+		*jcaux = ncell[X];
+	}
+	else if (jc == ncell[X] + 1) {
+		*jcaux = 1;
+	}
+	else {
+		*jcaux = jc;
+	}
+	// k index
+	if (kc == 0) {
+		*kcaux = ncell[X];
+	}
+	else if (kc == ncell[X] + 1) {
+		*kcaux = 1;
+	}
+	else {
+		*kcaux = kc;
+	}
+
+	// Get duplicate particle data and store forces
+	if (*icaux != ic || *icaux != ic || *icaux != ic)
+	{
+		colloids_info_cell_list_head(cinfo, *icaux, *jcaux, *kcaux, p_colloidaux);
+	}
+	return;
 }

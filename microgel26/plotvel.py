@@ -38,8 +38,8 @@ axis.plot(x1,vz,'b')
 # Plot definitions
 axis.set_ylabel('Vx/Vy/Vz')
 axis.set_xlabel('Cycle')
-# axis.set_ylim(-1e-12,1e-12)
-# axis.set_xlim(150000,250000)
+# axis.set_ylim(-5.22e-4,-5.205e-4)
+# axis.set_xlim(900000,)
 axis.grid(True, which='both',linewidth=3,linestyle='--')
 axis.tick_params(width=3)
 for spine in ['top','bottom','left','right']:

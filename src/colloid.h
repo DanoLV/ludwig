@@ -46,13 +46,13 @@ typedef enum colloid_shape_enum {
  * unit test consumption. The total number of variables is
  * useful to know to check the ASCII read/write. */
 
-#define NTOT_VAR (32+48+4)
+#define NTOT_VAR (32+48+4) //(32+48) //CHANGE - Extra bonds
 #define NPAD_INT  7
 #define NPAD_DBL  4
 /* Change 1 start: Allow more bonds for microgel polimer networks   **
 ** (needs more than 2)                                              **
 ** Maybe consider take a number from variable input                 */
-#define NBOND_MAX  6  //2
+#define NBOND_MAX 6 //2 //CHANGE - Extra bonds
 /* Change 1 end                                                     */
 
 typedef struct colloid_state_type colloid_state_t;
