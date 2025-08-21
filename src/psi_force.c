@@ -26,9 +26,10 @@
 #include "fe_electro_symmetric.h"
 #include "psi_force.h"
 #include "psi_gradients.h"
+#include "subgrid.h" //CHANGE
 
 int psi_force_gradmu_e(psi_t* psi, fe_t* fe, hydro_t* hydro,
-           colloids_info_t* cinfo);
+           colloids_info_t* cinfo);            
 int psi_force_gradmu_es(psi_t* psi, fe_t* fe, field_t* phi, hydro_t* hydro,
       colloids_info_t* cinfo);
 

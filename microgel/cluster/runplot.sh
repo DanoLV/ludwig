@@ -1,6 +1,6 @@
 #!/bin/bash
 #------------------------------------------------------------------------------------
-# Run ludwig microgel simulation
+# Run ludwig microgel simulation plots
 #------------------------------------------------------------------------------------
 # Input parameters:
 #   -n  Nsteps       : Number of steps to calculate
@@ -14,20 +14,18 @@
 #   -f  electric_e0  : Excternal electric field: Ex_Ey_Ez
 #------------------------------------------------------------------------------------
 # Example:
-#./run.sh -n 3000 -i 0000 -p 500 -l 50 -y 50 -v 5e-02 -e fe_electro -f 0.10_0.0_0.0 -s y -d y
+#./run.sh -n 1000 -i 0000 -p 500 -l 26 -y 26 -v 1e-03 -e fe_electro -f 0.001_0.0_0.0 -s y -d y
+# ./coloideacsv.sh -n 1100000 -i 1000000 -p 500
+# ./calculosvel.py -nciclos 1100000 -npaso 500 -o datos.csv
 #------------------------------------------------------------------------------------
 
-clear
-
-while getopts "n:i:p:l:d:y:v:e:f:s:" flag
+# Simulation parameters
+while getopts "n:i:p:b:l:d:y:v:e:f:s:" flag
 do
     case "${flag}" in
         n) Nsteps=${OPTARG};;       # Number of steps to calculate
-        i) Ninicio=${OPTARG};;      # Initiual step number
+        i) Ninicio=${OPTARG};;      # Initial step number
         p) paso=${OPTARG};;         # Delta steps for output
-        l) ladox=${OPTARG};;        # Frame size in X direction
-        y) ladoyz=${OPTARG};;       # Frame size in Y and Z directions
-        d) del=${OPTARG};;          # Run script to delete files
         v) viscosidad=${OPTARG};;   # Viscosity
         e) energy=${OPTARG};;       # free_energy: fe_electro/none
         f) electric_e0=${OPTARG};;  # electric_e0 
@@ -35,29 +33,24 @@ do
     esac
 done
 
-# Change parameters in input file
-sed -i -e "/N_start/c\N_start $Ninicio" input
-sed -i -e "/N_cycles/c\N_cycles $Nsteps" input
-sed -i -e "/^viscosity /c\viscosity $viscosidad" input
-sed -i -e "/^viscosity_bulk/c\viscosity_bulk $viscosidad" input
-sed -i -e "/^free_energy/c\free_energy $energy" input
-sed -i -e "/^electric_e0/c\electric_e0 $electric_e0" input
-sed -i -e "/colloid_io_freq/c\colloid_io_freq $paso" input
-sed -i -e "/size/c\size $ladox\_$ladoyz\_$ladoyz" input
+module purge
+
+# Load modules
+module load OpenMPI/5.0.7-GCC-14.2.0
+module load Python/3.11.5-GCCcore-13.2.0
+source ~/venvs/microgel-env/bin/activate
+
+# Run Plot
+echo "Inicia plot:"
+
+echo "Nsteps=$Nsteps"
+echo "Ninicio=$Ninicio"
+echo "paso=$paso"
 
 # Total steps of simulation
 NT=$((Nsteps + Ninicio))
 
-#Delete files from previus runs
-if [ "$del" == "y" ]; then
-    ./del.sh
-fi
-
-# Run Ludwig
-./Ludwig.exe
-
 # Postprocesing - convert data to .cvs files
-cp config.cds.init.001-001 config.cds00000000.001-001
 ./coloideacsv.sh -n $NT -i $Ninicio -p $paso
 
 if [ "$single" == "y" ]; then
@@ -70,5 +63,9 @@ else
 ./plot.py
 fi
 
-# ./coloideacsv.sh -n 50000 -i 0 -p 500
-# ./calculosvel.py -nciclos 50000 -npaso 500 -o datos.csv
+module purge
+
+# Printing date and time
+date
+
+echo "Job finished successfully."

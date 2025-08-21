@@ -14,12 +14,10 @@
 #   -f  electric_e0  : Excternal electric field: Ex_Ey_Ez
 #------------------------------------------------------------------------------------
 # Example:
-#./run.sh -n 3000 -i 0000 -p 500 -l 50 -y 50 -v 5e-02 -e fe_electro -f 0.10_0.0_0.0 -s y -d y
+#./run.sh -n 1000 -i 0000 -p 500 -l 26 -y 26 -v 1e-03 -e fe_electro -f 0.001_0.0_0.0 -s y -d y
 # ./coloideacsv.sh -n 1100000 -i 1000000 -p 500
 # ./calculosvel.py -nciclos 1100000 -npaso 500 -o datos.csv
 #------------------------------------------------------------------------------------
-
-clear
 
 while getopts "n:i:p:l:d:y:v:e:f:s:" flag
 do
@@ -50,24 +48,24 @@ sed -i -e "/size/c\size $ladox\_$ladoyz\_$ladoyz" input
 # Total steps of simulation
 NT=$((Nsteps + Ninicio))
 
-#Delete files from previus runs
-if [ "$del" == "y" ]; then
-    ./del.sh
-fi
+# #Delete files from previus runs
+# if [ "$del" == "y" ]; then
+#     ./del.sh
+# fi
 
 # Run Ludwig
 ./Ludwig.exe
 
-# Postprocesing - convert data to .cvs files
-cp config.cds.init.001-001 config.cds00000000.001-001
-./coloideacsv.sh -n $NT -i $Ninicio -p $paso
+# # Postprocesing - convert data to .cvs files
+# cp config.cds.init.001-001 config.cds00000000.001-001
+# ./coloideacsv.sh -n $NT -i $Ninicio -p $paso
 
-if [ "$single" == "y" ]; then
-# Calculates and plots velocity for a single subgrid monomer
-./calculosvel.py -nciclos $NT -npaso $paso -o datos.csv
-./plotvel.py
-else 
-# Calculates and plots density, medium bond length and inertia moments for a microgel
-./calculos.py -nciclos $NT -npaso $paso -o datos.csv
-./plot.py
-fi
+# if [ "$single" == "y" ]; then
+# # Calculates and plots velocity for a single subgrid monomer
+# ./calculosvel.py -nciclos $NT -npaso $paso -o datos.csv
+# ./plotvel.py
+# else 
+# # Calculates and plots density, medium bond length and inertia moments for a microgel
+# ./calculos.py -nciclos $NT -npaso $paso -o datos.csv
+# ./plot.py
+# fi

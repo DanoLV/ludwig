@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! /usr/bin/env python
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -65,4 +65,5 @@ for spine in ['top', 'bottom', 'left', 'right']:
     axes[2].spines[spine].set_linewidth(2)
 
 # Show plot
-plt.show()
+# plt.show()
+plt.savefig("velocidades.png", dpi=600, bbox_inches='tight')

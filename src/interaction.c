@@ -206,7 +206,7 @@ int interact_compute(interact_t* interact, colloids_info_t* cinfo,
 
     colloids_update_forces_buoyancy(cinfo, map, phys);
     /*CHANGE INIT - Subgrid charge */
-    if (psi) subgrid_update_forces_electrokinetics(cinfo, phys, psi);
+    if (psi) subgrid_update_forces_electrokinetics(cinfo, map, phys, psi);
     /*CHANGE END - Subgrid charge */
     interact_wall(interact, cinfo);
 
@@ -514,6 +514,7 @@ int colloids_update_forces_external(colloids_info_t* cinfo,
  *
  *****************************************************************************/
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
+                                          map_t* map,
                                           physics_t* phys,
                                           psi_t* psi) {
   int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
@@ -522,13 +523,12 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
   int nlocal[3], offset[3];
   double kt, eunit, reunit, dr;
   double r[3], r0[3];
-  // double e0[3];          /* external field */
   double e[3];           /* total field */
   double dforce[3];
-  // double drtot, drt;
   colloid_t* pc;
 
   assert(cinfo);
+  assert(map);
 
   cs_nlocal(cinfo->cs, nlocal);
   cs_nlocal_offset(cinfo->cs, offset);
@@ -537,12 +537,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
   psi_unit_charge(psi, &eunit);
   reunit = 1.0 / eunit;
 
-  // physics_e0(phys, e0);
-  // drtot=0.0;
-  // printf("-------------------------------------------------------\n");
-  // for (ic = 1; ic <= ncell[X]; ic++) {
-  //   for (jc = 1; jc <= ncell[Y]; jc++) {
-  //     for (kc = 1; kc <= ncell[Z]; kc++) {
   for (ic = 0; ic <= ncell[X] + 1; ic++) {
     for (jc = 0; jc <= ncell[Y] + 1; jc++) {
       for (kc = 0; kc <= ncell[Z] + 1; kc++) {
@@ -566,9 +560,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
            * and loop around */
 
           subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
-          // printf("--------------------------------------\n");
-          // printf("indice = %i\n", index);
-          // drt = 0.0;
 
           for (i = i_min; i <= i_max; i++) {
             for (j = j_min; j <= j_max; j++) {
@@ -584,7 +575,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
                 r[Z] = r0[Z] - 1.0 * k;
 
                 dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-                // drt += dr;
 
                 psi_electric_field(psi, index, e);
                 pc->force[X] += kt * reunit * (e[X]) * (pc->s.q0 - pc->s.q1) * dr;
@@ -593,14 +583,10 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
               }
             }
           }
-          // printf("drt = %f\n", drt);
-          // drtot+=drt;
         }
       }
     }
   }
-  // printf("--------------------------------------\n");
-  // printf("drtotal = %f\n", drtot);
 
   return 0;
 }

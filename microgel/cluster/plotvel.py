@@ -1,9 +1,14 @@
-#! /usr/bin/python3
+#! /usr/bin/env python
+
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import argparse
 import sys
 from scipy.interpolate import Rbf
+
+print("paso 1")
 
 # Plot definitions
 plt.rc('axes', labelsize=30) 
@@ -46,8 +51,11 @@ for spine in ['top','bottom','left','right']:
     axis.spines[spine].set_linewidth(3)
 
 # Display plot
-plt.subplots_adjust(hspace=0.4)
+# plt.subplots_adjust(hspace=0.4)
 # mng = plt.get_current_fig_manager()
 # mng.resize(*mng.window.maxsize())
 # print("paso")
-plt.show()
+# plt.show()
+
+plt.savefig("velocidades.png", dpi=600, bbox_inches='tight') 
+print("paso 2")

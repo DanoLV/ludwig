@@ -5,8 +5,8 @@
 #
 ##############################################################################
 
-N_start 1000000
-N_cycles 1000000
+N_start 0
+N_cycles 5000
 
 ##############################################################################
 #
@@ -24,8 +24,8 @@ grid 1_1_1
 ##############################################################################
 
 fluid_rho0       0.8
-viscosity 1e-03
-viscosity_bulk 1e-03
+viscosity 1e-00
+viscosity_bulk 1e-00
 
 lb_fluctuations  0 #yes
 temperature      0.000005
@@ -40,13 +40,13 @@ temperature      0.000005
 free_energy fe_electro
 
 # External field
-electric_e0 0.001_0.0_0.0
+electric_e0 1.0_0.0_0.0
 
 # electrokinetics_init   point_charges
 # electrokinetics_z0      +1
 # electrokinetics_z1      -1
-electrokinetics_d0      0.1
-electrokinetics_d1      0.1
+# electrokinetics_d0      0.1
+# electrokinetics_d1      0.1
 # electrokinetics_eunit   1.0
 # electrokinetics_epsilon   4.0e03
 # electrokinetics_init_rho_el 0.001
@@ -56,7 +56,7 @@ electrokinetics_d1      0.1
 #electrokinetics_diffacc  0
 #electrokinetics_multisteps 10
 
-electrokinetics_solver_type petsc 
+# electrokinetics_solver_type petsc 
 # electrokinetics_solver_type    sor  
 fe_force_method phi_gradmu_correction
 
@@ -133,7 +133,7 @@ default_io_format ascii
 freq_statistics     1000
 # vel_io_freq         50
 # psi_io_freq         5
-freq_config       5000
+freq_config       1000
 config_at_end     yes
 
 ##############################################################################

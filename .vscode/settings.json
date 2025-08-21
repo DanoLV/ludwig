@@ -5,6 +5,12 @@
         "cmath": "c",
         "physics.h": "c",
         "interaction.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "psi_force.h": "c",
+        "colloid_sums.h": "c",
+        "map": "c",
+        "format": "c",
+        "map.h": "c",
+        "random": "c"
     }
 }

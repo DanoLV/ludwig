@@ -666,9 +666,7 @@ void ludwig_run(const char* inputfile) {
               ludwig->collinfo);
           }
           TIMER_stop(TIMER_FORCE_CALCULATION);
-
         }
-
 
         TIMER_start(TIMER_ELECTRO_NPEQ);
         nernst_planck_driver_d3qx(ludwig->psi, ludwig->fe, ludwig->hydro,

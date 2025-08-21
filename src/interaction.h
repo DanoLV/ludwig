@@ -92,8 +92,9 @@ int colloids_update_forces_fluid_body_force(colloids_info_t* cinfo,
 int colloids_update_forces_buoyancy(colloids_info_t* cinfo, map_t* map,
             physics_t* phys);
 /*CHANGE INIT - Subgrid charge */
-int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
-                              physics_t* phys,
-                              psi_t* psi);
+int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, 
+                                          map_t* map,
+                                          physics_t* phys,
+                                          psi_t* psi);
 /*CHANGE END - Subgrid charge */                              
 #endif

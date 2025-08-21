@@ -1,4 +1,5 @@
-#! /usr/bin/python3 
+#! /usr/bin/env python
+
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
@@ -33,7 +34,7 @@ if(fout is None):
 fo = open(fout, "w")
 separador = ' '
 
-fo.write("cycle,vx\n")
+fo.write("cycle,vx,vy,vz\n")
 
 for i in range(0, cant + 1, paso):
     # Read data file
@@ -41,9 +42,13 @@ for i in range(0, cant + 1, paso):
     y = np.genfromtxt(archivo, delimiter=',', skip_header=1)
 
     vx = y[4]
+    vy = y[5]
+    vz = y[6]
 
     fo.write("{paso:d}".format(paso=i) + "," +
-             "{x:e}".format(x=vx) +
+             "{x:e}".format(x=vx) + "," +
+             "{y:e}".format(y=vy) + "," +
+             "{z:e}".format(z=vz) + 
              "\n")
   
 # Close output file

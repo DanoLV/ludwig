@@ -5,8 +5,8 @@
 #
 ##############################################################################
 
-N_start 50000
-N_cycles 20000
+N_start 0
+N_cycles 500000
 
 ##############################################################################
 #
@@ -14,7 +14,7 @@ N_cycles 20000
 # 
 ##############################################################################
 
-size 50_50_50
+size 26_26_26
 grid 1_1_1
 
 ##############################################################################
@@ -23,12 +23,14 @@ grid 1_1_1
 #
 ##############################################################################
 
-fluid_rho0     0.864
-viscosity 5e-01
-viscosity_bulk 5e-01
+fluid_rho0       0.8
+viscosity 1e-04
+viscosity_bulk 1e-04
 
 lb_fluctuations  0 #yes
 temperature      0.000005
+
+# force 0.0_0.0_-0.00000001
 
 ##############################################################################
 #
@@ -38,13 +40,13 @@ temperature      0.000005
 free_energy fe_electro
 
 # External field
-electric_e0 0.10_0.0_0.0
+electric_e0 0.0_0.0_0.0
 
 # electrokinetics_init   point_charges
 # electrokinetics_z0      +1
 # electrokinetics_z1      -1
-# electrokinetics_d0      0.00002
-# electrokinetics_d1      0.00002
+# electrokinetics_d0      0.1
+# electrokinetics_d1      0.1
 # electrokinetics_eunit   1.0
 # electrokinetics_epsilon   4.0e03
 # electrokinetics_init_rho_el 0.001
@@ -56,7 +58,7 @@ electric_e0 0.10_0.0_0.0
 
 electrokinetics_solver_type petsc 
 # electrokinetics_solver_type    sor  
-# fe_force_method phi_gradmu_correction
+fe_force_method phi_gradmu_correction
 
 ###############################################################################
 #
@@ -65,22 +67,22 @@ electrokinetics_solver_type petsc
 ###############################################################################
 
 colloid_init     from_file 
+colloid_rebuild_freq 1
+# colloid_gravity           0.0_0.0_-0.0000005  # vector
 
-# colloid_gravity           0.0_0.0_-0.005  # vector
+# lennard_jones_on          1                 # integer 0/1 off/on
+# lj_epsilon                1.44e-08          # energy units
+# lj_sigma                  0.1               # potential length scale
+# lj_cutoff                 2.0               # a centre-centre separation
+# lj_unbonded               1
 
-lennard_jones_on          1                 # integer 0/1 off/on
-lj_epsilon                1.44e-08          # energy units
-lj_sigma                  0.1               # potential length scale
-lj_cutoff                 2.0               # a centre-centre separation
-lj_unbonded               1
+# bond_harmonic_on 1
+# bond_harmonic_k  5.0e-5
+# bond_harmonic_r0 1.0
 
-bond_harmonic_on 1
-bond_harmonic_k  5.0e-5
-bond_harmonic_r0 1.0
-
-angle_harmonic_on 1
-angle_harmonic_k 1.0e-04
-angle_harmonic_theta0 2.0944  #1.5708
+# angle_harmonic_on 1
+# angle_harmonic_k 1.0e-04
+# angle_harmonic_theta0 2.0944  #1.5708
 
 # ++_on 1
 # angle_dihedral_k 4.810896e-05_4.810896e-05_4.810896e-05
@@ -89,10 +91,10 @@ angle_harmonic_theta0 2.0944  #1.5708
 
 ######################################
 # colloid_init              input_one
-# colloid_one_bc            subgrid
+# colloid_one_bc            subgrid #bbl #subgrid
 
-# colloid_one_a0            0.5
-# colloid_one_ah            0.5
+# colloid_one_a0            0.05
+# colloid_one_ah            0.05
 # colloid_one_al            0.5
 # colloid_one_r             11.0_11.0_11.0
 # colloid_one_q0            1.0
@@ -129,7 +131,7 @@ default_io_mode   mpiio
 default_io_format ascii
 
 freq_statistics     1000
-# vel_io_freq         50
+vel_io_freq         50
 # psi_io_freq         5
 freq_config       5000
 config_at_end     yes
@@ -140,7 +142,7 @@ config_at_end     yes
 #
 ##############################################################################
 
-colloid_io_freq 500
+colloid_io_freq 1000
 colloid_io_format_output ASCII
 
 ###############################################################################
