@@ -1,3 +1,30 @@
+# !/bin/bash
+# ------------------------------------------------------------------------------------
+# Run ludwig microgel simulation
+# ------------------------------------------------------------------------------------
+# Input parameters:
+#   -n  Nsteps       : Number of steps to calculate
+#   -i  Ninicio      : Initial step number
+#   -p  paso         : Step interval for output
+#   -l  ladox        : Frame size in the X direction
+#   -y  ladoyz       : Frame size in the Y and Z directions
+#   -d  del          : Flag to run script that deletes files
+#   -v  viscosidad   : Viscosity value
+#   -e  energy       : Free energy model to use: 'fe_electro' or 'none'
+#   -f  electric_e0  : Excternal electric field: Ex_Ey_Ez
+# ------------------------------------------------------------------------------------
+# Example:
+# ./runbg.sh -n 1000000 -i 0 -p 500 -t 300 -c 10 -l 26 -y 26 -v 0.5 -e fe_electro -g petsc -f 0.0_0.0_0.0 -s y -o outdir
+# ./coloideacsv.sh -n 372000 -i 000000 -p 500
+# ./calculosvel.py -nciclos 372000 -npaso 500 -o datos.csv
+# ./runplot.sh  -n 610000 -i 316750 -p 250  -s y >> outputplot.txt 2>&1 
+# ------------------------------------------------------------------------------------
+
+# PRUEBA DE CLAUDE---------------------------------------------------------------------------------
+# PRUEBA DE CLAUDE---------------------------------------------------------------------------------
+# PRUEBA DE CLAUDE---------------------------------------------------------------------------------
+# PRUEBA DE CLAUDE---------------------------------------------------------------------------------
+
 #!/bin/bash
 #------------------------------------------------------------------------------------
 # Run ludwig microgel simulation with MPI support
@@ -225,16 +252,13 @@ done
 
 echo "[INFO] Tarea periódica en $(date)"
 
-# wait to do final plot
-sleep 10
-
 # Plot final
 echo "Plot inicia"
 count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
 
 # Adjust count for MPI processes
 if [ "$mpi_procs" -gt 1 ]; then
-    count=$((count - mpi_procs + 1))
+    count=$((count / mpi_procs))
 fi
 
 count=$((paso*(count-2)-ni))

@@ -415,12 +415,16 @@ static int ludwig_rt(ludwig_t* ludwig) {
   if (ntstep == 0 && ludwig->psi) {
     psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
     /*CHANGE INIT - Subgrid charge */
-    subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
+    // subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
+    distributed_charge_klein_t* charge = NULL;
+    subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
     /*CHANGE END - Subgrid charge */
     pe_info(pe, "\nArranging initial charge neutrality.\n\n");
     psi_electroneutral(ludwig->psi, ludwig->map);
     /*CHANGE INIT - Subgrid charge */
-    subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+    // subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+    subgrid_charge_from_particles_restore(ludwig->collinfo, ludwig->psi, &charge);
+    subgrid_free_distributed_charge_t(&charge);
     /*CHANGE END - Subgrid charge */
   }
 
@@ -610,7 +614,9 @@ void ludwig_run(const char* inputfile) {
       psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
 
       /*CHANGE INIT - Subgrid charge */
-      subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
+      // subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
+      distributed_charge_klein_t* charge = NULL;
+      subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
       /*CHANGE END - Subgrid charge */
 
       /* Poisson solve */
@@ -622,7 +628,9 @@ void ludwig_run(const char* inputfile) {
       TIMER_stop(TIMER_ELECTRO_POISSON);
 
       /*CHANGE INIT - Subgrid charge */ //If I put this here subgrid particles always goes to (0.5;0.5;0.5) position 
-      subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+      // subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
+      subgrid_charge_from_particles_restore(ludwig->collinfo, ludwig->psi, &charge);
+      subgrid_free_distributed_charge_t(&charge);
       /*CHANGE END - Subgrid charge */
 
       if (ludwig->hydro) {
@@ -2158,9 +2166,11 @@ static int ludwig_colloids_update_low_freq(ludwig_t* ludwig) {
   colloids_halo_state(ludwig->collinfo);
   colloids_info_update_lists(ludwig->collinfo);
 
-  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map,
-               ludwig->psi, ludwig->ewald);
-
+  /*CHANGE INIT - Subgrid charge */
+    // interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map,
+    //      ludwig->psi, ludwig->ewald);
+  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map, ludwig->psi, ludwig->ewald, ludwig->hydro);
+  /*CHANGE END - Subgrid charge */
   subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
 
   return 0;
@@ -2235,8 +2245,11 @@ int ludwig_colloids_update(ludwig_t* ludwig) {
 
   TIMER_start(TIMER_FORCES);
 
-  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map,
-       ludwig->psi, ludwig->ewald);
+  /*CHANGE INIT - Subgrid charge */
+// interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map,
+//      ludwig->psi, ludwig->ewald);
+  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map, ludwig->psi, ludwig->ewald, ludwig->hydro);
+  /*CHANGE END - Subgrid charge */
   subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
 
   TIMER_stop(TIMER_FORCES);

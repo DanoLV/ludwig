@@ -23,13 +23,13 @@ grid 1_1_1
 #
 ##############################################################################
 
-fluid_rho0       1.0
+fluid_rho0       0.8
 viscosity 1e-04
 viscosity_bulk 1e-04
 
 lb_fluctuations  0 #yes
-# temperature      0.0002
-temperature      0.0005
+temperature      0.000005
+
 # force 0.0_0.0_-0.00000001
 
 ##############################################################################
@@ -47,19 +47,18 @@ electric_e0 0.0_0.0_0.0
 # electrokinetics_z1      -1
 # electrokinetics_d0      0.1
 # electrokinetics_d1      0.1
-# electrokinetics_eunit   0.5
+# electrokinetics_eunit   1.0
 # electrokinetics_epsilon   4.0e03
-# electrokinetics_init_rho_el 0.001
+# electrokinetics_init_rho_el 1.0
 # electrokinetics_rel_tol  0.002
 # electrokinetics_abs_tol  0.001
-# electrokinetics_maxits   100000
+# electrokinetics_maxits   30000
 #electrokinetics_diffacc  0
-# electrokinetics_multisteps 5
-electrokinetics_solver_stencil 19
+#electrokinetics_multisteps 10
 
 electrokinetics_solver_type petsc 
-# electrokinetics_solver_type #petsc sor
-fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence
+# electrokinetics_solver_type    sor  
+fe_force_method phi_gradmu_correction
 
 ###############################################################################
 #
@@ -67,19 +66,19 @@ fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence
 #
 ###############################################################################
 
-colloid_init     from_file
+colloid_init     from_file 
 # colloid_rebuild_freq 1
 # colloid_gravity           0.0_0.0_-0.0000005  # vector
 
 # lennard_jones_on          1                 # integer 0/1 off/on
 # lj_epsilon                1.44e-08          # energy units
-# lj_sigma                  0.01               # potential length scale
+# lj_sigma                  0.1               # potential length scale
 # lj_cutoff                 2.0               # a centre-centre separation
 # lj_unbonded               1
 
 # bond_harmonic_on 1
 # bond_harmonic_k  5.0e-5
-# bond_harmonic_r0 0.5
+# bond_harmonic_r0 1.0
 
 # angle_harmonic_on 1
 # angle_harmonic_k 1.0e-04
@@ -131,10 +130,10 @@ periodicity 1_1_1
 default_io_mode   mpiio
 default_io_format ascii
 
-freq_statistics     200
-vel_io_freq         500
+freq_statistics     1000
+vel_io_freq         50
 # psi_io_freq         5
-freq_config       50
+freq_config       5000
 config_at_end     yes
 
 ##############################################################################
@@ -143,7 +142,7 @@ config_at_end     yes
 #
 ##############################################################################
 
-colloid_io_freq 500
+colloid_io_freq 1000
 colloid_io_format_output ASCII
 
 ###############################################################################

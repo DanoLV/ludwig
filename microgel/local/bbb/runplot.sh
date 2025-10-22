@@ -50,8 +50,7 @@ NT=$((Nsteps + Ninicio))
 if [ "$single" == "y" ]; then
 # Calculates and plots velocity for a single subgrid monomer
 # ./calculosvel.py -nciclos $NT -npaso $paso -o datos.csv
-# ./calculosvelfluid.py -nciclos $NT -npaso $paso -o datosfluid.csv
-./calculosvelfluid.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o datosfluid.csv
+./calculosvelfluid.py -nciclos $NT -npaso $paso -o datosfluid.csv
 ./plotvel.py -i datosfluid.csv
 else 
 # Calculates and plots density, medium bond length and inertia moments for a microgel

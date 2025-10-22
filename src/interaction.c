@@ -185,9 +185,12 @@ int interact_statistic_add(interact_t* obj, interact_enum_t it, void* pot,
  *
  *****************************************************************************/
 
+ /*CHANGE INIT - Subgrid charge */
+ //  int interact_compute(interact_t * interact, colloids_info_t * cinfo,
+ // 		     map_t * map, psi_t * psi, ewald_t * ewald) {
 int interact_compute(interact_t* interact, colloids_info_t* cinfo,
-         map_t* map, psi_t* psi, ewald_t* ewald) {
-
+         map_t* map, psi_t* psi, ewald_t* ewald, hydro_t* hydro) {
+  /*CHANGE END - Subgrid charge */
   int nc;
 
   assert(interact);
@@ -206,7 +209,7 @@ int interact_compute(interact_t* interact, colloids_info_t* cinfo,
 
     colloids_update_forces_buoyancy(cinfo, map, phys);
     /*CHANGE INIT - Subgrid charge */
-    if (psi) subgrid_update_forces_electrokinetics(cinfo, map, phys, psi);
+    if (psi) subgrid_update_forces_electrokinetics(cinfo, map, phys, psi, hydro);
     /*CHANGE END - Subgrid charge */
     interact_wall(interact, cinfo);
 
@@ -505,7 +508,7 @@ int colloids_update_forces_external(colloids_info_t* cinfo,
   return 0;
 }
 
-/*CHANGE INIT*/
+/*CHANGE INIT - Subgrid charge */
 /*****************************************************************************
  *
  *  subgrid_update_forces_electrokinetics
@@ -516,49 +519,51 @@ int colloids_update_forces_external(colloids_info_t* cinfo,
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
                                           map_t* map,
                                           physics_t* phys,
-                                          psi_t* psi) {
-  int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
+                                          psi_t* psi, 
+                                          hydro_t* hydro) {
+
+                                            int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
   int ncell[3];
   int index;
   int nlocal[3], offset[3];
+  int nsfluid;
   double kt, eunit, reunit, dr;
   double r[3], r0[3];
-  double e[3];           /* total field */
-  double dforce[3];
+  double e[3];           /* electric field */
+  double force[3];       /* force on particle from this lattice site */
+  double flocal[4] = {0.0, 0.0, 0.0, 0.0}; /* cumulative forces and fluid node count */
+  double fsum[4];        /* global sum of forces and fluid node count */
   colloid_t* pc;
+  MPI_Comm comm;
 
   assert(cinfo);
   assert(map);
+  assert(psi);
 
   cs_nlocal(cinfo->cs, nlocal);
   cs_nlocal_offset(cinfo->cs, offset);
+  cs_cart_comm(cinfo->cs, &comm);
   colloids_info_ncell(cinfo, ncell);
   physics_kt(phys, &kt);
   psi_unit_charge(psi, &eunit);
   reunit = 1.0 / eunit;
 
+  /* First pass: Calculate electric forces on particles and accumulate total force */
   for (ic = 0; ic <= ncell[X] + 1; ic++) {
     for (jc = 0; jc <= ncell[Y] + 1; jc++) {
       for (kc = 0; kc <= ncell[Z] + 1; kc++) {
         colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
 
-        index = cs_index(psi->cs, ic, jc, kc);
-
         for (; pc; pc = pc->next) {
 
           if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-          /* Need to translate the colloid position to "local"
-           * coordinates, so that the correct range of lattice
-           * nodes is found */
-
+          /* Translate colloid position to local coordinates */
           r0[X] = pc->s.r[X] - 1.0 * offset[X];
           r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
           r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
 
-          /* Work out which local lattice sites are involved
-           * and loop around */
-
+          /* Work out which local lattice sites are involved */
           subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
 
           for (i = i_min; i <= i_max; i++) {
@@ -567,19 +572,31 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
                 index = cs_index(cinfo->cs, i, j, k);
 
-                /* Separation between r0 and the coordinate position of
-                 * this site */
-
+                /* Separation between r0 and the lattice site */
                 r[X] = r0[X] - 1.0 * i;
                 r[Y] = r0[Y] - 1.0 * j;
                 r[Z] = r0[Z] - 1.0 * k;
 
+                /* Peskin delta function weight */
                 dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
 
+                /* Electric field at this lattice site */
                 psi_electric_field(psi, index, e);
-                pc->force[X] += kt * reunit * (e[X]) * (pc->s.q0 - pc->s.q1) * dr;
-                pc->force[Y] += kt * reunit * (e[Y]) * (pc->s.q0 - pc->s.q1) * dr;
-                pc->force[Z] += kt * reunit * (e[Z]) * (pc->s.q0 - pc->s.q1) * dr;
+
+                /* Force on particle from electric field at this site */
+                force[X] = kt * reunit * e[X] * (pc->s.q0 - pc->s.q1) * dr;
+                force[Y] = kt * reunit * e[Y] * (pc->s.q0 - pc->s.q1) * dr;
+                force[Z] = kt * reunit * e[Z] * (pc->s.q0 - pc->s.q1) * dr;
+
+                /* Add to particle force */
+                pc->force[X] += force[X];
+                pc->force[Y] += force[Y];
+                pc->force[Z] += force[Z];
+
+                /* Accumulate contribution to total force on system */
+                flocal[X] += force[X];
+                flocal[Y] += force[Y];
+                flocal[Z] += force[Z];
               }
             }
           }
@@ -588,9 +605,206 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
     }
   }
 
+  /* Count fluid nodes */
+  map_volume_local(map, MAP_FLUID, &nsfluid);
+  flocal[3] = (double)nsfluid;
+
+  /* Sum across all MPI ranks */
+  MPI_Allreduce(flocal, fsum, 4, MPI_DOUBLE, MPI_SUM, comm);
+
+  /* Calculate average force per fluid node */
+  if (fsum[3] > 0.0) {
+    fsum[X] /= fsum[3];
+    fsum[Y] /= fsum[3];
+    fsum[Z] /= fsum[3];
+  }
+
+  /* Second pass: Apply correction force to all fluid nodes to conserve momentum */
+  if (hydro && fsum[3] > 0.0) {
+    for (ic = 1; ic <= nlocal[X]; ic++) {
+      for (jc = 1; jc <= nlocal[Y]; jc++) {
+        for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+          index = cs_index(cinfo->cs, ic, jc, kc);
+
+          /* Check if this is a fluid node */
+          colloids_info_map(cinfo, index, &pc);
+          if (pc) continue;  /* Skip colloid nodes */
+
+          /* Apply negative of average force to conserve momentum */
+          force[X] = -fsum[X];
+          force[Y] = -fsum[Y];
+          force[Z] = -fsum[Z];
+
+          hydro_f_local_add(hydro, index, force);
+        }
+      }
+    }
+  }
+
   return 0;
+
+// Esta implementacion intenta conservar el momento correctamente restando la fuerza en los nodos de index de cada paso
+// int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
+//   int ncell[3];
+//   int index;
+//   int nlocal[3], offset[3];
+//   double kt, eunit, reunit, dr;
+//   double r[3], r0[3];
+//   double e[3];           /* electric field */
+//   double force_particle[3]; /* force on particle from this lattice site */
+//   double force_fluid[3];    /* equal and opposite force on fluid */
+//   colloid_t* pc;
+
+//   assert(cinfo);
+//   assert(map);
+//   assert(psi);
+
+//   cs_nlocal(cinfo->cs, nlocal);
+//   cs_nlocal_offset(cinfo->cs, offset);
+//   colloids_info_ncell(cinfo, ncell);
+//   physics_kt(phys, &kt);
+//   psi_unit_charge(psi, &eunit);
+//   reunit = 1.0 / eunit;
+
+//   /* Loop through all cells (including halo cells) */
+//   for (ic = 0; ic <= ncell[X] + 1; ic++) {
+//     for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+//       for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+//         colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+//         for (; pc; pc = pc->next) {
+
+//           if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+//           /* Translate colloid position to local coordinates */
+//           r0[X] = pc->s.r[X] - 1.0 * offset[X];
+//           r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+//           r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+//           /* Work out which local lattice sites are involved */
+//           subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+//           for (i = i_min; i <= i_max; i++) {
+//             for (j = j_min; j <= j_max; j++) {
+//               for (k = k_min; k <= k_max; k++) {
+
+//                 index = cs_index(cinfo->cs, i, j, k);
+
+//                 /* Separation between r0 and the lattice site */
+//                 r[X] = r0[X] - 1.0 * i;
+//                 r[Y] = r0[Y] - 1.0 * j;
+//                 r[Z] = r0[Z] - 1.0 * k;
+
+//                 /* Peskin delta function weight */
+//                 dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+//                 /* Electric field at this lattice site */
+//                 psi_electric_field(psi, index, e);
+
+//                 /* Force on particle from electric field at this site */
+//                 force_particle[X] = kt * reunit * e[X] * (pc->s.q0 - pc->s.q1) * dr;
+//                 force_particle[Y] = kt * reunit * e[Y] * (pc->s.q0 - pc->s.q1) * dr;
+//                 force_particle[Z] = kt * reunit * e[Z] * (pc->s.q0 - pc->s.q1) * dr;
+
+//                 /* Add to particle force */
+//                 pc->force[X] += force_particle[X];
+//                 pc->force[Y] += force_particle[Y];
+//                 pc->force[Z] += force_particle[Z];
+
+//                 /* Apply equal and opposite force to fluid at this lattice site
+//                  * to conserve momentum (Newton's 3rd law) */
+//                 if (hydro) {
+//                   force_fluid[X] = -force_particle[X];
+//                   force_fluid[Y] = -force_particle[Y];
+//                   force_fluid[Z] = -force_particle[Z];
+//                   hydro_f_local_add(hydro, index, force_fluid);
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+
+//   return 0; 
+  
+  // Previous implementation without momentum conservation
+  // int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
+  // int ncell[3];
+  // int index;
+  // int nlocal[3], offset[3];
+  // double kt, eunit, reunit, dr;
+  // double r[3], r0[3];
+  // double e[3];           /* total field */
+  // double dforce[3];
+  // colloid_t* pc;
+
+  // assert(cinfo);
+  // assert(map);
+
+  // cs_nlocal(cinfo->cs, nlocal);
+  // cs_nlocal_offset(cinfo->cs, offset);
+  // colloids_info_ncell(cinfo, ncell);
+  // physics_kt(phys, &kt);
+  // psi_unit_charge(psi, &eunit);
+  // reunit = 1.0 / eunit;
+
+  // for (ic = 0; ic <= ncell[X] + 1; ic++) {
+  //   for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+  //     for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+  //       colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+  //       index = cs_index(psi->cs, ic, jc, kc);
+
+  //       for (; pc; pc = pc->next) {
+
+  //         if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+  //         /* Need to translate the colloid position to "local"
+  //          * coordinates, so that the correct range of lattice
+  //          * nodes is found */
+
+  //         r0[X] = pc->s.r[X] - 1.0 * offset[X];
+  //         r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+  //         r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+  //         /* Work out which local lattice sites are involved
+  //          * and loop around */
+
+  //         subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+  //         for (i = i_min; i <= i_max; i++) {
+  //           for (j = j_min; j <= j_max; j++) {
+  //             for (k = k_min; k <= k_max; k++) {
+
+  //               index = cs_index(cinfo->cs, i, j, k);
+
+  //               /* Separation between r0 and the coordinate position of
+  //                * this site */
+
+  //               r[X] = r0[X] - 1.0 * i;
+  //               r[Y] = r0[Y] - 1.0 * j;
+  //               r[Z] = r0[Z] - 1.0 * k;
+
+  //               dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+  //               psi_electric_field(psi, index, e);
+  //               pc->force[X] += kt * reunit * (e[X]) * (pc->s.q0 - pc->s.q1) * dr;
+  //               pc->force[Y] += kt * reunit * (e[Y]) * (pc->s.q0 - pc->s.q1) * dr;
+  //               pc->force[Z] += kt * reunit * (e[Z]) * (pc->s.q0 - pc->s.q1) * dr;
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // }
+
+  // return 0;
 }
-/*CHANGE END*/
+/*CHANGE END - Subgrid charge */
 /*****************************************************************************
  *
  *  colloid_update_forces_fluid_gravity

@@ -3,13 +3,13 @@
 # Run microgel_poly_cross_density 
 #------------------------------------------------------------------------------------
 
-grid_size=32
-number_monomers_surface=100
+grid_size=50
+number_monomers_surface=200
 bond_length=0.5
 distance_threshold=0.9
 input_radius=0.05
 hydrodynamic_radius=0.05
-subgrid_particle_offset=4.950780000000000e-01
+subgrid_particle_offset=0.5
 density=80.0
 charge=1.0
 permittivity=1.0e3

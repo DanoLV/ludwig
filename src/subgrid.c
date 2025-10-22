@@ -205,26 +205,115 @@ int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
 /*CHANGE INIT - Subgrid charge */
 /*****************************************************************************
  *
+ *  binary_search_charge_index()
+ *
+ *  Binary search to find position to insert/find cs_index in sorted array 
+ *
+ *****************************************************************************/
+static int binary_search_charge_index(distributed_charge_klein_t* charge, int cs_index) {
+	int left = 0;
+	int right = charge->count - 1;
+
+	while (left <= right) {
+		int mid = left + (right - left) / 2;
+		if (charge->entries[mid]->cs_index == cs_index) {
+			return mid;  /* Found */
+		}
+		if (charge->entries[mid]->cs_index < cs_index) {
+			left = mid + 1;
+		} else {
+			right = mid - 1;
+		}
+	}
+	return left;  /* Position to insert */
+}
+
+/*****************************************************************************
+ *
+ *  binary_search_charge_index()
+ *
+ *  Add or accumulate charge at given cs_index  
+ *
+ *****************************************************************************/
+static void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_index,
+                                double q0_dr, double q1_dr, psi_t* obj) {
+	distributed_charge_klein_t* charge = *charge_ptr;
+
+	/* Initialize if needed */
+	if (charge == NULL) {
+		charge = (distributed_charge_klein_t*)malloc(sizeof(distributed_charge_klein_t));
+		charge->entries = (distributed_charge_klein_entry_t**)malloc(16 * sizeof(distributed_charge_klein_entry_t*));
+		charge->count = 0;
+		charge->capacity = 16;
+		*charge_ptr = charge;
+	}
+
+	/* Binary search for index */
+	int pos = binary_search_charge_index(charge, cs_index);
+
+	/* Check if index already exists */
+	if (pos < charge->count && charge->entries[pos]->cs_index == cs_index) {
+		/* Accumulate to existing entry */
+		klein_add_double(charge->entries[pos]->rho0_sum, q0_dr);
+		klein_add_double(charge->entries[pos]->rho1_sum, q1_dr);
+	} else {
+		/* Need to insert new entry */
+		if (charge->count >= charge->capacity) {
+			charge->capacity *= 2;
+			charge->entries = (distributed_charge_klein_entry_t**)realloc(charge->entries,
+			                   charge->capacity * sizeof(distributed_charge_klein_entry_t*));
+		}
+
+		/* Shift elements to make space */
+		for (int i = charge->count; i > pos; i--) {
+			charge->entries[i] = charge->entries[i-1];
+		}
+
+		/* Create new entry */
+		distributed_charge_klein_entry_t* entry = (distributed_charge_klein_entry_t*)malloc(sizeof(distributed_charge_klein_entry_t));
+		entry->cs_index = cs_index;
+
+		/* Store original values */
+		psi_rho(obj, cs_index, 0, &entry->rho0_original);
+		psi_rho(obj, cs_index, 1, &entry->rho1_original);
+
+		/* Allocate and initialize Klein sums */
+		entry->rho0_sum = (klein_t*)malloc(sizeof(klein_t));
+		entry->rho1_sum = (klein_t*)malloc(sizeof(klein_t));
+		*entry->rho0_sum = klein_zero();
+		*entry->rho1_sum = klein_zero();
+
+		/* Add first contribution */
+		klein_add_double(entry->rho0_sum, q0_dr);
+		klein_add_double(entry->rho1_sum, q1_dr);
+
+		charge->entries[pos] = entry;
+		charge->count++;
+	}
+}
+
+/*****************************************************************************
+ *
  *  subgrid_charge_from_particles()
  *
  *  For each particle, accumulate the charge on the relevant surrounding
  *  lattice nodes. Only nodes in the local domain are involved.
  *
  *****************************************************************************/
-int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
+int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge)
 {
-	int ic, jc, kc, icaux, jcaux, kcaux;
+	int ic, jc, kc;
 	int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max;
 	int index;
 	int nlocal[3], offset[3];
 	int ncell[3];
-	double rho0, rho1;
 	double r[3], r0[3];
-	double dr;
-	colloid_t* p_colloid = NULL;  /* Subgrid colloid */
+	double dr, q0_dr, q1_dr;
+	colloid_t* p_colloid = NULL;
 
 	assert(cinfo);
 	assert(obj);
+	assert(charge);
 
 	if (cinfo->nsubgrid == 0) return 0;
 
@@ -233,7 +322,6 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 	colloids_info_ncell(cinfo, ncell);
 
 	/* Loop through all cells (including the halo cells) */
-
 	for (ic = 0; ic <= ncell[X] + 1; ic++) {
 		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
 			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
@@ -244,15 +332,10 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 
 					if (p_colloid->s.bc != COLLOID_BC_SUBGRID) continue;
 
-					/* Need to translate the colloid position to "local"
-					 * coordinates, so that the correct range of lattice
-					 * nodes is found */
-
 					r0[X] = p_colloid->s.r[X] - 1.0 * offset[X];
 					r0[Y] = p_colloid->s.r[Y] - 1.0 * offset[Y];
 					r0[Z] = p_colloid->s.r[Z] - 1.0 * offset[Z];
-					
-					// Work out which lattice sites are involved including Halo
+
 					i_min = imax(0, (int)floor(r0[X] - drange_));
 					i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + drange_));
 					j_min = imax(0, (int)floor(r0[Y] - drange_));
@@ -266,34 +349,173 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
 
 								index = cs_index(cinfo->cs, i, j, k);
 
-								/* Separation between r0 and the coordinate position of
-								 * this site */
-
 								r[X] = r0[X] - 1.0 * i;
 								r[Y] = r0[Y] - 1.0 * j;
 								r[Z] = r0[Z] - 1.0 * k;
 
 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								q0_dr = p_colloid->s.q0 * dr;
+								q1_dr = p_colloid->s.q1 * dr;
 
-								psi_rho(obj, index, 0, &rho0);
-								rho0 = rho0 + p_colloid->s.q0 * dr;
-
-								psi_rho(obj, index, 1, &rho1);
-								rho1 = rho1 + p_colloid->s.q1 * dr;
-
-								psi_rho_set(obj, index, 0, rho0);
-								psi_rho_set(obj, index, 1, rho1);
-
+								/* Add to Klein sum array with binary search */
+								add_charge_to_array(charge, index, q0_dr, q1_dr, obj);
 							}
 						}
 					}
-					/* Next colloid */
 				}
-				/* Next cell */
 			}
 		}
 	}
+
+	/* Now apply all accumulated charges to psi */
+	if (*charge != NULL) {
+		for (int i = 0; i < (*charge)->count; i++) {
+			distributed_charge_klein_entry_t* entry = (*charge)->entries[i];
+			double new_rho0 = entry->rho0_original + klein_sum(entry->rho0_sum);
+			double new_rho1 = entry->rho1_original + klein_sum(entry->rho1_sum);
+			psi_rho_set(obj, entry->cs_index, 0, new_rho0);
+			psi_rho_set(obj, entry->cs_index, 1, new_rho1);
+		}
+	}
+
 	return 0;
+}
+// int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj)
+// {
+// 	int ic, jc, kc, icaux, jcaux, kcaux;
+// 	int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max;
+// 	int index;
+// 	int nlocal[3], offset[3];
+// 	int ncell[3];
+// 	double rho0, rho1;
+// 	double r[3], r0[3];
+// 	double dr;
+// 	colloid_t* p_colloid = NULL;  /* Subgrid colloid */
+
+// 	assert(cinfo);
+// 	assert(obj);
+
+// 	if (cinfo->nsubgrid == 0) return 0;
+
+// 	cs_nlocal(cinfo->cs, nlocal);
+// 	cs_nlocal_offset(cinfo->cs, offset);
+// 	colloids_info_ncell(cinfo, ncell);
+
+// 	/* Loop through all cells (including the halo cells) */
+
+// 	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+// 		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+// 			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+// 				colloids_info_cell_list_head(cinfo, ic, jc, kc, &p_colloid);
+
+// 				for (; p_colloid; p_colloid = p_colloid->next) {
+
+// 					if (p_colloid->s.bc != COLLOID_BC_SUBGRID) continue;
+
+// 					/* Need to translate the colloid position to "local"
+// 					 * coordinates, so that the correct range of lattice
+// 					 * nodes is found */
+
+// 					r0[X] = p_colloid->s.r[X] - 1.0 * offset[X];
+// 					r0[Y] = p_colloid->s.r[Y] - 1.0 * offset[Y];
+// 					r0[Z] = p_colloid->s.r[Z] - 1.0 * offset[Z];
+					
+// 					// Work out which lattice sites are involved including Halo
+// 					i_min = imax(0, (int)floor(r0[X] - drange_));
+// 					i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + drange_));
+// 					j_min = imax(0, (int)floor(r0[Y] - drange_));
+// 					j_max = imin(nlocal[Y] + 1, (int)ceil(r0[Y] + drange_));
+// 					k_min = imax(0, (int)floor(r0[Z] - drange_));
+// 					k_max = imin(nlocal[Z] + 1, (int)ceil(r0[Z] + drange_));
+
+// 					for (i = i_min; i <= i_max; i++) {
+// 						for (j = j_min; j <= j_max; j++) {
+// 							for (k = k_min; k <= k_max; k++) {
+
+// 								index = cs_index(cinfo->cs, i, j, k);
+
+// 								/* Separation between r0 and the coordinate position of
+// 								 * this site */
+
+// 								r[X] = r0[X] - 1.0 * i;
+// 								r[Y] = r0[Y] - 1.0 * j;
+// 								r[Z] = r0[Z] - 1.0 * k;
+
+// 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+// 								psi_rho(obj, index, 0, &rho0);
+// 								rho0 = rho0 + p_colloid->s.q0 * dr;
+
+// 								psi_rho(obj, index, 1, &rho1);
+// 								rho1 = rho1 + p_colloid->s.q1 * dr;
+
+// 								psi_rho_set(obj, index, 0, rho0);
+// 								psi_rho_set(obj, index, 1, rho1);
+
+// 							}
+// 						}
+// 					}
+// 					/* Next colloid */
+// 				}
+// 				/* Next cell */
+// 			}
+// 		}
+// 	}
+// 	return 0;
+// }
+
+/*****************************************************************************
+ *
+ *  subgrid_charge_from_particles_restore()
+ *
+ *  Restore original charge values from before particles were added
+ *
+ *****************************************************************************/
+int subgrid_charge_from_particles_restore(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge)
+{
+	assert(cinfo);
+	assert(obj);
+	assert(charge);
+
+	if (*charge == NULL) return 0;
+
+	/* Restore original values */
+	for (int i = 0; i < (*charge)->count; i++) {
+		distributed_charge_klein_entry_t* entry = (*charge)->entries[i];
+		psi_rho_set(obj, entry->cs_index, 0, entry->rho0_original);
+		psi_rho_set(obj, entry->cs_index, 1, entry->rho1_original);
+	}
+
+	return 0;
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_free_distributed_charge_t()
+ *
+ *  Free memory allocated for distributed charge structure
+ *
+ *****************************************************************************/
+void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge)
+{
+	if (charge == NULL || *charge == NULL) return;
+
+	distributed_charge_klein_t* c = *charge;
+
+	/* Free each entry */
+	for (int i = 0; i < c->count; i++) {
+		if (c->entries[i] != NULL) {
+			if (c->entries[i]->rho0_sum != NULL) free(c->entries[i]->rho0_sum);
+			if (c->entries[i]->rho1_sum != NULL) free(c->entries[i]->rho1_sum);
+			free(c->entries[i]);
+		}
+	}
+
+	/* Free array and structure */
+	if (c->entries != NULL) free(c->entries);
+	free(c);
+	*charge = NULL;
 }
 
 /*****************************************************************************

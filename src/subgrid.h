@@ -17,7 +17,22 @@
 #include "hydro.h"
 #include "wall.h"
 /*CHANGE INIT - Subgrid charge */
-#include "psi_colloid.h" 
+#include "psi_colloid.h"
+#include "util_sum.h"
+
+typedef struct distributed_charge_klein_entry_s {
+  int cs_index;                /* Lattice site index */
+  double rho0_original;        /* Original value of rho0 */
+  double rho1_original;        /* Original value of rho1 */
+  klein_t* rho0_sum;           /* Pointer to Klein sum for rho0 */
+  klein_t* rho1_sum;           /* Pointer to Klein sum for rho1 */
+} distributed_charge_klein_entry_t;
+
+typedef struct distributed_charge_klein_s {
+  distributed_charge_klein_entry_t** entries;  /* Array of pointers to entries */
+  int count;                   /* Number of entries */
+  int capacity;                /* Allocated capacity */
+} distributed_charge_klein_t;
 /*CHANGE END - Subgrid charge */
 
 int subgrid_update(colloids_info_t * cinfo, hydro_t * hydro, int noise_flag);
@@ -25,10 +40,13 @@ int subgrid_force_from_particles(colloids_info_t * cinfo, hydro_t * hydro,
 				 wall_t * wall);
 int subgrid_wall_lubrication(colloids_info_t * cinfo, wall_t * wall);
 /*CHANGE INIT - Subgrid charge */
+// int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj);
+// int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj);
 double d_peskin(double r);
-int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj);
-int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj);
+int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
+int subgrid_charge_from_particles_restore(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
+void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge);
 void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
-void get_related_particle_halo(colloids_info_t* cinfo, int ncell[3], int ic, int jc, int kc, int* icaux, int* jcaux, int* kcaux, colloid_t** p_colloidaux);
+// void get_related_particle_halo(colloids_info_t* cinfo, int ncell[3], int ic, int jc, int kc, int* icaux, int* jcaux, int* kcaux, colloid_t** p_colloidaux);
 /*CHANGE END - Subgrid charge */
 #endif

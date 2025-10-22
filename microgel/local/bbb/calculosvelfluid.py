@@ -8,7 +8,6 @@ from scipy.spatial import ConvexHull
 # Set command line parameters
 argParser = argparse.ArgumentParser()
 argParser.add_argument("-nciclos", help="number of cycles")
-argParser.add_argument("-ninicio", help="Number of cycle to start from")
 argParser.add_argument("-npaso", help="cycles per step")
 argParser.add_argument("-o", help="output file name")
 
@@ -19,16 +18,9 @@ except:
     sys.exit("Could not read command line parameters")
 
 cant = int(args.nciclos)
-if(cant < 0):
+if(cant <= 0):
     sys.exit("Invalid number of cycles")
 
-inicio = int(args.ninicio)
-
-print('cant:',cant)
-print('inicio:',inicio)
-if( inicio<0 or inicio>cant):
-    sys.exit("Invalid number of cycle to start from")
-    
 paso = int(args.npaso)
 if(paso <= 0):
     sys.exit("Invalid step value")
@@ -38,19 +30,14 @@ if(fout is None):
     sys.exit("Please specify an output file name")
 
 # Open output file
-fo = open(fout, "a") #"w")
+fo = open(fout, "w")
 separador = ' '
 
-# fo.write("cycle,vx,vy,vz,<vfx>,<vfy>,<vfz>,vxr,vyr,vyz\n")
-# fo.write("0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
-if( inicio == 0): 
-    fo.write("cycle,vx,vy,vz,<vfx>,<vfy>,<vfz>,vxr,vyr,vyz\n")
-    fo.write("0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
-    fo.close()
-    sys.exit(0)
-# for i in range(paso, cant + 1, paso):
-for i in range(inicio, cant + 1, paso):
-        
+fo.write("cycle,vx,vy,vz,<vfx>,<vfy>,<vfz>,vxr,vyr,vyz\n")
+fo.write("0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
+
+for i in range(paso, cant + 1, paso):
+    
     # Read data file
     archivo = "colloids-{ciclo:08d}.csv".format(ciclo=i)
     y = np.genfromtxt(archivo, dtype=np.float64, delimiter=',', skip_header=1)

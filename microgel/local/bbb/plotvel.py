@@ -74,12 +74,12 @@ axis.plot(x1,vfz,'b',linestyle='dotted', linewidth = 1.0)
 
 #-------------------------------------------------------------
 # VELOCIDAD RELATIVA
-# Vx
-axis.plot(x1,vxr,'g',linestyle='dashed', linewidth = 1.0)
-# Vy
-axis.plot(x1,vyr,'r',linestyle='dashed', linewidth = 1.0)
-# Vz
-axis.plot(x1,vzr,'b',linestyle='dashed', linewidth = 1.0)
+# # Vx
+# axis.plot(x1,vxr,'g',linestyle='dashed', linewidth = 1.0)
+# # Vy
+# axis.plot(x1,vyr,'r',linestyle='dashed', linewidth = 1.0)
+# # Vz
+# axis.plot(x1,vzr,'b',linestyle='dashed', linewidth = 1.0)
 # # Vx
 # axis.plot(x1,vxr,'b', linewidth = 1.0)
 # # Vy
@@ -91,7 +91,7 @@ axis.plot(x1,vzr,'b',linestyle='dashed', linewidth = 1.0)
 # VELOCIDADES EN x
 # # Vx
 # axis.plot(x1,vx,'g', linewidth = 1.0)
-# Vfx
+# # Vfx
 # axis.plot(x1,vfx,'r', linewidth = 1.0)
 # # Vrx
 # axis.plot(x1,vxr,'b',linestyle='dashed', linewidth = 1.0)
@@ -116,7 +116,7 @@ axis.plot(x1,vzr,'b',linestyle='dashed', linewidth = 1.0)
 axis.set_ylabel('Vx/Vy/Vz')
 axis.set_xlabel('Cycle')
 # axis.set_ylim(-5.22e-4,-5.205e-4)
-# axis.set_xlim(900000,)
+# axis.set_xlim(-1,10)
 axis.grid(True, which='both',linewidth=3,linestyle='--')
 axis.tick_params(width=3)
 for spine in ['top','bottom','left','right']:
