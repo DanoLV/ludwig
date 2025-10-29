@@ -14,6 +14,7 @@
 #   -f  electric_e0  : External electric field: Ex_Ey_Ez
 #   -m  mpi_procs    : Number of MPI processes (default: 1)
 #   -r  mpi_grid     : MPI grid decomposition: NX_NY_NZ (e.g., 2_2_1)
+#   -q  fluid_only   : Plot only fluid average velocity (y/n)
 #------------------------------------------------------------------------------------
 # Example with MPI:
 # ./runbg.sh -n 1000000 -i 0 -p 500 -t 300 -c 10 -l 26 -y 26 -v 0.5 -e fe_electro \
@@ -26,7 +27,7 @@ clear
 mpi_procs=1
 mpi_grid=""
 
-while getopts "a:n:i:p:l:d:y:v:e:f:g:s:t:c:o:m:r:" flag
+while getopts "a:n:i:p:l:d:y:v:e:f:g:s:t:c:o:m:r:q:" flag
 do
     case "${flag}" in
         a) fconfig=${OPTARG};;      # Config out frequency
@@ -39,13 +40,14 @@ do
         d) del=${OPTARG};;          # Run script to delete files
         v) viscosidad=${OPTARG};;   # Viscosity
         e) energy=${OPTARG};;       # free_energy: fe_electro/none
-        f) electric_e0=${OPTARG};;  # electric_e0 
+        f) electric_e0=${OPTARG};;  # electric_e0
         g) solver=${OPTARG};;       # electrokinetics_solver_type: petsc / sor
         s) single=${OPTARG};;       # Single monomer
         c) cores=${OPTARG};;        # Num of cores (threads per process)
         o) dir=${OPTARG};;          # Output dir
         m) mpi_procs=${OPTARG};;    # Number of MPI processes
         r) mpi_grid=${OPTARG};;     # MPI grid decomposition
+        q) fluid_only=${OPTARG};;   # Plot only fluid average velocity
     esac
 done
 
@@ -106,14 +108,28 @@ cp extract_colloids $RESULTS_DIR
 cp coloideacsv.sh $RESULTS_DIR
 cp calculosvel.py $RESULTS_DIR
 cp calculosvelfluid.py $RESULTS_DIR
+cp calculosvelfluidonly.py $RESULTS_DIR
 cp plotvel.py $RESULTS_DIR
+cp plot_charge_distribution.py $RESULTS_DIR
+cp plot_electric_field.py $RESULTS_DIR
+cp plotdatos.py $RESULTS_DIR
+cp extraer_posicion.py $RESULTS_DIR
+cp batch_plot_electric_field.py $RESULTS_DIR
+cp calculosvelfluidonly.py $RESULTS_DIR
 
 # Provide access to plot
 chmod +x $RESULTS_DIR/runplot.sh
 chmod +x $RESULTS_DIR/extract_colloids
 chmod +x $RESULTS_DIR/calculosvel.py
 chmod +x $RESULTS_DIR/calculosvelfluid.py
+chmod +x $RESULTS_DIR/calculosvelfluidonly.py
 chmod +x $RESULTS_DIR/plotvel.py
+chmod +x $RESULTS_DIR/plot_charge_distribution.py
+chmod +x $RESULTS_DIR/plot_electric_field.py
+chmod +x $RESULTS_DIR/plotdatos.py
+chmod +x $RESULTS_DIR/extraer_posicion.py
+chmod +x $RESULTS_DIR/batch_plot_electric_field.py
+chmod +x $RESULTS_DIR/calculosvelfluidonly.py
 
 # Change to result dir
 cd $RESULTS_DIR/
@@ -194,17 +210,30 @@ while kill -0 $PID_BG 2>/dev/null; do
     echo "[INFO] Plot inicia en $(date)"
 
     # Plot
-    count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
+    file_count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
+    file_count=$((file_count - 1))
     
-    # Adjust count for MPI processes
-    if [ "$mpi_procs" -gt 1 ]; then
-        # count=$((count / mpi_procs))
-        count=$((count - mpi_procs + 1))
+    if  [ "$fluid_only" == "y" ]; then
+    file_count=$(find . -maxdepth 1 -type f -name "vel-*" | wc -l)
     fi
-    
-    count=$((paso*(count-2)-ni))
-    
-    echo "Ni=$ni"
+
+    # Adjust file_count for MPI processes
+    if [ "$mpi_procs" -gt 1 ]; then
+        # file_count=$((file_count / mpi_procs))
+        file_count=$((file_count - mpi_procs + 1))
+    fi
+
+    # Calculate the current step number from file count
+    # file_count-1 because we have config at step 0, so subtract 1 to get actual steps
+    current_step=$((paso*(file_count-1)))
+
+    # Number of new steps to process (from ni to current_step)
+    count=$((current_step - ni))
+
+    echo "Files found: $file_count"
+    echo "Current step: $current_step"
+    echo "Ni (inicio): $ni"
+    echo "Count (steps to process): $count"
 
     if [ "$count" -lt 0 ]; then
         sleep $deltat
@@ -215,10 +244,10 @@ while kill -0 $PID_BG 2>/dev/null; do
                 -n "$count"  \
                 -i "$ni"   \
                 -p "$paso"   \
-                -s "$single" >> outputplot.txt 2>&1 
+                -s "$single" \
+                -q "$fluid_only" >> outputplot.txt 2>&1 
 
     ni=$((ni+count+paso))
-
     sleep $deltat
 
 done
@@ -230,20 +259,37 @@ sleep 10
 
 # Plot final
 echo "Plot inicia"
-count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
 
-# Adjust count for MPI processes
-if [ "$mpi_procs" -gt 1 ]; then
-    count=$((count - mpi_procs + 1))
+# Count final files
+file_count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
+
+if  [ "$fluid_only" == "y" ]; then
+    file_count=$(find . -maxdepth 1 -type f -name "vel-*" | wc -l)
 fi
 
-count=$((paso*(count-2)-ni))
+# Adjust file_count for MPI processes
+if [ "$mpi_procs" -gt 1 ]; then
+    file_count=$((file_count - mpi_procs + 1))
+fi
 
+# Calculate the final step number from file count
+current_step=$((paso*(file_count-1)))
+
+# Number of steps to process for final plot
+count=$((current_step - ni))
+
+echo "Final plot - Files found: $file_count"
+echo "Final plot - Current step: $current_step"
+echo "Final plot - Ni (inicio): $ni"
+echo "Final plot - Count (steps to process): $count"
+
+# For final plot, use the total number of steps
 ./runplot.sh   \
                 -n "$count"  \
                 -i "$ni"   \
                 -p "$paso"   \
-                -s "$single" >> outputplot.txt 2>&1 
+                -s "$single" \
+                -q "$fluid_only" >> outputplot.txt 2>&1
 
 echo "Plot termino"
 echo "Simulacion finalizada con $mpi_procs procesos MPI"

@@ -207,7 +207,7 @@ int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
  *
  *  binary_search_charge_index()
  *
- *  Binary search to find position to insert/find cs_index in sorted array 
+ *  Binary search to find position to insert/find cs_index in sorted array
  *
  *****************************************************************************/
 static int binary_search_charge_index(distributed_charge_klein_t* charge, int cs_index) {
@@ -221,7 +221,8 @@ static int binary_search_charge_index(distributed_charge_klein_t* charge, int cs
 		}
 		if (charge->entries[mid]->cs_index < cs_index) {
 			left = mid + 1;
-		} else {
+		}
+		else {
 			right = mid - 1;
 		}
 	}
@@ -230,13 +231,13 @@ static int binary_search_charge_index(distributed_charge_klein_t* charge, int cs
 
 /*****************************************************************************
  *
- *  binary_search_charge_index()
+ *  add_charge_to_array()
  *
- *  Add or accumulate charge at given cs_index  
+ *  Add or accumulate charge at given cs_index
  *
  *****************************************************************************/
 static void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_index,
-                                double q0_dr, double q1_dr, psi_t* obj) {
+								double q0_dr, double q1_dr, psi_t* obj) {
 	distributed_charge_klein_t* charge = *charge_ptr;
 
 	/* Initialize if needed */
@@ -252,21 +253,22 @@ static void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_
 	int pos = binary_search_charge_index(charge, cs_index);
 
 	/* Check if index already exists */
-	if (pos < charge->count && charge->entries[pos]->cs_index == cs_index) {
+	if (pos < charge->count&& charge->entries[pos]->cs_index == cs_index) {
 		/* Accumulate to existing entry */
 		klein_add_double(charge->entries[pos]->rho0_sum, q0_dr);
 		klein_add_double(charge->entries[pos]->rho1_sum, q1_dr);
-	} else {
+	}
+	else {
 		/* Need to insert new entry */
 		if (charge->count >= charge->capacity) {
 			charge->capacity *= 2;
 			charge->entries = (distributed_charge_klein_entry_t**)realloc(charge->entries,
-			                   charge->capacity * sizeof(distributed_charge_klein_entry_t*));
+							   charge->capacity * sizeof(distributed_charge_klein_entry_t*));
 		}
 
 		/* Shift elements to make space */
 		for (int i = charge->count; i > pos; i--) {
-			charge->entries[i] = charge->entries[i-1];
+			charge->entries[i] = charge->entries[i - 1];
 		}
 
 		/* Create new entry */
@@ -420,7 +422,7 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 // 					r0[X] = p_colloid->s.r[X] - 1.0 * offset[X];
 // 					r0[Y] = p_colloid->s.r[Y] - 1.0 * offset[Y];
 // 					r0[Z] = p_colloid->s.r[Z] - 1.0 * offset[Z];
-					
+
 // 					// Work out which lattice sites are involved including Halo
 // 					i_min = imax(0, (int)floor(r0[X] - drange_));
 // 					i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + drange_));
@@ -526,7 +528,7 @@ void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge)
  *  lattice nodes. Only nodes in the local domain are involved.
  *
  *****************************************************************************/
-int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj)
+int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge)
 {
 	int ic, jc, kc;
 	int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max;
@@ -542,6 +544,28 @@ int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj)
 	assert(obj);
 
 	if (cinfo->nsubgrid == 0) return 0;
+
+	/* Substrac if already have the sum o q0 and q1*/
+	if (*charge != NULL) {
+		for (int i = 0; i < (*charge)->count; i++) {
+			distributed_charge_klein_entry_t* entry = (*charge)->entries[i];
+			double new_rho0;
+			double new_rho1;
+			//Get the current rho
+			psi_rho(obj, entry->cs_index, 0, &new_rho0);
+			psi_rho(obj, entry->cs_index, 1, &new_rho1);
+
+			//Subtract the accumulated sum
+			new_rho0 -= klein_sum(entry->rho0_sum);
+			new_rho1 -= klein_sum(entry->rho1_sum);
+
+			//Set the new rho
+			psi_rho_set(obj, entry->cs_index, 0, new_rho0);
+			psi_rho_set(obj, entry->cs_index, 1, new_rho1);
+		}
+
+		return 0;
+	}
 
 	cs_nlocal(cinfo->cs, nlocal);
 	cs_nlocal_offset(cinfo->cs, offset);
@@ -610,6 +634,337 @@ int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj)
 	}
 	return 0;
 }
+
+/*****************************************************************************
+ *
+ *  binary_search_force_index()
+ *
+ *  Binary search to find position to insert/find cs_index in sorted array
+ *
+ *****************************************************************************/
+static int binary_search_force_index(distributed_force_klein_t* force, int cs_index) {
+	int left = 0;
+	int right = force->count - 1;
+
+	while (left <= right) {
+		int mid = left + (right - left) / 2;
+		if (force->entries[mid]->cs_index == cs_index) {
+			return mid;  /* Found */
+		}
+		if (force->entries[mid]->cs_index < cs_index) {
+			left = mid + 1;
+		}
+		else {
+			right = mid - 1;
+		}
+	}
+	return left;  /* Position to insert */
+}
+
+/*****************************************************************************
+ *
+ *  add_force_to_array()
+ *
+ *  Add or accumulate force at given cs_index
+ *
+ *****************************************************************************/
+static void add_force_to_array(distributed_force_klein_t** force_ptr, int cs_index,
+								double force_add[3]) {
+	distributed_force_klein_t* force = *force_ptr;
+
+	/* Initialize if needed */
+	if (force == NULL) {
+		force = (distributed_force_klein_t*)malloc(sizeof(distributed_force_klein_t));
+		force->entries = (distributed_force_klein_entry_t**)malloc(16 * sizeof(distributed_force_klein_entry_t*));
+		force->count = 0;
+		force->capacity = 16;
+		*force_ptr = force;
+	}
+
+	/* Binary search for index */
+	int pos = binary_search_force_index(force, cs_index);
+
+	/* Check if index already exists */
+	if (pos < force->count&& force->entries[pos]->cs_index == cs_index) {
+		/* Accumulate to existing entry */
+		klein_add_double(force->entries[pos]->force[0], force_add[0]);
+		klein_add_double(force->entries[pos]->force[1], force_add[1]);
+		klein_add_double(force->entries[pos]->force[2], force_add[2]);
+	}
+	else {
+		/* Need to insert new entry */
+		if (force->count >= force->capacity) {
+			force->capacity *= 2;
+			force->entries = (distributed_force_klein_entry_t**)realloc(force->entries,
+							   force->capacity * sizeof(distributed_force_klein_entry_t*));
+		}
+
+		/* Shift elements to make space */
+		for (int i = force->count; i > pos; i--) {
+			force->entries[i] = force->entries[i - 1];
+		}
+
+		/* Create new entry */
+		distributed_force_klein_entry_t* entry = (distributed_force_klein_entry_t*)malloc(sizeof(distributed_force_klein_entry_t));
+		entry->cs_index = cs_index;
+
+		/* Allocate and initialize Klein sums */
+		*entry->force = (klein_t*)malloc(3 * sizeof(klein_t));
+		*entry->force[0] = klein_zero();
+		*entry->force[1] = klein_zero();
+		*entry->force[2] = klein_zero();
+
+		/* Add first contribution */
+		klein_add_double(entry->force[0], force_add[0]);
+		klein_add_double(entry->force[1], force_add[1]);
+		klein_add_double(entry->force[2], force_add[2]);
+
+		force->entries[pos] = entry;
+		force->count++;
+	}
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_free_distributed_force_t()
+ *
+ *  Free memory allocated for distributed force structure
+ *
+ *****************************************************************************/
+void subgrid_free_distributed_force_t(distributed_force_klein_t** force)
+{
+	if (force == NULL || *force == NULL) return;
+
+	distributed_force_klein_t* c = *force;
+
+	/* Free each entry */
+	for (int i = 0; i < c->count; i++) {
+		if (c->entries[i] != NULL) {
+			if (c->entries[i]->force != NULL) free(c->entries[i]->force);
+			free(c->entries[i]);
+		}
+	}
+
+	/* Free array and structure */
+	if (c->entries != NULL) free(c->entries);
+	free(c);
+	*force = NULL;
+}
+
+int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
+										  map_t* map,
+										  physics_t* phys,
+										  psi_t* psi,
+										  hydro_t* hydro) {
+
+	int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
+	int ncell[3];
+	int index;
+	int nlocal[3], offset[3];
+	int nsfluid;
+	double kt, eunit, reunit, dr;
+	double r[3], r0[3];
+	double e[3];           /* electric field */
+	double force[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+	double fbody[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+	double flocal[4] = { 0.0, 0.0, 0.0, 0.0 }; /* cumulative forces and fluid node count */
+	double fsum[4] = { 0.0, 0.0, 0.0, 0.0 }; /* global sum of forces and fluid node count */
+	klein_t flocal_k[3];
+	flocal_k[X] = klein_zero();
+	flocal_k[Y] = klein_zero();
+	flocal_k[Z] = klein_zero();
+	distributed_force_klein_t** force_k;
+
+	colloid_t* pc;
+	MPI_Comm comm;
+
+	assert(cinfo);
+	assert(map);
+	assert(psi);
+
+	cs_nlocal(cinfo->cs, nlocal);
+	cs_nlocal_offset(cinfo->cs, offset);
+	cs_cart_comm(cinfo->cs, &comm);
+	colloids_info_ncell(cinfo, ncell);
+	physics_kt(phys, &kt);
+	psi_unit_charge(psi, &eunit);
+	reunit = 1.0 / eunit;
+
+
+	// /* Add any wall lubrication corrections before communication to
+	// 	 * find total external force on each particle */
+
+	// 	subgrid_wall_lubrication(cinfo, wall);
+	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
+
+	/* While there is no device implementation, must copy back-and forth
+	 * the force. */
+
+	assert(hydro);
+	hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+
+	/* First pass: Calculate electric forces on particles and accumulate total force */
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					klein_t force_k[3];
+					force_k[X] = klein_zero();
+					force_k[Y] = klein_zero();
+					force_k[Z] = klein_zero();
+
+					/* Translate colloid position to local coordinates */
+					r0[X] = pc->s.r[X] - 1.0 * offset[X];
+					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+					/* Work out which local lattice sites are involved */
+					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+					for (i = i_min; i <= i_max; i++) {
+						for (j = j_min; j <= j_max; j++) {
+							for (k = k_min; k <= k_max; k++) {
+
+								index = cs_index(cinfo->cs, i, j, k);
+
+								/* Separation between r0 and the lattice site */
+								r[X] = r0[X] - 1.0 * i;
+								r[Y] = r0[Y] - 1.0 * j;
+								r[Z] = r0[Z] - 1.0 * k;
+
+								/* Peskin delta function weight */
+								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+								/* Electric field at this lattice site */
+								psi_electric_field(psi, index, e);
+
+								/* Force on particle from electric field at this site */
+								force[X] = kt * reunit * e[X] * (pc->s.q0 - pc->s.q1) * dr;
+								force[Y] = kt * reunit * e[Y] * (pc->s.q0 - pc->s.q1) * dr;
+								force[Z] = kt * reunit * e[Z] * (pc->s.q0 - pc->s.q1) * dr;
+
+								/* Add to particle force */
+								// pc->force[X] += force[X];
+								// pc->force[Y] += force[Y];
+								// pc->force[Z] += force[Z];
+								klein_add_double(&force_k[X], force[X]);
+								klein_add_double(&force_k[Y], force[Y]);
+								klein_add_double(&force_k[Z], force[Z]);
+
+								/* Add to Klein sum array with binary search */
+								add_force_to_array(force_k, index, force);
+
+								hydro_f_local_add(hydro, index, force);
+
+								/* Accumulate contribution to total force on system */
+								// flocal[X] += force[X];
+								// flocal[Y] += force[Y];
+								// flocal[Z] += force[Z];
+								klein_add_double(&flocal_k[X], force[X]);
+								klein_add_double(&flocal_k[Y], force[Y]);
+								klein_add_double(&flocal_k[Z], force[Z]);
+							}
+						}
+					}
+					pc->force[X] = klein_sum(&force_k[X]);
+					pc->force[Y] = klein_sum(&force_k[Y]);
+					pc->force[Z] = klein_sum(&force_k[Z]);
+				}
+			}
+		}
+	}
+
+	/* Count fluid nodes */
+	map_volume_local(map, MAP_FLUID, &nsfluid);
+	flocal[3] = (double)nsfluid;
+	flocal[X] = klein_sum(&flocal_k[X]);
+	flocal[Y] = klein_sum(&flocal_k[Y]);
+	flocal[Z] = klein_sum(&flocal_k[Z]);
+
+	/* Sum across all MPI ranks */
+	MPI_Allreduce(flocal, fsum, 4, MPI_DOUBLE, MPI_SUM, comm);
+
+
+	/* Calculate average force per fluid node */
+	if (fsum[3] > 0.0) {
+		fsum[X] /= fsum[3];
+		fsum[Y] /= fsum[3];
+		fsum[Z] /= fsum[3];
+		// physics_fbody(phys, fbody);
+		// fbody[X] -= fsum[X] / fsum[3];
+		// fbody[Y] -= fsum[Y] / fsum[3];
+		// fbody[Z] -= fsum[Z] / fsum[3];
+		// physics_fbody_set(phys, fbody);
+
+	}
+
+	/* Second pass: Apply correction force to all fluid nodes to conserve momentum */
+	if (hydro && fsum[3] > 0.0) {
+		for (ic = 1; ic <= nlocal[X]; ic++) {
+			for (jc = 1; jc <= nlocal[Y]; jc++) {
+				for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+					index = cs_index(cinfo->cs, ic, jc, kc);
+
+					/* Check if this is a fluid node */
+					colloids_info_map(cinfo, index, &pc);
+					if (pc) continue;  /* Skip colloid nodes */
+
+					/* Apply negative of average force to conserve momentum */
+					force[X] = -fsum[X];
+					force[Y] = -fsum[Y];
+					force[Z] = -fsum[Z];
+
+					hydro_f_local_add(hydro, index, force);
+				}
+			}
+		}
+	}
+
+	/* Now apply all accumulated charges to psi */
+	if (*force_k != NULL) {
+		for (int i = 0; i < (*charge)->count; i++) {
+
+			distributed_force_klein_entry_t* entry = (*force_k)->entries[i];
+
+			double new_force[3];
+			new_force[X] = klein_sum(entry->force[X]);		
+			new_force[Y] = klein_sum(entry->force[Y]);	
+			new_force[Z] = klein_sum(entry->force[Z]);			
+
+			hydro_f_local_add(hydro, entry->cs_index, force);
+
+		}
+	}
+
+	hydro_memcpy(hydro, tdpMemcpyHostToDevice);
+
+	return 0;
+
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_get_lattice_index
+ *
+ *  Get indexes for neigbour lattice sites
+ *
+ *****************************************************************************/
+void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max)
+{
+	*i_min = imax(1, (int)floor(r0[X] - drange_));
+	*i_max = imin(nlocal[X], (int)ceil(r0[X] + drange_));
+	*j_min = imax(1, (int)floor(r0[Y] - drange_));
+	*j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
+	*k_min = imax(1, (int)floor(r0[Z] - drange_));
+	*k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
+}
+
 /*CHANGE END - Subgrid charge */
 
 /*****************************************************************************
@@ -878,21 +1233,4 @@ double d_peskin(double r) {
 	}
 
 	return delta;
-}
-
-/*****************************************************************************
- *
- *  subgrid_get_lattice_index
- *
- *  Get indexes for neigbour lattice sites
- *
- *****************************************************************************/
-void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max)
-{
-	*i_min = imax(1, (int)floor(r0[X] - drange_));
-	*i_max = imin(nlocal[X], (int)ceil(r0[X] + drange_));
-	*j_min = imax(1, (int)floor(r0[Y] - drange_));
-	*j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
-	*k_min = imax(1, (int)floor(r0[Z] - drange_));
-	*k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
 }

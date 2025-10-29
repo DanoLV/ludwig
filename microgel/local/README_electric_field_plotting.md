@@ -296,9 +296,76 @@ Para una malla de 32×32×32:
 - Verifica el patrón con `ls psi-*.001-001`
 - Ajusta el `--pattern` si tus archivos tienen formato diferente
 
+## Restar Campo Eléctrico Externo
+
+### Motivación
+
+En simulaciones con campo eléctrico aplicado externamente, el campo total es:
+```
+E_total = E_cargas + E_externo
+```
+
+Para visualizar **solo el campo generado por las cargas** (polarización, capa doble eléctrica, etc.), podemos restar el campo externo constante.
+
+### Uso
+
+Añadir el argumento `--external-field Ex Ey Ez`:
+
+```bash
+# Ejemplo: Campo externo E_ext = (0, 0, 1.0) en dirección Z
+./plot_electric_field.py -f psi-000000500.001-001 -s 32 32 32 -m plane -p xy \
+  --external-field 0 0 1.0
+```
+
+### Ejemplos
+
+```bash
+# 1. Restar campo externo en dirección Z
+./plot_electric_field.py -f psi-000000500.001-001 -s 32 32 32 -m plane -p xy -c magnitude \
+  --external-field 0 0 0.001
+
+# 2. Restar campo externo en dirección X (electroforesis)
+./plot_electric_field.py -f psi-000000500.001-001 -s 32 32 32 -m plane3d -p xz -c magnitude \
+  --external-field 0.005 0 0
+
+# 3. Comparar campo con y sin externo (línea)
+# Con campo total:
+./plot_electric_field.py -f psi-000000500.001-001 -s 32 32 32 -m line \
+  --start 0 16 16 --end 31 16 16 -c all -o campo_total.png
+
+# Solo campo de cargas:
+./plot_electric_field.py -f psi-000000500.001-001 -s 32 32 32 -m line \
+  --start 0 16 16 --end 31 16 16 -c all --external-field 0 0 1.0 -o campo_cargas.png
+
+# 4. Visualizar polarización de partícula (restar campo uniforme)
+./plot_electric_field.py -f psi-000000500.001-001 -s 32 32 32 -m plane3d -p xy \
+  --external-field 0 0 1.0 -o polarizacion_3d.png
+```
+
+### Casos de Uso
+
+**1. Análisis de Polarización:**
+- Aplicar campo externo constante
+- Restar ese campo para ver solo la respuesta de las cargas
+- Visualizar dipolo inducido o redistribución de carga
+
+**2. Capa Doble Eléctrica:**
+- En electroforesis, restar el campo aplicado
+- Ver solo el campo generado por la capa doble alrededor de la partícula
+
+**3. Verificación Numérica:**
+- Comparar campo total vs campo sin externo
+- El campo restado debe mostrar claramente la contribución de las cargas
+
+### Nota Importante
+
+El campo externo se especifica en las **mismas unidades** que el campo calculado de ψ.
+Consulta el archivo `input` de tu simulación para ver el valor del campo aplicado.
+
 ## Notas Técnicas
 
 - El campo eléctrico se calcula usando `numpy.gradient()`, que implementa diferencias finitas centradas de segundo orden en el interior del dominio
+- La resta del campo externo se hace componente por componente: `E_plot = E_total - E_ext`
 - La interpolación para líneas usa `scipy.interpolate.RegularGridInterpolator` con interpolación lineal
 - Los gráficos se guardan con resolución de 300 DPI por defecto
 

@@ -131,6 +131,36 @@ echo "13. Tres planos ortogonales"
 # ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m plane -p yz -v -o plano_yz.png
 
 # =============================================================================
+# EJEMPLOS: RESTAR CAMPO EXTERNO
+# =============================================================================
+
+echo ""
+echo "=== Restar campo eléctrico externo ==="
+
+# 14a. Restar campo externo en dirección Z (ej: E_ext = 1.0 en Z)
+echo "14a. Restar campo externo Ez = 1.0"
+# ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m plane -p xy -c magnitude --external-field 0 0 1.0 -o campo_sin_externo_xy.png
+
+# 14b. Comparar campo total vs campo sin externo (línea)
+echo "14b. Comparación con y sin campo externo"
+# Campo total
+# ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m line --start 0 $POS_CENTRO $POS_CENTRO --end $((NX-1)) $POS_CENTRO $POS_CENTRO -c all -o campo_total_linea.png
+# Campo sin externo
+# ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m line --start 0 $POS_CENTRO $POS_CENTRO --end $((NX-1)) $POS_CENTRO $POS_CENTRO -c all --external-field 0 0 1.0 -o campo_cargas_linea.png
+
+# 14c. Visualizar solo polarización de partícula (3D)
+echo "14c. Polarización en 3D (sin campo externo)"
+# ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m plane3d -p xy --external-field 0 0 1.0 -o polarizacion_3d.png
+
+# 14d. Restar campo externo en dirección X (electroforesis horizontal)
+echo "14d. Campo sin externo en dirección X"
+# ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m plane -p xz -c magnitude --external-field 0.005 0 0 -o campo_sin_ext_x.png
+
+# 14e. Visualizar capa doble sin campo aplicado
+echo "14e. Capa doble eléctrica sin campo externo"
+# ./plot_electric_field.py -f $PSI_FILE -s $NX $NY $NZ -m plane3d -p xz -c magnitude --external-field 0 0 1.0 --colormap RdBu_r -o capa_doble_sin_ext.png
+
+# =============================================================================
 # EJEMPLOS AVANZADOS
 # =============================================================================
 

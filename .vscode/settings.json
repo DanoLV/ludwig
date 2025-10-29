@@ -11,6 +11,11 @@
         "map": "c",
         "format": "c",
         "map.h": "c",
-        "random": "c"
-    }
+        "random": "c",
+        "psi_stats.h": "c",
+        "psi.h": "c",
+        "psi_colloid.h": "c",
+        "algorithm": "c"
+    },
+    "C_Cpp.dimInactiveRegions": false
 }

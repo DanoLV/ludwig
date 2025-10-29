@@ -29,7 +29,7 @@
 #include "subgrid.h" //CHANGE
 
 int psi_force_gradmu_e(psi_t* psi, fe_t* fe, hydro_t* hydro,
-           colloids_info_t* cinfo);            
+           colloids_info_t* cinfo);
 int psi_force_gradmu_es(psi_t* psi, fe_t* fe, field_t* phi, hydro_t* hydro,
       colloids_info_t* cinfo);
 
@@ -88,7 +88,14 @@ int psi_force_gradmu_e(psi_t* psi, fe_t* fe, hydro_t* hydro,
   double force[3];
   /* Cummulative forces for momentum correction */
   double flocal[4] = { 0.0, 0.0, 0.0, 0.0 };
+  // CHANGE INIT - Subgrid charge
+  klein_t flocal_k[3];
+  flocal_k[X] = klein_zero();
+  flocal_k[Y] = klein_zero();
+  flocal_k[Z] = klein_zero();
+  // CHANGE END - Subgrid charge
   double fsum[4];
+
 
   physics_t* phys = NULL;
   MPI_Comm comm;
@@ -143,13 +150,24 @@ int psi_force_gradmu_e(psi_t* psi, fe_t* fe, hydro_t* hydro,
 
         /* Accumulate contribution to total force on system */
 
-        flocal[X] += force[X];
-        flocal[Y] += force[Y];
-        flocal[Z] += force[Z];
+        // CHANGE INIT - Subgrid charge
+        // flocal[X] += force[X];
+        // flocal[Y] += force[Y];
+        // flocal[Z] += force[Z];
+        klein_add_double(&flocal_k[X], force[X]);
+        klein_add_double(&flocal_k[Y], force[Y]);
+        klein_add_double(&flocal_k[Z], force[Z]);
+        // CHANGE END - Subgrid charge
 
       }
     }
   }
+
+  // CHANGE INIT - Subgrid charge
+  flocal[X] = klein_sum(&flocal_k[X]);
+  flocal[Y] = klein_sum(&flocal_k[Y]);
+  flocal[Z] = klein_sum(&flocal_k[Z]);
+  // CHANGE END - Subgrid charge
 
   MPI_Allreduce(flocal, fsum, 4, MPI_DOUBLE, MPI_SUM, comm);
 

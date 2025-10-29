@@ -6,7 +6,7 @@
 ##############################################################################
 
 N_start 0
-N_cycles 500000
+N_cycles 5000
 
 ##############################################################################
 #
@@ -14,7 +14,7 @@ N_cycles 500000
 # 
 ##############################################################################
 
-size 26_26_26
+size 32_32_32
 grid 1_1_1
 
 ##############################################################################
@@ -23,10 +23,12 @@ grid 1_1_1
 #
 ##############################################################################
 
-fluid_rho0       1.0
+fluid_rho0       0.8
 viscosity 1e-04
 viscosity_bulk 1e-04
 
+lb_relaxation_scheme M10
+# lb_relaxation_scheme BGK
 lb_fluctuations  0 #yes
 # temperature      0.0002
 temperature      0.0005
@@ -50,12 +52,12 @@ electric_e0 0.0_0.0_0.0
 # electrokinetics_eunit   0.5
 # electrokinetics_epsilon   4.0e03
 # electrokinetics_init_rho_el 0.001
-# electrokinetics_rel_tol  0.002
-# electrokinetics_abs_tol  0.001
-# electrokinetics_maxits   100000
+# electrokinetics_rel_tol  1.0e-10
+# electrokinetics_abs_tol  1.0e-16
+# electrokinetics_maxits   10000
 #electrokinetics_diffacc  0
 # electrokinetics_multisteps 5
-electrokinetics_solver_stencil 19
+# electrokinetics_solver_stencil 19
 
 electrokinetics_solver_type petsc 
 # electrokinetics_solver_type #petsc sor
@@ -69,7 +71,7 @@ fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence
 
 colloid_init     from_file
 # colloid_rebuild_freq 1
-# colloid_gravity           0.0_0.0_-0.0000005  # vector
+# colloid_gravity           0.0_0.0_-0.000005  # vector
 
 # lennard_jones_on          1                 # integer 0/1 off/on
 # lj_epsilon                1.44e-08          # energy units

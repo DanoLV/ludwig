@@ -37,19 +37,19 @@ fout = args.o
 if(fout is None):
     sys.exit("Please specify an output file name")
 
-# Open output file
-fo = open(fout, "a") #"w")
+# Open output file in append mode
+fo = open(fout, "a")
 separador = ' '
 
-# fo.write("cycle,vx,vy,vz,<vfx>,<vfy>,<vfz>,vxr,vyr,vyz\n")
-# fo.write("0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
-if( inicio == 0): 
+# Write header and initial line only if starting from 0
+if( inicio == 0):
     fo.write("cycle,vx,vy,vz,<vfx>,<vfy>,<vfz>,vxr,vyr,vyz\n")
     fo.write("0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0\n")
-    fo.close()
-    sys.exit(0)
-# for i in range(paso, cant + 1, paso):
-for i in range(inicio, cant + 1, paso):
+
+# Process data files from inicio+paso to cant (skip paso if inicio==0 since we already wrote initial values)
+# This allows incremental processing: each call processes only new data
+start_iter = paso if inicio == 0 else inicio
+for i in range(start_iter, cant + 1, paso):
         
     # Read data file
     archivo = "colloids-{ciclo:08d}.csv".format(ciclo=i)

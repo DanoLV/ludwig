@@ -20,20 +20,20 @@
 #include "runtime.h"
 #include "collision.h"
 
-/****************************************************************************
- *
- *  collision_run_time
- *
- *  Defaults are noise off and ghosts on.
- *
- *  Note that the fluid properties must be set to get sensible
- *  values out at this stage.
- *
- *  TODO: Subsume into lb_distribution_rt
- *
- ****************************************************************************/
+ /****************************************************************************
+  *
+  *  collision_run_time
+  *
+  *  Defaults are noise off and ghosts on.
+  *
+  *  Note that the fluid properties must be set to get sensible
+  *  values out at this stage.
+  *
+  *  TODO: Subsume into lb_distribution_rt
+  *
+  ****************************************************************************/
 
-int collision_run_time(pe_t * pe, rt_t * rt, lb_t * lb) {
+int collision_run_time(pe_t* pe, rt_t* rt, lb_t* lb) {
 
   int p;
   int nghost;
@@ -52,7 +52,7 @@ int collision_run_time(pe_t * pe, rt_t * rt, lb_t * lb) {
   if (p == 1 && strcmp(tmp, "on") == 0) {
     lb->param->noise = 1;
     pe_exit(pe, "Please use the key lb_fluctuations instead of "
-	    "isothermal_fluctations in the input\n");
+      "isothermal_fluctations in the input\n");
   }
 
   p = rt_switch(rt, "lb_fluctuations");
@@ -93,12 +93,12 @@ int collision_run_time(pe_t * pe, rt_t * rt, lb_t * lb) {
   }
   else {
 
-  p = rt_string_parameter(rt, "ghost_modes", tmp, BUFSIZ);
-  nghost = 1;
-  if (p == 1 && strcmp(tmp, "off") == 0) {
-    nghost = 0;
-    lb_collision_ghost_modes_off(lb);
-  }
+    p = rt_string_parameter(rt, "ghost_modes", tmp, BUFSIZ);
+    nghost = 1;
+    if (p == 1 && strcmp(tmp, "off") == 0) {
+      nghost = 0;
+      lb_collision_ghost_modes_off(lb);
+    }
 
   }
   lb_collision_relaxation_times(lb, tau);
@@ -110,10 +110,10 @@ int collision_run_time(pe_t * pe, rt_t * rt, lb_t * lb) {
   pe_info(pe, "Hydrodynamic modes:       on\n");
   pe_info(pe, "Ghost modes:              %s\n", (nghost == 1) ? "on" : "off");
   pe_info(pe, "Isothermal fluctuations:  %s\n",
-	  (lb->param->noise == 1) ? "on" : "off");
+    (lb->param->noise == 1) ? "on" : "off");
   pe_info(pe, "Shear relaxation time:   %12.5e\n", tau[LB_TAU_SHEAR]);
   pe_info(pe, "Bulk relaxation time:    %12.5e\n", tau[LB_TAU_BULK]);
-  pe_info(pe, "Ghost relaxation time:   %12.5e\n", tau[NVEL-1]);
+  pe_info(pe, "Ghost relaxation time:   %12.5e\n", tau[NVEL - 1]);
 
   return 0;
 }

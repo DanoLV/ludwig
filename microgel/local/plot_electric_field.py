@@ -71,7 +71,7 @@ class PsiReader:
 class ElectricFieldPlotter:
     """Genera gráficos del campo eléctrico"""
 
-    def __init__(self, psi, Ex, Ey, Ez, grid_size):
+    def __init__(self, psi, Ex, Ey, Ez, grid_size, external_field=None):
         """
         Inicializa el graficador
 
@@ -79,12 +79,24 @@ class ElectricFieldPlotter:
             psi: Potencial eléctrico (array 3D)
             Ex, Ey, Ez: Componentes del campo eléctrico (arrays 3D)
             grid_size: Tupla (nx, ny, nz)
+            external_field: Campo externo constante (Ex_ext, Ey_ext, Ez_ext) o None
         """
         self.psi = psi
-        self.Ex = Ex
-        self.Ey = Ey
-        self.Ez = Ez
         self.nx, self.ny, self.nz = grid_size
+
+        # Si hay campo externo, restar del campo total
+        if external_field is not None:
+            Ex_ext, Ey_ext, Ez_ext = external_field
+            self.Ex = Ex - Ex_ext
+            self.Ey = Ey - Ey_ext
+            self.Ez = Ez - Ez_ext
+            self.external_field = external_field
+            print(f"Campo externo restado: E_ext = ({Ex_ext:.6e}, {Ey_ext:.6e}, {Ez_ext:.6e})")
+        else:
+            self.Ex = Ex
+            self.Ey = Ey
+            self.Ez = Ez
+            self.external_field = None
 
     def plot_plane(self, plane='xy', position=None, component='magnitude',
                    show_vectors=True, vector_stride=2, output=None):
@@ -510,6 +522,16 @@ LÍNEAS 1D:
 
 9. Magnitud del campo a lo largo del eje Z:
    ./plot_electric_field.py -f psi-000010050.001-001 -s 32 32 32 -m line --start 16 16 0 --end 16 16 31 -c magnitude
+
+RESTAR CAMPO EXTERNO:
+10. Restar campo externo uniforme en dirección Z (ej: E_ext = 0.001 en Z):
+   ./plot_electric_field.py -f psi-000010050.001-001 -s 32 32 32 -m plane -p xy --external-field 0 0 0.001
+
+11. Restar campo externo en dirección X:
+   ./plot_electric_field.py -f psi-000010050.001-001 -s 32 32 32 -m plane3d -p xz -c magnitude --external-field 0.005 0 0
+
+12. Visualizar solo el campo generado por cargas (restar campo aplicado):
+   ./plot_electric_field.py -f psi-000010050.001-001 -s 32 32 32 -m line --start 0 16 16 --end 31 16 16 -c all --external-field 0 0 0.001
         """
     )
 
@@ -557,6 +579,12 @@ LÍNEAS 1D:
     parser.add_argument('--azimuth', type=float, default=-60,
                        help='Ángulo azimutal de la vista 3D en grados (default: -60)')
 
+    # Argumentos para campo externo
+    parser.add_argument('--external-field', nargs=3, type=float, metavar=('Ex', 'Ey', 'Ez'),
+                       help='Campo eléctrico externo constante a restar (Ex Ey Ez). '
+                            'Útil para visualizar solo el campo generado por cargas, '
+                            'sin el campo aplicado externamente.')
+
     # Argumentos generales
     parser.add_argument('-o', '--output',
                        help='Archivo de salida (por defecto: mostrar en pantalla)')
@@ -585,8 +613,16 @@ LÍNEAS 1D:
     Ex, Ey, Ez = reader.compute_electric_field()
     print("Campo eléctrico calculado.")
 
+    # Preparar campo externo si se especificó
+    external_field = None
+    if args.external_field is not None:
+        external_field = tuple(args.external_field)
+        print(f"\nRestando campo externo aplicado:")
+        print(f"  E_ext = ({external_field[0]:.6e}, {external_field[1]:.6e}, {external_field[2]:.6e})")
+        print(f"  Se graficará: E_total - E_ext (campo generado por cargas)\n")
+
     # Crear graficador
-    plotter = ElectricFieldPlotter(psi, Ex, Ey, Ez, tuple(args.size))
+    plotter = ElectricFieldPlotter(psi, Ex, Ey, Ez, tuple(args.size), external_field=external_field)
 
     # Generar gráfico según el modo
     if args.mode == 'plane':

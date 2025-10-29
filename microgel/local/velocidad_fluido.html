@@ -1,0 +1,170 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 40px auto;
+                line-height: 1.6;
+                padding: 20px;
+            }
+            h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+            h2 { color: #34495e; margin-top: 30px; border-bottom: 2px solid #95a5a6; padding-bottom: 5px; }
+            h3 { color: #7f8c8d; margin-top: 20px; }
+            h4 { color: #95a5a6; margin-top: 15px; }
+            code {
+                background-color: #f4f4f4;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: 'Courier New', monospace;
+                font-size: 0.9em;
+            }
+            pre {
+                background-color: #f4f4f4;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                border-left: 4px solid #3498db;
+            }
+            pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 20px 0;
+            }
+            th, td {
+                border: 1px solid #ddd;
+                padding: 12px;
+                text-align: left;
+            }
+            th {
+                background-color: #3498db;
+                color: white;
+            }
+            tr:nth-child(even) {
+                background-color: #f2f2f2;
+            }
+            strong { color: #2c3e50; }
+            hr { border: 0; border-top: 2px solid #ecf0f1; margin: 30px 0; }
+        </style>
+    </head>
+    <body>
+    <h1>Resumen: Inicialización y Actualización de la Velocidad del Fluido</h1>
+
+<p>Este documento describe dónde se inicializa y actualiza la velocidad del fluido en el código de Ludwig.</p>
+
+<h2>INICIALIZACIÓN DE LA VELOCIDAD</h2>
+
+<h3>1. Creación de la estructura hidrodinámica</h3>
+<li><strong>Archivo:</strong> <code>src/hydro.c</code> (líneas 49-114)</li>
+<li><strong>Función:</strong> <code>hydro_create()</code></li>
+<li>Crea el campo de velocidad <code>hydro->u</code> como parte de la estructura hidrodinámica</li>
+
+<h3>2. Lectura desde archivos de checkpoint</h3>
+<li><strong>Archivo:</strong> <code>src/ludwig.c</code> (líneas 345-349)</li>
+<li><strong>Función:</strong> <code>hydro_io_read()</code></li>
+<li>Lee la densidad y velocidad desde archivos guardados al reiniciar una simulación</li>
+
+<h3>3. Inicialización a cero antes de cada paso</h3>
+<li><strong>Archivo:</strong> <code>src/hydro.c</code> (líneas 217-235)</li>
+<li><strong>Función:</strong> <code>hydro_u_zero()</code></li>
+<li><strong>Llamada:</strong> <code>src/ludwig.c</code> línea 813 en el bucle principal</li>
+<li>Pone la velocidad a cero antes de la colisión</li>
+
+<h2>ACTUALIZACIÓN DE LA VELOCIDAD</h2>
+
+<p>La actualización ocurre principalmente durante la <strong>etapa de colisión</strong> del método de Lattice Boltzmann.</p>
+
+<h3>Archivo principal: `src/collision.c`</h3>
+
+<p><strong>Función clave:</strong> <code>lb_collision_mrt1_site()</code> (líneas 253-593)</p>
+
+<h3>Pasos de actualización:</h3>
+
+<h4>1. Extrae velocidad de los momentos (líneas 349-352):</h4>
+<pre><code>
+for (ia = 0; ia &lt; NDIM; ia++) {
+  for_simd_v(iv, NSIMDVL) u[ia][iv] = mode[(1 + ia)*NSIMDVL+iv];
+}
+</code></pre>
+
+<h4>2. Actualiza con la fuerza de cuerpo (líneas 370-376):</h4>
+<pre><code>
+u[ia][iv] = rrho[iv]*(u[ia][iv] + 0.5*force[ia][iv]);
+</code></pre>
+
+<p><strong>Esta es la ecuación clave:</strong> <code>u_nueva = (u_modos + 0.5 × fuerza) / ρ</code></p>
+
+<h4>3. Guarda la velocidad actualizada (líneas 569-573):</h4>
+<pre><code>
+hydro-&gt;u-&gt;data[addr_rank1(hydro-&gt;nsite, 3, index0+iv, ia)] = u[ia][iv];
+</code></pre>
+
+<h2>SECUENCIA EN EL BUCLE PRINCIPAL</h2>
+
+<p>En <code>src/ludwig.c</code>, el bucle temporal ejecuta:</p>
+
+<li><strong>Línea 813:</strong> <code>hydro_u_zero()</code> - Pone velocidad a cero</li>
+<li><strong>Líneas 824-825:</strong> <code>lb_collide()</code> - <strong>ACTUALIZA la velocidad</strong> basándose en distribuciones y fuerzas</li>
+<li><strong>Línea 847:</strong> <code>lb_propagation()</code> - Propaga las distribuciones</li>
+<li><strong>Línea 966:</strong> <code>hydro_io_write()</code> - Escribe velocidad a archivo (opcional)</li>
+
+<h2>RESUMEN</h2>
+
+<li>La velocidad se <strong>inicializa</strong> en <code>src/hydro.c</code></li>
+<li>La velocidad se <strong>actualiza</strong> cada paso temporal en <code>src/collision.c</code> (líneas 370-376) durante la colisión MRT</li>
+<li>La ecuación de actualización incorpora las fuerzas de cuerpo y los momentos de la función de distribución</li>
+
+<h2>ARCHIVOS CLAVE</h2>
+
+<table>
+<tr>
+<td>Archivo</td>
+<td>Propósito</td>
+</tr>
+<tr>
+<td><code>src/hydro.h</code></td>
+<td>Definición de estructura hidrodinámica</td>
+</tr>
+<thead><tr>
+<th><code>src/hydro.c</code></th>
+<th>Funciones core (creación, inicialización)</th>
+</tr></thead>
+<tbody>
+<thead><tr>
+<th><code>src/hydro_rt.c</code></th>
+<th>Configuración runtime para hidrodinámica</th>
+</tr></thead>
+<tbody>
+<thead><tr>
+<th><code>src/collision.c</code></th>
+<th>Colisión Lattice Boltzmann (actualización de velocidad)</th>
+</tr></thead>
+<tbody>
+<thead><tr>
+<th><code>src/propagation.c</code></th>
+<th>Propagación de distribuciones después de colisión</th>
+</tr></thead>
+<tbody>
+<thead><tr>
+<th><code>src/ludwig.c</code></th>
+<th>Bucle principal de simulación (orquesta todas las actualizaciones)</th>
+</tr></thead>
+<tbody>
+</tbody></table>
+
+<hr>
+
+<p><strong>Fecha de generación:</strong> 25 de octubre de 2025</p>
+<p><strong>Código fuente:</strong> Ludwig - Lattice Boltzmann Code</p>
+
+
+    </body>
+    </html>
+    

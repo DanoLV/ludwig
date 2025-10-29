@@ -59,6 +59,15 @@ class QsiReader:
             raise ValueError(f"El archivo tiene {data.shape[0]} filas, "
                            f"pero se esperaban {self.nx * self.ny * self.nz}")
 
+        # CHANGE INIT - Subgrid charge output file
+        # Soportar archivos con una sola columna (qsi_colloid)
+        if data.ndim == 1:
+            # Archivo con una sola columna (carga neta de coloides)
+            print(f"Archivo con 1 columna detectado (probablemente qsi_colloid)")
+            data = data.reshape(-1, 1)
+            self.num_species = 1
+        # CHANGE END - Subgrid charge output file
+
         if data.shape[1] != self.num_species:
             print(f"Advertencia: Se encontraron {data.shape[1]} columnas, "
                   f"pero se esperaban {self.num_species}")
@@ -70,12 +79,17 @@ class QsiReader:
         for i in range(self.num_species):
             species_data = data[:, i].reshape((self.nx, self.ny, self.nz))
 
-            # Validar que no haya valores negativos (densidades deben ser ≥ 0)
-            min_value = np.min(species_data)
-            if min_value < 0:
-                print(f"ADVERTENCIA: Especie {i} tiene valores negativos (mín: {min_value:.6e})")
-                print(f"Las densidades de carga deben ser no-negativas.")
-                print(f"Esto puede indicar un error en la simulación o en el archivo.")
+            # CHANGE INIT - Subgrid charge output file
+            # Solo validar valores negativos para archivos con 2+ columnas (densidades)
+            # Para archivos de 1 columna (carga neta), valores negativos son válidos
+            if self.num_species > 1:
+            # CHANGE END - Subgrid charge output file
+                # Validar que no haya valores negativos (densidades deben ser ≥ 0)
+                min_value = np.min(species_data)
+                if min_value < 0:
+                    print(f"ADVERTENCIA: Especie {i} tiene valores negativos (mín: {min_value:.6e})")
+                    print(f"Las densidades de carga deben ser no-negativas.")
+                    print(f"Esto puede indicar un error en la simulación o en el archivo.")
 
             self.species.append(species_data)
 

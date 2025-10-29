@@ -32,6 +32,19 @@ Los archivos qsi contienen 2 columnas con **densidades de carga** (siempre ≥ 0
 **IMPORTANTE**: Las densidades representan concentraciones y son **siempre no-negativas**.
 Valores negativos indicarían un error en la simulación o en la lectura del archivo.
 
+<!-- CHANGE INIT - Subgrid charge output file -->
+### Carga de Coloides Subgrid
+
+Los archivos **qsi_colloid** contienen 1 columna con **carga neta de coloides subgrid**:
+- **Columna 0**: Carga neta interpolada de coloides ρ_colloid = q₀ - q₁
+  - q₀: densidad positiva del coloide
+  - q₁: densidad negativa del coloide
+  - La carga se distribuye a la malla usando la función delta de Peskin
+
+**NOTA**: Los valores pueden ser positivos, negativos o cero, dependiendo de la carga neta del coloide.
+Este archivo se genera automáticamente junto con psi y qsi cuando hay coloides subgrid presentes.
+<!-- CHANGE END - Subgrid charge output file -->
+
 ### Cantidades Derivadas
 
 - **Carga neta en cada nodo**: ρ_net = ρ₊ - ρ₋
@@ -345,6 +358,28 @@ done
 
 5. **Resolución de gráficos**:
    Los archivos PNG se guardan a 300 DPI (alta calidad para publicaciones)
+
+<!-- CHANGE INIT - Subgrid charge output file -->
+## Visualización de Carga de Coloides Subgrid
+
+Para visualizar la distribución de carga de coloides subgrid desde archivos qsi_colloid:
+
+```bash
+# Plano XY mostrando carga neta de coloides
+python3 plot_charge_distribution.py -f qsi_colloid-000010000.001-001 -s 32 32 32 \
+    -m plane -p xy -c species_0 -o colloid_charge_xy.png
+
+# Línea a lo largo del eje Z
+python3 plot_charge_distribution.py -f qsi_colloid-000010000.001-001 -s 32 32 32 \
+    -m line --start 16 16 0 --end 16 16 32 -c species_0 -o colloid_charge_line.png
+
+# Superficie 3D
+python3 plot_charge_distribution.py -f qsi_colloid-000010000.001-001 -s 32 32 32 \
+    -m plane3d -p xy --position 16 -c species_0 -o colloid_charge_3d.png
+```
+
+**Nota**: Para archivos qsi_colloid con una sola columna, usa `-c species_0` para visualizar la carga neta.
+<!-- CHANGE END - Subgrid charge output file -->
 
 ## Solución de Problemas
 

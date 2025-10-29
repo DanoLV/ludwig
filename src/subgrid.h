@@ -33,6 +33,17 @@ typedef struct distributed_charge_klein_s {
   int count;                   /* Number of entries */
   int capacity;                /* Allocated capacity */
 } distributed_charge_klein_t;
+
+typedef struct distributed_force_klein_entry_s {
+  int cs_index;                /* Lattice site index */
+  klein_t* force[3];           /* Pointer to Klein sum for force */
+} distributed_force_klein_entry_t;
+
+typedef struct distributed_force_klein_s {
+  distributed_force_klein_entry_t** entries;  /* Array of pointers to entries */
+  int count;                   /* Number of entries */
+  int capacity;                /* Allocated capacity */
+} distributed_force_klein_t;
 /*CHANGE END - Subgrid charge */
 
 int subgrid_update(colloids_info_t * cinfo, hydro_t * hydro, int noise_flag);
@@ -44,6 +55,7 @@ int subgrid_wall_lubrication(colloids_info_t * cinfo, wall_t * wall);
 // int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj);
 double d_peskin(double r);
 int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
+int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_restore(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge);
 void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
