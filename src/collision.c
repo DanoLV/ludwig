@@ -66,6 +66,7 @@ void lb_collision_mrt2_site(lb_t* lb, hydro_t* hydro, fe_symm_t* fe,
 
 __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchunk);
 __device__ void d3q19_mode2f_chunk(double* mode, double* fchunk);
+__device__ void d3q19_mode2f_chunk_kahan(double* mode, double* fchunk); /* Kahan version */
 
 __device__ void d3q19_mode2f_phi(double jdotc[NSIMDVL],
          double sphidotq[NSIMDVL],
@@ -540,7 +541,10 @@ void lb_collision_mrt1_site(lb_t* lb, hydro_t* hydro, map_t* map,
 
   /* Project post-collision modes back onto the distribution */
 #ifdef _D3Q19_
-  d3q19_mode2f_chunk(mode, fchunk);
+  /* MODIFIED: Using Kahan version to reduce roundoff error accumulation */
+  /* To revert: uncomment the line below and comment out the Kahan version */
+  /* d3q19_mode2f_chunk(mode, fchunk); */
+  d3q19_mode2f_chunk_kahan(mode, fchunk);
 #else
   for (p = 0; p < NVEL; p++) {
     double ftmp[NSIMDVL];
@@ -919,7 +923,10 @@ __device__ void lb_collision_mrt2_site(lb_t* lb, hydro_t* hydro,
   /* Project post-collision modes back onto the distribution */
 
 #ifdef _D3Q19_
-  d3q19_mode2f_chunk(mode, f);
+  /* MODIFIED: Using Kahan version to reduce roundoff error accumulation */
+  /* To revert: uncomment the line below and comment out the Kahan version */
+  /* d3q19_mode2f_chunk(mode, f); */
+  d3q19_mode2f_chunk_kahan(mode, f);
   for (p = 0; p < NVEL; p++) {
     for_simd_v(iv, NSIMDVL) {
       lb->f[LB_ADDR(_lbp.nsite, _lbp.ndist, NVEL, index0 + iv, LB_RHO, p)] =
@@ -2017,7 +2024,10 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[0 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[0 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c1;
 
-  /* m=1*/
+  /* m=1 - momentum X */
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2037,8 +2047,99 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * -c1;
+  END ORIGINAL CODE */
 
-  /* m=2*/
+  /* NEW CODE: Kahan compensated summation for mode[1] */
+  {
+    volatile double mode1_sum[NSIMDVL];
+    volatile double mode1_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode1_sum[iv] = 0.0;
+      mode1_c[iv] = 0.0;
+    }
+
+    /* Add positive contributions (cv_x = +1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+
+    /* Add negative contributions (cv_x = -1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode1_c[iv];
+      volatile double t = mode1_sum[iv] + y;
+      mode1_c[iv] = (t - mode1_sum[iv]) - y;
+      mode1_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[1 * NSIMDVL + iv] = mode1_sum[iv];
+  }
+  /* END NEW CODE */
+
+  /* m=2 - momentum Y */
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] = 0.;
   for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c1;
@@ -2059,8 +2160,100 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * -c1;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[2] */
+  {
+    volatile double mode2_sum[NSIMDVL];
+    volatile double mode2_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode2_sum[iv] = 0.0;
+      mode2_c[iv] = 0.0;
+    }
+
+    /* Add positive contributions (cv_y = +1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+
+    /* Add negative contributions (cv_y = -1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode2_c[iv];
+      volatile double t = mode2_sum[iv] + y;
+      mode2_c[iv] = (t - mode2_sum[iv]) - y;
+      mode2_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[2 * NSIMDVL + iv] = mode2_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=3*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the ORIGINAL CODE block below and delete the NEW CODE block */
+
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2080,6 +2273,105 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[3] (momentum Z) */
+  {
+    volatile double mode3_sum[NSIMDVL];
+    volatile double mode3_c[NSIMDVL];
+
+    /* Initialize sum and compensation to zero */
+    for_simd_v(iv, NSIMDVL) {
+      mode3_sum[iv] = 0.0;
+      mode3_c[iv] = 0.0;
+    }
+
+    /* Add positive contributions (cv_z = +1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    /* Add negative contributions (cv_z = -1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode3_c[iv];
+      volatile double t = mode3_sum[iv] + y;
+      mode3_c[iv] = (t - mode3_sum[iv]) - y;
+      mode3_sum[iv] = t;
+    }
+
+    /* Assign final sum to mode[3] */
+    for_simd_v(iv, NSIMDVL) mode[3 * NSIMDVL + iv] = mode3_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=4*/
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * -r3;
@@ -2842,6 +3134,471 @@ __device__ void d3q19_mode2f_chunk(double* mode, double* fchunk) {
   for_simd_v(iv, NSIMDVL) fchunk[18 * NSIMDVL + iv] = ftmp[iv];
 
 
+}
+/*****************************************************************************
+ *
+ *  d3q19_mode2f_chunk_kahan
+ *
+ *  New version with Kahan compensated summation to reduce roundoff error
+ *  propagation in long simulations.
+ *
+ *****************************************************************************/
+
+__device__ void d3q19_mode2f_chunk_kahan(double* mode, double* fchunk) {
+
+  double ftmp[NSIMDVL];
+  double ftmp_c[NSIMDVL];  /* Kahan compensation */
+
+  int iv;
+
+  /* Helper macro for Kahan summation */
+  #define KAHAN_ADD(coeff, mode_idx) \
+    for_simd_v(iv, NSIMDVL) { \
+      volatile double val = (coeff) * mode[(mode_idx) * NSIMDVL + iv]; \
+      volatile double y = val - ftmp_c[iv]; \
+      volatile double t = ftmp[iv] + y; \
+      ftmp_c[iv] = (t - ftmp[iv]) - y; \
+      ftmp[iv] = t; \
+    }
+
+  /* p=0 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w0, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(-r2, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(-r2, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-r2, 9);
+  KAHAN_ADD(c0, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(r6, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[0 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=1 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(wa, 1);
+  KAHAN_ADD(wa, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(r4, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wb, 9);
+  KAHAN_ADD(-wb, 10);
+  KAHAN_ADD(-wa, 11);
+  KAHAN_ADD(-wa, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[1 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=2 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(wa, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(wa, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(r4, 6);
+  KAHAN_ADD(-wb, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(wb, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(wb, 13);
+  KAHAN_ADD(-we, 14);
+  KAHAN_ADD(-r8, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(-r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[2 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=3 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w1, 0);
+  KAHAN_ADD(r6, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(r6, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(-wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wa, 9);
+  KAHAN_ADD(wb, 10);
+  KAHAN_ADD(wa, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(r8, 14);
+  KAHAN_ADD(r4, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(-w1, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[3 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=4 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(wa, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(-wa, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(-r4, 6);
+  KAHAN_ADD(-wb, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(wb, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(-wb, 13);
+  KAHAN_ADD(-we, 14);
+  KAHAN_ADD(-r8, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[4 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=5 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(wa, 1);
+  KAHAN_ADD(-wa, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(-r4, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wb, 9);
+  KAHAN_ADD(-wb, 10);
+  KAHAN_ADD(-wa, 11);
+  KAHAN_ADD(wa, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[5 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=6 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(wa, 2);
+  KAHAN_ADD(wa, 3);
+  KAHAN_ADD(-wb, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(r4, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(wb, 12);
+  KAHAN_ADD(wb, 13);
+  KAHAN_ADD(we, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(r8, 16);
+  KAHAN_ADD(r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[6 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=7 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w1, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(r6, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(-wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(r6, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wa, 9);
+  KAHAN_ADD(wb, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(wa, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(-r8, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(-r4, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(-w1, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[7 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=8 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(wa, 2);
+  KAHAN_ADD(-wa, 3);
+  KAHAN_ADD(-wb, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(-r4, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(wb, 12);
+  KAHAN_ADD(-wb, 13);
+  KAHAN_ADD(we, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(r8, 16);
+  KAHAN_ADD(-r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[8 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=9 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w1, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(r6, 3);
+  KAHAN_ADD(-wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(-wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(r6, 9);
+  KAHAN_ADD(-wa, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(-r6, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(-w1, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[9 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=10 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w1, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(-r6, 3);
+  KAHAN_ADD(-wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(-wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(r6, 9);
+  KAHAN_ADD(-wa, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(r6, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(-w1, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[10 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=11 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(-wa, 2);
+  KAHAN_ADD(wa, 3);
+  KAHAN_ADD(-wb, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(-r4, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(-wb, 12);
+  KAHAN_ADD(wb, 13);
+  KAHAN_ADD(we, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(-r8, 16);
+  KAHAN_ADD(r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[11 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=12 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w1, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(-r6, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(-wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(r6, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wa, 9);
+  KAHAN_ADD(wb, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(-wa, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(-r8, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(r4, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(-w1, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[12 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=13 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(c0, 1);
+  KAHAN_ADD(-wa, 2);
+  KAHAN_ADD(-wa, 3);
+  KAHAN_ADD(-wb, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(r4, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(c0, 11);
+  KAHAN_ADD(-wb, 12);
+  KAHAN_ADD(-wb, 13);
+  KAHAN_ADD(we, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(-r8, 16);
+  KAHAN_ADD(-r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[13 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=14 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(-wa, 1);
+  KAHAN_ADD(wa, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(-r4, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wb, 9);
+  KAHAN_ADD(-wb, 10);
+  KAHAN_ADD(wa, 11);
+  KAHAN_ADD(-wa, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[14 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=15 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(-wa, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(wa, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(-r4, 6);
+  KAHAN_ADD(-wb, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(-wb, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(wb, 13);
+  KAHAN_ADD(-we, 14);
+  KAHAN_ADD(r8, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(-r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[15 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=16 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w1, 0);
+  KAHAN_ADD(-r6, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(r6, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(-wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wa, 9);
+  KAHAN_ADD(wb, 10);
+  KAHAN_ADD(-wa, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(r8, 14);
+  KAHAN_ADD(-r4, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(-w1, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[16 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=17 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(-wa, 1);
+  KAHAN_ADD(c0, 2);
+  KAHAN_ADD(-wa, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(c0, 5);
+  KAHAN_ADD(r4, 6);
+  KAHAN_ADD(-wb, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(wa, 9);
+  KAHAN_ADD(wd, 10);
+  KAHAN_ADD(-wb, 11);
+  KAHAN_ADD(c0, 12);
+  KAHAN_ADD(-wb, 13);
+  KAHAN_ADD(-we, 14);
+  KAHAN_ADD(r8, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(r8, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[17 * NSIMDVL + iv] = ftmp[iv];
+
+  /* p=18 */
+  for_simd_v(iv, NSIMDVL) { ftmp[iv] = 0.0; ftmp_c[iv] = 0.0; }
+  KAHAN_ADD(w2, 0);
+  KAHAN_ADD(-wa, 1);
+  KAHAN_ADD(-wa, 2);
+  KAHAN_ADD(c0, 3);
+  KAHAN_ADD(wa, 4);
+  KAHAN_ADD(r4, 5);
+  KAHAN_ADD(c0, 6);
+  KAHAN_ADD(wa, 7);
+  KAHAN_ADD(c0, 8);
+  KAHAN_ADD(-wb, 9);
+  KAHAN_ADD(-wb, 10);
+  KAHAN_ADD(wa, 11);
+  KAHAN_ADD(wa, 12);
+  KAHAN_ADD(c0, 13);
+  KAHAN_ADD(c0, 14);
+  KAHAN_ADD(c0, 15);
+  KAHAN_ADD(c0, 16);
+  KAHAN_ADD(c0, 17);
+  KAHAN_ADD(wc, 18);
+  for_simd_v(iv, NSIMDVL) fchunk[18 * NSIMDVL + iv] = ftmp[iv];
+
+  #undef KAHAN_ADD
 }
 
 /*****************************************************************************

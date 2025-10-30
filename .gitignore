@@ -729,3 +729,243 @@ microgel/local/solo_fluido/rho0.9/input
 microgel/local/solo_fluido/rho0.9/velocidades.png
 microgel/local/solo_fluido/rho1.0/input
 microgel/local/solo_fluido/rho1.0/velocidades.png
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/input
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/output.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.5-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/input
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/output.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.6-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/input
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/output.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.7-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/batch_plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/calculosvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/calculosvelfluid.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/calculosvelfluidonly.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/coloideacsv.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/extract_colloids
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/extraer_posicion.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/input
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/output.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/outputplot.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/plot_charge_distribution.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/plotdatos.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/plotvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/runplot.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.8-p_1-N_20-sin_coloide-momento_kahan/velocidades.png
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/input
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/output.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_0.9-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/input
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/output.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/Liquido solo/Correcion_f2m_m2f/fluido-none-rho_1.0-p_1-N_20-sin_coloide-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/batch_plot_electric_field.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/calculosvel.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/calculosvelfluid.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/calculosvelfluidonly.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/coloideacsv.sh
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/extract_colloids
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/extraer_posicion.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/input
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/output.txt
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/outputplot.txt
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/plot_charge_distribution.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/plot_electric_field.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/plotdatos.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/plotvel.py
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/runplot.sh
+microgel/local/Liquido solo/Sin_correcion/fluido-none-rho_0.8-p_1-N_20-sin_coloide/velocidades.png
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/input
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/output.txt
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/single-rho_0.8-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.1_0.0_0.0-p1-N_5k-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/calculosvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/extract_colloids
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/input
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/output.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/outputplot.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plotdatos.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plotvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/runplot.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/velocidades.png
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/input
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/output.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_500-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/calculosvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/extract_colloids
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/input
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/output.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/outputplot.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/plotdatos.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/plotvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/runplot.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k/velocidades.png
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/calculosvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/extract_colloids
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/input
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/output.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/outputplot.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/plotdatos.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/plotvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/runplot.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_100k-momento_kahan/velocidades.png
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/calculosvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/extract_colloids
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/input
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/output.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/outputplot.txt
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/plotdatos.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/plotvel.py
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/runplot.sh
+microgel/local/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p100-N_200k-momento_kahan-momento2f_kahan/velocidades.png
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/calculosvel.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/extract_colloids
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/input
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/output.txt
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/outputplot.txt
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plotdatos.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/plotvel.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/runplot.sh
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50/velocidades.png
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/batch_plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/calculosvel.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/calculosvelfluid.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/calculosvelfluidonly.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/coloideacsv.sh
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/extract_colloids
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/extraer_posicion.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/input
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/output.txt
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/outputplot.txt
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/plot_charge_distribution.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/plot_electric_field.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/plotdatos.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/plotvel.py
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/runplot.sh
+microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/velocidades.png

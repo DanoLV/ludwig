@@ -786,7 +786,7 @@ int colloids_update_forces_external(colloids_info_t* cinfo,
 
   //   return 0; 
 
-}
+// }
 /*CHANGE END - Subgrid charge */
 /*****************************************************************************
  *

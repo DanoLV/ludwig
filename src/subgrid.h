@@ -36,7 +36,7 @@ typedef struct distributed_charge_klein_s {
 
 typedef struct distributed_force_klein_entry_s {
   int cs_index;                /* Lattice site index */
-  klein_t* force[3];           /* Pointer to Klein sum for force */
+  klein_t** force;           /* Pointer to Klein sum for force */
 } distributed_force_klein_entry_t;
 
 typedef struct distributed_force_klein_s {

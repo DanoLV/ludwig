@@ -709,10 +709,12 @@ static void add_force_to_array(distributed_force_klein_t** force_ptr, int cs_ind
 		entry->cs_index = cs_index;
 
 		/* Allocate and initialize Klein sums */
-		*entry->force = (klein_t*)malloc(3 * sizeof(klein_t));
-		*entry->force[0] = klein_zero();
-		*entry->force[1] = klein_zero();
-		*entry->force[2] = klein_zero();
+		// entry->force = (klein_t**)malloc(sizeof(klein_t*));
+		entry->force = (klein_t**)malloc(3 * sizeof(klein_t*));
+		for (int i = 0; i < 3; i++) {
+			entry->force[i] = malloc(sizeof(klein_t));
+			*(entry->force[i]) = klein_zero();
+		}
 
 		/* Add first contribution */
 		klein_add_double(entry->force[0], force_add[0]);
@@ -751,6 +753,14 @@ void subgrid_free_distributed_force_t(distributed_force_klein_t** force)
 	*force = NULL;
 }
 
+/*****************************************************************************
+ *
+ *  subgrid_update_forces_electrokinetics
+ *
+ *  Accumulate single particle force contributions from electric fields.
+ *  Sum goes to fex as this force is calculated ouside of ludwig_colloids_update
+ *  in order to apply the force in the same step as the applied field
+ *****************************************************************************/
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 										  map_t* map,
 										  physics_t* phys,
@@ -773,7 +783,7 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	flocal_k[X] = klein_zero();
 	flocal_k[Y] = klein_zero();
 	flocal_k[Z] = klein_zero();
-	distributed_force_klein_t** force_k;
+	distributed_force_klein_t* force_k_indexed = NULL;
 
 	colloid_t* pc;
 	MPI_Comm comm;
@@ -857,9 +867,9 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 								klein_add_double(&force_k[Z], force[Z]);
 
 								/* Add to Klein sum array with binary search */
-								add_force_to_array(force_k, index, force);
+								add_force_to_array(&force_k_indexed, index, force);
 
-								hydro_f_local_add(hydro, index, force);
+								// hydro_f_local_add(hydro, index, force);
 
 								/* Accumulate contribution to total force on system */
 								// flocal[X] += force[X];
@@ -871,16 +881,45 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 							}
 						}
 					}
-					pc->force[X] = klein_sum(&force_k[X]);
-					pc->force[Y] = klein_sum(&force_k[Y]);
-					pc->force[Z] = klein_sum(&force_k[Z]);
+					// Sum goes to fex as this force is calculated ouside of ludwig_colloids_update
+					// pc->force[X] += klein_sum(&force_k[X]);
+					// pc->force[Y] += klein_sum(&force_k[Y]);
+					// pc->force[Z] += klein_sum(&force_k[Z]);
+					pc->fex[X] += klein_sum(&force_k[X]);
+					pc->fex[Y] += klein_sum(&force_k[Y]);
+					pc->fex[Z] += klein_sum(&force_k[Z]);
 				}
 			}
 		}
 	}
 
+	/* Now apply all accumulated electric forces to hydro by index */
+	if (force_k_indexed != NULL) {
+		for (int i = 0; i < (force_k_indexed)->count; i++) {
+
+			distributed_force_klein_entry_t* entry = (force_k_indexed)->entries[i];
+
+			double new_force[3];
+			new_force[X] = klein_sum(entry->force[X]);
+			new_force[Y] = klein_sum(entry->force[Y]);
+			new_force[Z] = klein_sum(entry->force[Z]);
+
+			hydro_f_local_add(hydro, entry->cs_index, new_force);
+
+		}
+
+		// Free memory
+		subgrid_free_distributed_force_t(&force_k_indexed);
+
+	}
+
+	//----------------------------------------------------------------
+	// Momentum conservation correction
+	//----------------------------------------------------------------
+
 	/* Count fluid nodes */
 	map_volume_local(map, MAP_FLUID, &nsfluid);
+
 	flocal[3] = (double)nsfluid;
 	flocal[X] = klein_sum(&flocal_k[X]);
 	flocal[Y] = klein_sum(&flocal_k[Y]);
@@ -888,7 +927,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 	/* Sum across all MPI ranks */
 	MPI_Allreduce(flocal, fsum, 4, MPI_DOUBLE, MPI_SUM, comm);
-
 
 	/* Calculate average force per fluid node */
 	if (fsum[3] > 0.0) {
@@ -900,7 +938,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 		// fbody[Y] -= fsum[Y] / fsum[3];
 		// fbody[Z] -= fsum[Z] / fsum[3];
 		// physics_fbody_set(phys, fbody);
-
 	}
 
 	/* Second pass: Apply correction force to all fluid nodes to conserve momentum */
@@ -913,7 +950,7 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 					/* Check if this is a fluid node */
 					colloids_info_map(cinfo, index, &pc);
-					if (pc) continue;  /* Skip colloid nodes */
+					if (pc) continue;  // Skip colloid nodes. If there are solid nodes, this must be corrected.
 
 					/* Apply negative of average force to conserve momentum */
 					force[X] = -fsum[X];
@@ -923,22 +960,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 					hydro_f_local_add(hydro, index, force);
 				}
 			}
-		}
-	}
-
-	/* Now apply all accumulated charges to psi */
-	if (*force_k != NULL) {
-		for (int i = 0; i < (*charge)->count; i++) {
-
-			distributed_force_klein_entry_t* entry = (*force_k)->entries[i];
-
-			double new_force[3];
-			new_force[X] = klein_sum(entry->force[X]);		
-			new_force[Y] = klein_sum(entry->force[Y]);	
-			new_force[Z] = klein_sum(entry->force[Z]);			
-
-			hydro_f_local_add(hydro, entry->cs_index, force);
-
 		}
 	}
 
