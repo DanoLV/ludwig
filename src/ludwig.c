@@ -612,7 +612,6 @@ void ludwig_run(const char* inputfile) {
       psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
 
       /*CHANGE INIT - Subgrid charge */
-      // subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi);
       distributed_charge_klein_t* charge = NULL;
       subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
       /*CHANGE END - Subgrid charge */
@@ -626,7 +625,6 @@ void ludwig_run(const char* inputfile) {
       TIMER_stop(TIMER_ELECTRO_POISSON);
 
       /*CHANGE INIT - Subgrid charge */ //If I put this here subgrid particles always goes to (0.5;0.5;0.5) position 
-      // subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi);
       subgrid_charge_from_particles_restore(ludwig->collinfo, ludwig->psi, &charge);
       subgrid_free_distributed_charge_t(&charge);
       /*CHANGE END - Subgrid charge */
@@ -709,8 +707,7 @@ void ludwig_run(const char* inputfile) {
 
       if (ludwig->psi) {
         /* Force in electrokinetic models is computed above */
-      /*CHANGE INIT - Subgrid charge */
-      // subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
+        /*CHANGE INIT - Subgrid charge */
         subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map, ludwig->phys, ludwig->psi, ludwig->hydro);
         /*CHANGE END - Subgrid charge */
       }
@@ -2168,16 +2165,9 @@ static int ludwig_colloids_update_low_freq(ludwig_t* ludwig) {
   colloids_info_update_cell_list(ludwig->collinfo);
   colloids_halo_state(ludwig->collinfo);
   colloids_info_update_lists(ludwig->collinfo);
-
-  /*CHANGE INIT - Subgrid charge */
-    // interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map,
-    //      ludwig->psi, ludwig->ewald);
-    // subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
-  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map, ludwig->psi, ludwig->ewald, ludwig->hydro);
+  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map, ludwig->psi, ludwig->ewald);
   subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
-  /*CHANGE END - Subgrid charge */
 
-  /*CHANGE END - Subgrid charge */
   return 0;
 }
 
@@ -2250,14 +2240,8 @@ int ludwig_colloids_update(ludwig_t* ludwig) {
 
   TIMER_start(TIMER_FORCES);
 
-  // /*CHANGE INIT - Subgrid charge */
-  // // interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map,
-  // //      ludwig->psi, ludwig->ewald);
-  // // subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
-  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map, ludwig->psi, ludwig->ewald, ludwig->hydro);
+  interact_compute(ludwig->interact, ludwig->collinfo, ludwig->map, ludwig->psi, ludwig->ewald);
   subgrid_force_from_particles(ludwig->collinfo, ludwig->hydro, ludwig->wall);
-  // /*CHANGE END - Subgrid charge */
-
 
   TIMER_stop(TIMER_FORCES);
 

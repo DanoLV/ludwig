@@ -56,12 +56,7 @@ int interact_statistic_add(interact_t* obj, interact_enum_t it,
 int interact_rc_set(interact_t* obj, interact_enum_t it, double rc);
 int interact_hc_set(interact_t* obj, interact_enum_t it, double hc);
 int interact_range_check(interact_t* obj, colloids_info_t* cinfo);
-/*CHANGE INIT - Subgrid charge */
-// int interact_compute(interact_t* interact, colloids_info_t* cinfo,
-//          map_t* map, psi_t* psi, ewald_t* ewald);
-int interact_compute(interact_t* interact, colloids_info_t* cinfo,
-         map_t* map, psi_t* psi, ewald_t* ewald, hydro_t* hydro);
-/*CHANGE END - Subgrid charge */
+int interact_compute(interact_t* interact, colloids_info_t* cinfo, map_t* map, psi_t* psi, ewald_t* ewald);
 int interact_pairwise(interact_t* interact, colloids_info_t* cinfo);
 int interact_wall(interact_t* interact, colloids_info_t* cinfo);
 int interact_bonds(interact_t* obj, colloids_info_t* cinfo);
@@ -95,11 +90,4 @@ int colloids_update_forces_fluid_body_force(colloids_info_t* cinfo,
               const physics_t* phys);
 int colloids_update_forces_buoyancy(colloids_info_t* cinfo, map_t* map,
             physics_t* phys);
-/*CHANGE INIT - Subgrid charge */
-int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
-                                          map_t* map,
-                                          physics_t* phys,
-                                          psi_t* psi, 
-                                          hydro_t* hydro);
-/*CHANGE END - Subgrid charge */
 #endif

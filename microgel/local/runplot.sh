@@ -42,6 +42,8 @@ echo "Inicia plot:"
 echo "Nsteps=$Nsteps"
 echo "Ninicio=$Ninicio"
 echo "paso=$paso"
+echo "single=$single"
+echo "fluid_only=$fluid_only"
 
 # Total steps of simulation
 NT=$((Nsteps + Ninicio))
@@ -49,19 +51,37 @@ NT=$((Nsteps + Ninicio))
 # Postprocesing - convert data to .cvs files
 ./coloideacsv.sh -n $NT -i $Ninicio -p $paso
 
+# Ensure graficos subdirectory exists
+mkdir -p graficos
+
 # Check if we need to plot fluid velocities
 if [ "$fluid_only" == "y" ]; then
     # Plot only fluid velocities (no colloids needed)
-    ./calculosvelfluidonly.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o datosfluid.csv
+    # Run calculation in root dir (where vel-* files are), save output to graficos
+    ./calculosvelfluidonly.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o graficos/datosfluid.csv
+
+    # Generate plot in graficos directory
+    cd graficos
     ./plotvel.py -i datosfluid.csv --fluid-only
+    cd ..
+
 elif [ "$single" == "y" ]; then
     # Calculates and plots velocity for a single subgrid monomer
-    # ./calculosvel.py -nciclos $NT -npaso $paso -o datos.csv
-    # ./calculosvelfluid.py -nciclos $NT -npaso $paso -o datosfluid.csv
-    ./calculosvelfluid.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o datosfluid.csv
+    # Run calculation in root dir (where colloids-*.csv are), save output to graficos
+    ./calculosvelfluid.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o graficos/datosfluid.csv
+
+    # Generate plot in graficos directory
+    cd graficos
     ./plotvel.py -i datosfluid.csv
+    cd ..
+
 else
     # Calculates and plots density, medium bond length and inertia moments for a microgel
-    ./calculos.py -nciclos $NT -npaso $paso -o datos.csv
+    # Run calculation in root dir (where colloids-*.csv are), save output to graficos
+    ./calculos.py -nciclos $NT -npaso $paso -o graficos/datos.csv
+
+    # Generate plot in graficos directory
+    cd graficos
     ./plot.py
+    cd ..
 fi

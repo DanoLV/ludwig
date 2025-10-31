@@ -969,3 +969,145 @@ microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momen
 microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/plotvel.py
 microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/runplot.sh
 microgel/local/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-momento_kahan/velocidades.png
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/batch_plot_electric_field.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/calculosvel.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/calculosvelfluid.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/calculosvelfluidonly.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/coloideacsv.sh
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/extract_colloids
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/extraer_posicion.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/input
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/output.txt
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/outputplot.txt
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plot_charge_distribution.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plot_electric_field.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plotdatos.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plotvel.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/runplot.sh
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/velocidades.png
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/batch_plot_electric_field.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/calculosvel.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/calculosvelfluid.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/calculosvelfluidonly.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/coloideacsv.sh
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/extract_colloids
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/extraer_posicion.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/input
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/output.txt
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/outputplot.txt
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/plot_charge_distribution.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/plot_electric_field.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/plotdatos.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/plotvel.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/runplot.sh
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.0005-fe_electro-q_1.0-e_0.0_0.0_0.0-p10-N_10k-sin coreegir f2mode y mode2f/velocidades.png
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/batch_plot_electric_field.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/calculosvel.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/calculosvelfluid.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/calculosvelfluidonly.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/coloideacsv.sh
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/extract_colloids
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/extraer_posicion.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/input
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/output.txt
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/outputplot.txt
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plot_charge_distribution.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plot_electric_field.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plotdatos.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/plotvel.py
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/runplot.sh
+microgel/local/sin coreegir f2mode y mode2f/single-v_0.05-kT_0.5-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_50-sin coreegir f2mode y mode2f/velocidades.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/calculos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/calculosvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/calculosvelfluid.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/calculosvelfluidonly.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/coloideacsv.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/extract_colloids
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/extraer_posicion.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/input
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/output.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/outputplot.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/runplot.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/batch_plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/plot_charge_distribution.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/plot.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/plotdatos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/plotvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k/graficos/velocidades.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/calculos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/calculosvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/calculosvelfluid.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/calculosvelfluidonly.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/coloideacsv.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/extract_colloids
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/extraer_posicion.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/input
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/output.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/outputplot.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/runplot.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/batch_plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/compare_field_theory.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/plot_charge_distribution.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/plot.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/plotdatos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/plotvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p1-N_5k-prueba/graficos/velocidades.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/calculos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/calculosvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/calculosvelfluid.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/calculosvelfluidonly.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/coloideacsv.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_diagonal_fitted.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_plane_xy.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_potential_diagonal.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_potential_plane_xy.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_potential_x_axis.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_x_axis_epsilon1e4.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_x_axis_fitted.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/comparison_x_axis.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/extract_colloids
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/extraer_posicion.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/FIELD_VERIFICATION.md
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/input
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/output.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/outputplot.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/POTENTIAL_VERIFICATION.md
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/runplot.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/batch_plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/compare_field_theory.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/field_potencial.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/output_xy.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/output_xz.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/output_yz.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/output.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/p30000-field_xy_Ex.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/p30000-field_xy_Ey.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/p30000-field_xy_Ez.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/p30000-potencial_3d_xy.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/p30000-potencial_xy.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/plot_charge_distribution.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/plot.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/plotdatos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/plotvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.0_0.0_0.0-p250-N_500k/graficos/velocidades.png
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/calculos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/calculosvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/calculosvelfluid.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/calculosvelfluidonly.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/coloideacsv.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/extract_colloids
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/extraer_posicion.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/input
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/output.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/outputplot.txt
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/runplot.sh
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/batch_plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/plot_charge_distribution.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/plot_electric_field.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/plot.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/plotdatos.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/plotvel.py
+microgel/local/single-r_0.8-v_0.02-kT_0.0005-lb_fluctuation_0-fe_electro-q_1.0-e_0.1_0.0_0.0-p10-N_50k/graficos/velocidades.png

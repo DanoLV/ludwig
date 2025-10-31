@@ -1,10 +1,10 @@
 # Ludwig Microgel Simulation Runner
 
-Este documento explica el uso del script `runbg_new.sh` para ejecutar simulaciones de microgeles con Ludwig usando soporte MPI.
+Este documento explica el uso del script `runbg.sh` para ejecutar simulaciones de microgeles con Ludwig usando soporte MPI.
 
 ## Descripción General
 
-El script `runbg_new.sh` es una herramienta mejorada para ejecutar simulaciones de dinámica de fluidos con Ludwig. Incluye:
+El script `runbg.sh` es una herramienta mejorada para ejecutar simulaciones de dinámica de fluidos con Ludwig. Incluye:
 
 - Soporte completo para MPI (Message Passing Interface) con múltiples procesos
 - Soporte para OpenMP con múltiples threads por proceso
@@ -28,12 +28,12 @@ El script `runbg_new.sh` es una herramienta mejorada para ejecutar simulaciones 
 ## Uso Básico
 
 ```bash
-./runbg_new.sh [OPCIONES]
+./runbg.sh [OPCIONES]
 ```
 
 Para ver la ayuda completa:
 ```bash
-./runbg_new.sh --help
+./runbg.sh --help
 ```
 
 ## Parámetros Obligatorios
@@ -114,7 +114,7 @@ Los parámetros están organizados alfabéticamente para facilitar su búsqueda:
 Simulación simple con un solo proceso MPI:
 
 ```bash
-./runbg_new.sh \
+./runbg.sh \
   --initial-step 0 \
   --nsteps 1000000 \
   --step-interval 500 \
@@ -129,7 +129,7 @@ Simulación simple con un solo proceso MPI:
 Simulación con energía libre electrocinética y campo eléctrico aplicado:
 
 ```bash
-./runbg_new.sh \
+./runbg.sh \
   --initial-step 0 \
   --nsteps 2000000 \
   --step-interval 1000 \
@@ -148,7 +148,7 @@ Simulación con energía libre electrocinética y campo eléctrico aplicado:
 Simulación con 4 procesos MPI en una grilla 2×2×1, cada proceso con 8 threads OpenMP:
 
 ```bash
-./runbg_new.sh \
+./runbg.sh \
   --initial-step 0 \
   --nsteps 5000000 \
   --step-interval 500 \
@@ -168,7 +168,7 @@ Simulación con 4 procesos MPI en una grilla 2×2×1, cada proceso con 8 threads
 Simulación con temperatura kT, fluctuaciones LB activadas y esquema de relajación BGK:
 
 ```bash
-./runbg_new.sh \
+./runbg.sh \
   --initial-step 0 \
   --nsteps 1000000 \
   --step-interval 500 \
@@ -189,7 +189,7 @@ Simulación con temperatura kT, fluctuaciones LB activadas y esquema de relajaci
 Simulación con potenciales de enlace (bond) y ángulo (angle) armónicos, más gravedad:
 
 ```bash
-./runbg_new.sh \
+./runbg.sh \
   --initial-step 0 \
   --nsteps 2000000 \
   --step-interval 1000 \
@@ -216,7 +216,7 @@ Simulación con potenciales de enlace (bond) y ángulo (angle) armónicos, más 
 Para continuar una simulación previamente iniciada:
 
 ```bash
-./runbg_new.sh \
+./runbg.sh \
   --initial-step 1000000 \
   --nsteps 500000 \
   --step-interval 500 \
@@ -230,7 +230,7 @@ Para continuar una simulación previamente iniciada:
 Ejemplo equivalente al Ejemplo 5 con opciones cortas:
 
 ```bash
-./runbg_new.sh -i 0 -n 2000000 -s 1000 -o microgel_sim \
+./runbg.sh -i 0 -n 2000000 -s 1000 -o microgel_sim \
   -x 64 -y 64 -v 1e-04 -k 0.0005 \
   -b 1_5.0e-5_0.5 -a 1_1.0e-04_2.0944 \
   -j 0.0_0.0_-0.000005 -t fe_electro -e 0.0_0.0_0.0 -r 0.8
@@ -320,7 +320,7 @@ Ejemplo: `--mpi-procs 4 --cores 8` usa 32 threads totales.
 
 **Solución:**
 ```bash
-./runbg_new.sh -i 0 -n 1000 -s 100 -o mi_directorio
+./runbg.sh -i 0 -n 1000 -s 100 -o mi_directorio
 ```
 
 ### Error: "Output directory already exists"
@@ -360,7 +360,7 @@ sudo yum install openmpi openmpi-devel
 
 **Solución:** Revisar `outputplot.txt` para errores específicos
 
-## Diferencias con la Versión Anterior (runbg.sh)
+## Diferencias con la Versión Anterior 
 
 | Aspecto | Versión Antigua | Versión Nueva |
 |---------|----------------|---------------|

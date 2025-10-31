@@ -9,6 +9,12 @@ Modos de visualización:
 2. Línea 1D: Muestra el campo eléctrico a lo largo de una línea en el espacio
 3. Plano 3D: Muestra superficie 3D del potencial o campo eléctrico en un plano
 
+SISTEMA DE COORDENADAS:
+- Los nodos de la malla están centrados en: (0.5, 1.5, 2.5, ..., nx-0.5)
+- Los coloides en colloids-*.csv tienen coordenadas continuas (ej: 16.0, 16.0, 16.0)
+- Al graficar, un coloide en (x, y, z) aparecerá correctamente alineado con el campo
+  en su posición (x, y, z), que corresponde al nodo más cercano en (x+0.5, y+0.5, z+0.5)
+
 Autor: Script generado para análisis de simulaciones Ludwig
 """
 
@@ -129,24 +135,26 @@ class ElectricFieldPlotter:
             E3 = self.Ez[:, :, position]
             psi_slice = self.psi[:, :, position]
             xlabel, ylabel = 'X', 'Y'
-            x = np.arange(self.nx)
-            y = np.arange(self.ny)
+            # Coordenadas centradas en nodos: (0.5, 1.5, 2.5, ..., nx-0.5)
+            # Así un coloide en (16, 16) aparecerá en la posición correcta del campo
+            x = np.arange(0.5, self.nx)
+            y = np.arange(0.5, self.ny)
         elif plane == 'xz':
             E1 = self.Ex[:, position, :]
             E2 = self.Ez[:, position, :]
             E3 = self.Ey[:, position, :]
             psi_slice = self.psi[:, position, :]
             xlabel, ylabel = 'X', 'Z'
-            x = np.arange(self.nx)
-            y = np.arange(self.nz)
+            x = np.arange(0.5, self.nx)
+            y = np.arange(0.5, self.nz)
         elif plane == 'yz':
             E1 = self.Ey[position, :, :]
             E2 = self.Ez[position, :, :]
             E3 = self.Ex[position, :, :]
             psi_slice = self.psi[position, :, :]
             xlabel, ylabel = 'Y', 'Z'
-            x = np.arange(self.ny)
-            y = np.arange(self.nz)
+            x = np.arange(0.5, self.ny)
+            y = np.arange(0.5, self.nz)
         else:
             raise ValueError("plane debe ser 'xy', 'xz', o 'yz'")
 
@@ -241,14 +249,21 @@ class ElectricFieldPlotter:
         # Interpolar los valores en estos puntos
         from scipy.interpolate import RegularGridInterpolator
 
-        x = np.arange(self.nx)
-        y = np.arange(self.ny)
-        z = np.arange(self.nz)
+        # Coordenadas de la malla centradas en nodos: (0.5, 1.5, 2.5, ..., nx-0.5)
+        # Los índices del array van de 0 a nx-1, pero las coordenadas físicas son offset +0.5
+        x = np.arange(0.5, self.nx)
+        y = np.arange(0.5, self.ny)
+        z = np.arange(0.5, self.nz)
 
-        interp_Ex = RegularGridInterpolator((x, y, z), self.Ex)
-        interp_Ey = RegularGridInterpolator((x, y, z), self.Ey)
-        interp_Ez = RegularGridInterpolator((x, y, z), self.Ez)
-        interp_psi = RegularGridInterpolator((x, y, z), self.psi)
+        # Los puntos de entrada vienen en coordenadas físicas del coloide
+        # Por ejemplo, si un coloide está en (16, 16, 16), el usuario da esos valores
+        # Los nodos están en (0.5, 1.5, ..., 31.5) para una malla 32x32x32
+        # La interpolación funcionará directamente con las coordenadas físicas
+
+        interp_Ex = RegularGridInterpolator((x, y, z), self.Ex, bounds_error=False, fill_value=0)
+        interp_Ey = RegularGridInterpolator((x, y, z), self.Ey, bounds_error=False, fill_value=0)
+        interp_Ez = RegularGridInterpolator((x, y, z), self.Ez, bounds_error=False, fill_value=0)
+        interp_psi = RegularGridInterpolator((x, y, z), self.psi, bounds_error=False, fill_value=0)
 
         Ex_line = interp_Ex(points)
         Ey_line = interp_Ey(points)
@@ -383,8 +398,9 @@ class ElectricFieldPlotter:
                 raise ValueError("component debe ser 'magnitude', 'x', 'y', 'z', o 'psi'")
 
             xlabel, ylabel = 'X', 'Y'
-            x = np.arange(self.nx)
-            y = np.arange(self.ny)
+            # Coordenadas centradas en nodos: (0.5, 1.5, 2.5, ..., nx-0.5)
+            x = np.arange(0.5, self.nx)
+            y = np.arange(0.5, self.ny)
 
         elif plane == 'xz':
             if component == 'magnitude':
@@ -413,8 +429,8 @@ class ElectricFieldPlotter:
                 raise ValueError("component debe ser 'magnitude', 'x', 'y', 'z', o 'psi'")
 
             xlabel, ylabel = 'X', 'Z'
-            x = np.arange(self.nx)
-            y = np.arange(self.nz)
+            x = np.arange(0.5, self.nx)
+            y = np.arange(0.5, self.nz)
 
         elif plane == 'yz':
             if component == 'magnitude':
@@ -443,8 +459,8 @@ class ElectricFieldPlotter:
                 raise ValueError("component debe ser 'magnitude', 'x', 'y', 'z', o 'psi'")
 
             xlabel, ylabel = 'Y', 'Z'
-            x = np.arange(self.ny)
-            y = np.arange(self.nz)
+            x = np.arange(0.5, self.ny)
+            y = np.arange(0.5, self.nz)
 
         else:
             raise ValueError("plane debe ser 'xy', 'xz', o 'yz'")

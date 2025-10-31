@@ -2,65 +2,138 @@
 #------------------------------------------------------------------------------------
 # Run ludwig microgel simulation with MPI support
 #------------------------------------------------------------------------------------
-# Input parameters:
-#   -n  Nsteps       : Number of steps to calculate
-#   -i  Ninicio      : Initial step number
-#   -p  paso         : Step interval for output
-#   -l  ladox        : Frame size in the X direction
-#   -y  ladoyz       : Frame size in the Y and Z directions
-#   -d  del          : Flag to run script that deletes files
-#   -v  viscosidad   : Viscosity value
-#   -e  energy       : Free energy model to use: 'fe_electro' or 'none'
-#   -f  electric_e0  : External electric field: Ex_Ey_Ez
-#   -m  mpi_procs    : Number of MPI processes (default: 1)
-#   -r  mpi_grid     : MPI grid decomposition: NX_NY_NZ (e.g., 2_2_1)
-#   -q  fluid_only   : Plot only fluid average velocity (y/n)
+# Run './runbg.sh --help' for detailed usage information
 #------------------------------------------------------------------------------------
-# Example with MPI:
-# ./runbg.sh -n 1000000 -i 0 -p 500 -t 300 -c 10 -l 26 -y 26 -v 0.5 -e fe_electro \
-#            -g petsc -f 0.0_0.0_0.0 -s y -o outdir -m 4 -r 2_2_1
-#------------------------------------------------------------------------------------
+
+show_help() {
+    cat << EOF
+Usage: ./runbg_new.sh [OPTIONS]
+
+Run Ludwig microgel simulation with MPI support.
+
+MANDATORY OPTIONS:
+  -i, --initial-step NUMBER       Initial step number (0 for new simulation)
+  -n, --nsteps NUMBER             Number of simulation steps to calculate
+  -o, --output-dir DIR            Output directory for results
+  -s, --step-interval NUMBER      Step interval for output files
+
+SIMULATION OPTIONS (alphabetically sorted):
+  -a, --angle-harmonic PARAMS     Angle harmonic: on_k_theta0 (e.g., 1_1.0e-04_2.0944)
+  -b, --bond-harmonic PARAMS      Bond harmonic: on_k_r0 (e.g., 1_5.0e-5_0.5)
+  -c, --cores NUMBER              Number of OpenMP threads per MPI process (default: 1)
+  -d, --delete-files y/n          Delete previous files before starting (default: n)
+  -e, --electric-field Ex_Ey_Ez   External electric field components (e.g., 0.0_0.0_0.0)
+  -f, --freq-config NUMBER        Configuration output frequency
+  -w, --fluctuations 0/1          LB fluctuations: 0=off, 1=on (default: 0)
+  -g, --grid-mpi NX_NY_NZ         MPI grid decomposition (e.g., 2_2_1 for 2x2x1 grid)
+  -j, --gravity Gx_Gy_Gz          Colloid gravity vector (e.g., 0.0_0.0_-0.000005)
+  -k, --temperature NUMBER        Temperature (kT) for thermal fluctuations
+  -l, --fluid-only y/n            Plot only fluid average velocity (y/n, default: n)
+  -m, --mpi-procs NUMBER          Number of MPI processes (default: 1)
+  -p, --plot-interval SECONDS     Time interval between periodic plots (default: 300)
+  -q, --relaxation-scheme TYPE    LB relaxation scheme: 'M10' or 'BGK' (default: M10)
+  -r, --rho NUMBER                Fluid density (rho0)
+  -t, --free-energy TYPE          Free energy model: 'fe_electro' or 'none' (default: none)
+  -u, --single-monomer y/n        Single monomer mode (y/n, default: n)
+  -v, --viscosity NUMBER          Fluid viscosity value
+  -x, --size-x NUMBER             Frame size in X direction (grid units)
+  -y, --size-yz NUMBER            Frame size in Y and Z directions (grid units)
+  -z, --solver TYPE               Electrokinetics solver: 'petsc' or 'sor' (default: sor)
+
+HELP:
+  -h, --help                      Display this help message and exit
+
+EXAMPLES:
+  # New simulation with single MPI process:
+  ./runbg_new.sh --initial-step 0 --nsteps 1000000 --step-interval 500 \\
+                 --output-dir results --size-x 26 --size-yz 26 --viscosity 0.5 \\
+                 --free-energy fe_electro --electric-field 0.0_0.0_0.1
+
+  # Simulation with MPI (4 processes on 2x2x1 grid):
+  ./runbg_new.sh -i 0 -n 1000000 -s 500 -o results -x 26 -y 26 -v 0.5 \\
+                 -t fe_electro -e 0.0_0.0_0.1 -m 4 -g 2_2_1 -c 10
+
+  # Continue previous simulation:
+  ./runbg_new.sh -i 1000000 -n 500000 -s 500 -o results
+
+EOF
+}
 
 clear
 
-# Default values for MPI
+# Default values
+cores=1
+del="n"
+deltat=60
+energy="none"
+fluctuations=0
+fluid_only="n"
 mpi_procs=1
 mpi_grid=""
+single="n"
+solver="petsc"
+relaxation_scheme="M10"
 
-while getopts "a:n:i:p:l:d:y:v:e:f:g:s:t:c:o:m:r:q:z:" flag
-do
-    case "${flag}" in
-        a) fconfig=${OPTARG};;      # Config out frequency
-        n) Nsteps=${OPTARG};;       # Number of steps to calculate
-        i) Ninicio=${OPTARG};;      # Initial step number
-        p) paso=${OPTARG};;         # Delta steps for output
-        t) deltat=${OPTARG};;       # time interval
-        l) ladox=${OPTARG};;        # Frame size in X direction
-        y) ladoyz=${OPTARG};;       # Frame size in Y and Z directions
-        d) del=${OPTARG};;          # Run script to delete files
-        v) viscosidad=${OPTARG};;   # Viscosity
-        e) energy=${OPTARG};;       # free_energy: fe_electro/none
-        f) electric_e0=${OPTARG};;  # electric_e0
-        g) solver=${OPTARG};;       # electrokinetics_solver_type: petsc / sor
-        s) single=${OPTARG};;       # Single monomer
-        c) cores=${OPTARG};;        # Num of cores (threads per process)
-        o) dir=${OPTARG};;          # Output dir
-        m) mpi_procs=${OPTARG};;    # Number of MPI processes
-        r) mpi_grid=${OPTARG};;     # MPI grid decomposition
-        q) fluid_only=${OPTARG};;   # Plot only fluid average velocity
-        z) rho=${OPTARG};;          # Density   
+# Parse command line arguments
+OPTS=$(getopt -o a:b:c:d:e:f:w:g:hj:k:i:l:m:n:o:p:q:r:s:t:u:v:x:y:z: \
+              --long angle-harmonic:,bond-harmonic:,cores:,delete-files:,electric-field:,freq-config:,fluctuations:,grid-mpi:,help,gravity:,temperature:,initial-step:,fluid-only:,mpi-procs:,nsteps:,output-dir:,plot-interval:,relaxation-scheme:,rho:,step-interval:,free-energy:,single-monomer:,viscosity:,size-x:,size-yz:,solver: \
+              -n 'runbg_new.sh' -- "$@")
+
+if [ $? != 0 ]; then
+    echo "Error parsing options. Try './runbg_new.sh --help' for more information." >&2
+    exit 1
+fi
+
+eval set -- "$OPTS"
+
+# Process options (alphabetically sorted by long name)
+while true; do
+    case "$1" in
+        -a|--angle-harmonic)    angle_harmonic="$2"; shift 2 ;;
+        -b|--bond-harmonic)     bond_harmonic="$2"; shift 2 ;;
+        -c|--cores)             cores="$2"; shift 2 ;;
+        -d|--delete-files)      del="$2"; shift 2 ;;
+        -e|--electric-field)    electric_e0="$2"; shift 2 ;;
+        -w|--fluctuations)      fluctuations="$2"; shift 2 ;;
+        -f|--freq-config)       fconfig="$2"; shift 2 ;;
+        -t|--free-energy)       energy="$2"; shift 2 ;;
+        -l|--fluid-only)        fluid_only="$2"; shift 2 ;;
+        -j|--gravity)           gravity="$2"; shift 2 ;;
+        -g|--grid-mpi)          mpi_grid="$2"; shift 2 ;;
+        -h|--help)              show_help; exit 0 ;;
+        -i|--initial-step)      Ninicio="$2"; shift 2 ;;
+        -m|--mpi-procs)         mpi_procs="$2"; shift 2 ;;
+        -n|--nsteps)            Nsteps="$2"; shift 2 ;;
+        -o|--output-dir)        dir="$2"; shift 2 ;;
+        -p|--plot-interval)     deltat="$2"; shift 2 ;;
+        -q|--relaxation-scheme) relaxation_scheme="$2"; shift 2 ;;
+        -r|--rho)               rho="$2"; shift 2 ;;
+        -u|--single-monomer)    single="$2"; shift 2 ;;
+        -z|--solver)            solver="$2"; shift 2 ;;
+        -s|--step-interval)     paso="$2"; shift 2 ;;
+        -k|--temperature)       temperature="$2"; shift 2 ;;
+        -v|--viscosity)         viscosidad="$2"; shift 2 ;;
+        -x|--size-x)            ladox="$2"; shift 2 ;;
+        -y|--size-yz)           ladoyz="$2"; shift 2 ;;
+        --)                     shift; break ;;
+        *)                      echo "Internal error!"; exit 1 ;;
     esac
 done
 
 # Check output dir is specified
 if [ -z "$dir" ]; then
-        echo 'Missing output directory -o' >&2
+        echo 'ERROR: Missing output directory. Use -o or --output-dir' >&2
+        echo "Run './runbg_new.sh --help' for usage information." >&2
         exit 1
 fi
 
 # Check mandatory options
 if [[ -z "$Ninicio" || -z "$Nsteps" || -z "$paso" ]]; then
-        echo 'Missing mandatory input line parameters' >&2
+        echo 'ERROR: Missing mandatory parameters:' >&2
+        [ -z "$Ninicio" ] && echo '  - Initial step (-i or --initial-step)' >&2
+        [ -z "$Nsteps" ] && echo '  - Number of steps (-n or --nsteps)' >&2
+        [ -z "$paso" ] && echo '  - Step interval (-s or --step-interval)' >&2
+        echo "Run './runbg_new.sh --help' for usage information." >&2
         exit 1
 fi
 
@@ -70,21 +143,23 @@ RESULTS_DIR="$dir"
 # Check if simulation starts from a previous one
 if [ "$Ninicio" -gt 0 ]; then
     if [ ! -d "$RESULTS_DIR" ]; then # Check output dir exists
-        echo "Error: 'output' directory does not exist in the current working directory."
+        echo "ERROR: Output directory '$RESULTS_DIR' does not exist." >&2
+        echo "       For continuing simulations (initial-step > 0), the directory must exist." >&2
         exit 1
     fi
 
-elif [ "$Ninicio" -eq 0  ]; then 
+elif [ "$Ninicio" -eq 0  ]; then
 
     if [ -d "$RESULTS_DIR" ]; then # Check if there is already output dir
-    echo "Error: 'output' directory already exists in the current working directory."
-    exit 1
+        echo "ERROR: Output directory '$RESULTS_DIR' already exists." >&2
+        echo "       For new simulations (initial-step = 0), the directory must not exist." >&2
+        exit 1
     fi
 
     # Create outputdir
     mkdir -p $RESULTS_DIR
     cp config.cds.init.001-001 $RESULTS_DIR
-    
+
     # If using MPI, copy initial config for each process
     if [ "$mpi_procs" -gt 1 ]; then
         for ((proc=1; proc<=mpi_procs; proc++)); do
@@ -93,8 +168,8 @@ elif [ "$Ninicio" -eq 0  ]; then
         done
     fi
 
-else 
-    echo "Error: 'Ninicio' is not a valid positive integer number"
+else
+    echo "ERROR: Initial step must be a valid non-negative integer" >&2
     exit 1
 fi
 
@@ -103,39 +178,48 @@ cp input $RESULTS_DIR
 cp Ludwig.exe $RESULTS_DIR
 cp del.sh $RESULTS_DIR
 
+# Create graphics subdirectory
+mkdir -p $RESULTS_DIR/graficos
+
 # Copy files to execute plot
 cp runplot.sh $RESULTS_DIR
 cp extract_colloids $RESULTS_DIR
 cp coloideacsv.sh $RESULTS_DIR
+
+# Scripts that process raw data (need access to colloids-*.csv and vel-*) stay in root
 cp calculosvel.py $RESULTS_DIR
 cp calculosvelfluid.py $RESULTS_DIR
 cp calculosvelfluidonly.py $RESULTS_DIR
-cp plotvel.py $RESULTS_DIR
-cp plot_charge_distribution.py $RESULTS_DIR
-cp plot_electric_field.py $RESULTS_DIR
-cp plotdatos.py $RESULTS_DIR
 cp extraer_posicion.py $RESULTS_DIR
-cp batch_plot_electric_field.py $RESULTS_DIR
-cp calculosvelfluidonly.py $RESULTS_DIR
+cp calculos.py $RESULTS_DIR
 
-# Provide access to plot
+# Plotting scripts (only read processed CSVs) go to graficos subdirectory
+cp plotvel.py $RESULTS_DIR/graficos
+cp plot.py $RESULTS_DIR/graficos
+cp plot_charge_distribution.py $RESULTS_DIR/graficos
+cp plot_electric_field.py $RESULTS_DIR/graficos
+cp plotdatos.py $RESULTS_DIR/graficos
+cp batch_plot_electric_field.py $RESULTS_DIR/graficos
+
+# Provide access to plot scripts
 chmod +x $RESULTS_DIR/runplot.sh
 chmod +x $RESULTS_DIR/extract_colloids
 chmod +x $RESULTS_DIR/calculosvel.py
 chmod +x $RESULTS_DIR/calculosvelfluid.py
 chmod +x $RESULTS_DIR/calculosvelfluidonly.py
-chmod +x $RESULTS_DIR/plotvel.py
-chmod +x $RESULTS_DIR/plot_charge_distribution.py
-chmod +x $RESULTS_DIR/plot_electric_field.py
-chmod +x $RESULTS_DIR/plotdatos.py
 chmod +x $RESULTS_DIR/extraer_posicion.py
-chmod +x $RESULTS_DIR/batch_plot_electric_field.py
-chmod +x $RESULTS_DIR/calculosvelfluidonly.py
+chmod +x $RESULTS_DIR/calculos.py
+chmod +x $RESULTS_DIR/graficos/plotvel.py
+chmod +x $RESULTS_DIR/graficos/plot.py
+chmod +x $RESULTS_DIR/graficos/plot_charge_distribution.py
+chmod +x $RESULTS_DIR/graficos/plot_electric_field.py
+chmod +x $RESULTS_DIR/graficos/plotdatos.py
+chmod +x $RESULTS_DIR/graficos/batch_plot_electric_field.py
 
 # Change to result dir
 cd $RESULTS_DIR/
 
-#Delete files from previous runs
+# Delete files from previous runs
 if [ "$del" == "y" ]; then
     ./del.sh
 fi
@@ -143,23 +227,108 @@ fi
 # Config for step 0
 cp config.cds.init.001-001 config.cds00000000.001-001
 
-echo "Inicia simulacion con MPI ($mpi_procs procesos):"
+echo "=========================================="
+echo "Starting Ludwig simulation with MPI"
+echo "=========================================="
+echo "MPI processes:     $mpi_procs"
+echo "OpenMP threads:    $cores"
+echo "Output directory:  $RESULTS_DIR"
+echo "Initial step:      $Ninicio"
+echo "Total steps:       $Nsteps"
+echo "Step interval:     $paso"
+echo "=========================================="
 
 # Change parameters in input file
-sed -i -e "/freq_config/c\freq_config $fconfig" input
+[ -n "$fconfig" ] && sed -i -e "/freq_config/c\freq_config $fconfig" input
 sed -i -e "/N_start/c\N_start $Ninicio" input
 sed -i -e "/N_cycles/c\N_cycles $Nsteps" input
-sed -i -e "/^fluid_rho0 /c\fluid_rho0 $rho" input
-sed -i -e "/^viscosity /c\viscosity $viscosidad" input
-sed -i -e "/^viscosity_bulk/c\viscosity_bulk $viscosidad" input
+[ -n "$rho" ] && sed -i -e "/^fluid_rho0 /c\fluid_rho0 $rho" input
+[ -n "$viscosidad" ] && sed -i -e "/^viscosity /c\viscosity $viscosidad" input
+[ -n "$viscosidad" ] && sed -i -e "/^viscosity_bulk/c\viscosity_bulk $viscosidad" input
 sed -i -e "/^free_energy/c\free_energy $energy" input
-sed -i -e "/^electrokinetics_solver_type/c\electrokinetics_solver_type $solver" input 
-sed -i -e "/^electric_e0/c\electric_e0 $electric_e0" input
+[ -n "$solver" ] && sed -i -e "/^electrokinetics_solver_type/c\electrokinetics_solver_type $solver" input
+[ -n "$electric_e0" ] && sed -i -e "/^electric_e0/c\electric_e0 $electric_e0" input
 sed -i -e "/colloid_io_freq/c\colloid_io_freq $paso" input
 sed -i -e "/vel_io_freq/c\vel_io_freq $paso" input
+[ -n "$ladox" ] && [ -n "$ladoyz" ] && sed -i -e "/size/c\size $ladox\_$ladoyz\_$ladoyz" input
 
-# sed -i -e "/psi_io_freq/c\psi_io_freq $paso" input
-sed -i -e "/size/c\size $ladox\_$ladoyz\_$ladoyz" input
+# Temperature parameter
+if [ -n "$temperature" ]; then
+    if grep -q "^temperature" input; then
+        sed -i -e "/^temperature/c\temperature $temperature" input
+    else
+        sed -i -e "/^# temperature/a temperature $temperature" input
+    fi
+fi
+
+# LB fluctuations
+if grep -q "^lb_fluctuations" input; then
+    sed -i -e "/^lb_fluctuations/c\lb_fluctuations $fluctuations" input
+else
+    sed -i -e "/^# lb_fluctuations/a lb_fluctuations $fluctuations" input
+fi
+
+# LB relaxation scheme
+if grep -q "^lb_relaxation_scheme" input; then
+    sed -i -e "/^lb_relaxation_scheme/c\lb_relaxation_scheme $relaxation_scheme" input
+else
+    sed -i -e "/^# lb_relaxation_scheme/a lb_relaxation_scheme $relaxation_scheme" input
+fi
+
+# Colloid gravity
+if [ -n "$gravity" ]; then
+    if grep -q "^colloid_gravity" input; then
+        sed -i -e "/^colloid_gravity/c\colloid_gravity $gravity" input
+    else
+        sed -i -e "/^# colloid_gravity/a colloid_gravity $gravity" input
+    fi
+fi
+
+# Bond harmonic parameters
+if [ -n "$bond_harmonic" ]; then
+    IFS='_' read -r bond_on bond_k bond_r0 <<< "$bond_harmonic"
+
+    if grep -q "^bond_harmonic_on" input; then
+        sed -i -e "/^bond_harmonic_on/c\bond_harmonic_on $bond_on" input
+    else
+        sed -i -e "/^# bond_harmonic_on/a bond_harmonic_on $bond_on" input
+    fi
+
+    if grep -q "^bond_harmonic_k" input; then
+        sed -i -e "/^bond_harmonic_k/c\bond_harmonic_k $bond_k" input
+    else
+        sed -i -e "/^# bond_harmonic_k/a bond_harmonic_k $bond_k" input
+    fi
+
+    if grep -q "^bond_harmonic_r0" input; then
+        sed -i -e "/^bond_harmonic_r0/c\bond_harmonic_r0 $bond_r0" input
+    else
+        sed -i -e "/^# bond_harmonic_r0/a bond_harmonic_r0 $bond_r0" input
+    fi
+fi
+
+# Angle harmonic parameters
+if [ -n "$angle_harmonic" ]; then
+    IFS='_' read -r angle_on angle_k angle_theta0 <<< "$angle_harmonic"
+
+    if grep -q "^angle_harmonic_on" input; then
+        sed -i -e "/^angle_harmonic_on/c\angle_harmonic_on $angle_on" input
+    else
+        sed -i -e "/^# angle_harmonic_on/a angle_harmonic_on $angle_on" input
+    fi
+
+    if grep -q "^angle_harmonic_k" input; then
+        sed -i -e "/^angle_harmonic_k/c\angle_harmonic_k $angle_k" input
+    else
+        sed -i -e "/^# angle_harmonic_k/a angle_harmonic_k $angle_k" input
+    fi
+
+    if grep -q "^angle_harmonic_theta0" input; then
+        sed -i -e "/^angle_harmonic_theta0/c\angle_harmonic_theta0 $angle_theta0" input
+    else
+        sed -i -e "/^# angle_harmonic_theta0/a angle_harmonic_theta0 $angle_theta0" input
+    fi
+fi
 
 # Configure MPI grid if specified
 if [ -n "$mpi_grid" ]; then
@@ -175,13 +344,10 @@ fi
 NT=$((Nsteps + Ninicio))
 
 # Set number of OpenMP threads per MPI process
-if [ -z "$cores" ]; then
-    cores=1
-fi
 export OMP_NUM_THREADS=$cores
 
-# --- 1. Ejecutar tarea principal en segundo plano ---
-echo "Ejecutando tarea de fondo con $mpi_procs procesos MPI y $cores threads por proceso..."
+# --- 1. Execute main task in background ---
+echo "Starting background simulation task..."
 
 # Determine MPI command (mpirun or mpiexec)
 if command -v mpirun &> /dev/null; then
@@ -189,7 +355,7 @@ if command -v mpirun &> /dev/null; then
 elif command -v mpiexec &> /dev/null; then
     MPI_CMD="mpiexec"
 else
-    echo "Error: No MPI command found (mpirun or mpiexec)"
+    echo "ERROR: No MPI command found (mpirun or mpiexec)" >&2
     exit 1
 fi
 
@@ -202,41 +368,38 @@ else
 fi
 
 PID_BG=$!
-echo "PID = $PID_BG"
+echo "Simulation PID: $PID_BG"
 
-# --- 2. Ejecutar tarea periódica mientras la principal corre ---
+# --- 2. Execute periodic plotting task while main simulation runs ---
 count=0
 ni=$Ninicio
 
 while kill -0 $PID_BG 2>/dev/null; do
 
-    echo "[INFO] Plot inicia en $(date)"
+    echo "[INFO] Starting periodic plot at $(date)"
 
-    # Plot
+    # Count output files
     file_count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
     file_count=$((file_count - 1))
-    
+
     if  [ "$fluid_only" == "y" ]; then
-    file_count=$(find . -maxdepth 1 -type f -name "vel-*" | wc -l)
+        file_count=$(find . -maxdepth 1 -type f -name "vel-*" | wc -l)
     fi
 
     # Adjust file_count for MPI processes
     if [ "$mpi_procs" -gt 1 ]; then
-        # file_count=$((file_count / mpi_procs))
         file_count=$((file_count - mpi_procs + 1))
     fi
 
     # Calculate the current step number from file count
-    # file_count-1 because we have config at step 0, so subtract 1 to get actual steps
     current_step=$((paso*(file_count-1)))
 
     # Number of new steps to process (from ni to current_step)
     count=$((current_step - ni))
 
-    echo "Files found: $file_count"
-    echo "Current step: $current_step"
-    echo "Ni (inicio): $ni"
-    echo "Count (steps to process): $count"
+    echo "  Files found:     $file_count"
+    echo "  Current step:    $current_step"
+    echo "  Steps to process: $count"
 
     if [ "$count" -lt 0 ]; then
         sleep $deltat
@@ -248,20 +411,22 @@ while kill -0 $PID_BG 2>/dev/null; do
                 -i "$ni"   \
                 -p "$paso"   \
                 -s "$single" \
-                -q "$fluid_only" >> outputplot.txt 2>&1 
+                -q "$fluid_only" >> outputplot.txt 2>&1
 
     ni=$((ni+count+paso))
     sleep $deltat
 
 done
 
-echo "[INFO] Tarea periódica en $(date)"
+echo "[INFO] Periodic plotting task completed at $(date)"
 
-# wait to do final plot
+# Wait to do final plot
 sleep 10
 
-# Plot final
-echo "Plot inicia"
+# Final plot
+echo "=========================================="
+echo "Starting final plot..."
+echo "=========================================="
 
 # Count final files
 file_count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
@@ -281,12 +446,11 @@ current_step=$((paso*(file_count-1)))
 # Number of steps to process for final plot
 count=$((current_step - ni))
 
-echo "Final plot - Files found: $file_count"
-echo "Final plot - Current step: $current_step"
-echo "Final plot - Ni (inicio): $ni"
-echo "Final plot - Count (steps to process): $count"
+echo "Final plot - Files found:        $file_count"
+echo "Final plot - Current step:       $current_step"
+echo "Final plot - Steps to process:   $count"
 
-# For final plot, use the total number of steps
+# Execute final plot
 ./runplot.sh   \
                 -n "$count"  \
                 -i "$ni"   \
@@ -294,5 +458,8 @@ echo "Final plot - Count (steps to process): $count"
                 -s "$single" \
                 -q "$fluid_only" >> outputplot.txt 2>&1
 
-echo "Plot termino"
-echo "Simulacion finalizada con $mpi_procs procesos MPI"
+echo "=========================================="
+echo "Simulation completed successfully!"
+echo "MPI processes: $mpi_procs"
+echo "Output directory: $RESULTS_DIR"
+echo "=========================================="

@@ -44,21 +44,18 @@ typedef struct distributed_force_klein_s {
   int count;                   /* Number of entries */
   int capacity;                /* Allocated capacity */
 } distributed_force_klein_t;
-/*CHANGE END - Subgrid charge */
 
-int subgrid_update(colloids_info_t * cinfo, hydro_t * hydro, int noise_flag);
-int subgrid_force_from_particles(colloids_info_t * cinfo, hydro_t * hydro,
-				 wall_t * wall);
-int subgrid_wall_lubrication(colloids_info_t * cinfo, wall_t * wall);
-/*CHANGE INIT - Subgrid charge */
-// int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj);
-// int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj);
 double d_peskin(double r);
 int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_restore(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge);
 void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
-// void get_related_particle_halo(colloids_info_t* cinfo, int ncell[3], int ic, int jc, int kc, int* icaux, int* jcaux, int* kcaux, colloid_t** p_colloidaux);
+int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi,hydro_t* hydro);
 /*CHANGE END - Subgrid charge */
+
+int subgrid_update(colloids_info_t * cinfo, hydro_t * hydro, int noise_flag);
+int subgrid_force_from_particles(colloids_info_t * cinfo, hydro_t * hydro, wall_t * wall);
+int subgrid_wall_lubrication(colloids_info_t * cinfo, wall_t * wall);
+
 #endif
