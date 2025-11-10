@@ -66,6 +66,8 @@
 #include "subgrid.h"
  /*CHANGE INIT - Subgrid charge */
 #include "psi_colloid.h" 
+#include "psi_gradients.h"
+#include "psi_petsc.h"
 /*CHANGE END - Subgrid charge */
 
 // static double d_peskin(double);
@@ -683,7 +685,7 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 										  psi_t* psi,
 										  hydro_t* hydro) {
 
-	int i, j, k, ic, jc, kc, ia, i_min, i_max, j_min, j_max, k_min, k_max;
+	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
 	int ncell[3];
 	int index;
 	int nlocal[3], offset[3];
@@ -691,8 +693,8 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	double kt, eunit, reunit, dr;
 	double r[3], r0[3];
 	double e[3];           /* electric field */
+	double E_field[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
 	double force[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
-	double fbody[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
 	double flocal[4] = { 0.0, 0.0, 0.0, 0.0 }; /* cumulative forces and fluid node count */
 	double fsum[4] = { 0.0, 0.0, 0.0, 0.0 }; /* global sum of forces and fluid node count */
 	klein_t flocal_k[3];
@@ -708,6 +710,8 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	assert(map);
 	assert(psi);
 
+	if (cinfo->nsubgrid == 0) return 0;
+
 	cs_nlocal(cinfo->cs, nlocal);
 	cs_nlocal_offset(cinfo->cs, offset);
 	cs_cart_comm(cinfo->cs, &comm);
@@ -721,10 +725,11 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	assert(hydro);
 	hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
 
-	/* First pass: Calculate electric forces on particles and accumulate total force */
+	/* Calculate electric forces on particles and accumulate total force */
 	for (ic = 0; ic <= ncell[X] + 1; ic++) {
 		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
 			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
 				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
 
 				for (; pc; pc = pc->next) {
@@ -735,6 +740,11 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 					force_k[X] = klein_zero();
 					force_k[Y] = klein_zero();
 					force_k[Z] = klein_zero();
+
+					// Force goes to fex as this force is calculated ouside of ludwig_colloids_update
+					force[X] = kt * reunit * pc->Esub[X] * (pc->s.q0 - pc->s.q1);
+					force[Y] = kt * reunit * pc->Esub[Y] * (pc->s.q0 - pc->s.q1);
+					force[Z] = kt * reunit * pc->Esub[Z] * (pc->s.q0 - pc->s.q1);
 
 					/* Translate colloid position to local coordinates */
 					r0[X] = pc->s.r[X] - 1.0 * offset[X];
@@ -748,7 +758,12 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 						for (j = j_min; j <= j_max; j++) {
 							for (k = k_min; k <= k_max; k++) {
 
+								double force_aux[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+
 								index = cs_index(cinfo->cs, i, j, k);
+
+								/* Electric field at this lattice site */
+								psi_electric_field(psi, index, e);
 
 								/* Separation between r0 and the lattice site */
 								r[X] = r0[X] - 1.0 * i;
@@ -758,26 +773,24 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 								/* Peskin delta function weight */
 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
 
-								/* Electric field at this lattice site */
-								psi_electric_field(psi, index, e);
-
-								/* Force on particle from electric field at this site */
-								force[X] = kt * reunit * e[X] * (pc->s.q0 - pc->s.q1) * dr;
-								force[Y] = kt * reunit * e[Y] * (pc->s.q0 - pc->s.q1) * dr;
-								force[Z] = kt * reunit * e[Z] * (pc->s.q0 - pc->s.q1) * dr;
+								/* Force on particle from electric field at this site index*/
+								force_aux[X] = force[X] * dr;
+								force_aux[Y] = force[Y] * dr;
+								force_aux[Z] = force[Z] * dr;
 
 								/* Add to particle force */
-								klein_add_double(&force_k[X], force[X]);
-								klein_add_double(&force_k[Y], force[Y]);
-								klein_add_double(&force_k[Z], force[Z]);
+								klein_add_double(&force_k[X], force_aux[X]);
+								klein_add_double(&force_k[Y], force_aux[Y]);
+								klein_add_double(&force_k[Z], force_aux[Z]);
 
 								/* Add to Klein sum array with binary search */
-								add_force_to_array(&force_k_indexed, index, force);
+								add_force_to_array(&force_k_indexed, index, force_aux);
 
 								/* Accumulate contribution to total force on system */
-								klein_add_double(&flocal_k[X], force[X]);
-								klein_add_double(&flocal_k[Y], force[Y]);
-								klein_add_double(&flocal_k[Z], force[Z]);
+								klein_add_double(&flocal_k[X], force_aux[X]);
+								klein_add_double(&flocal_k[Y], force_aux[Y]);
+								klein_add_double(&flocal_k[Z], force_aux[Z]);
+
 							}
 						}
 					}
@@ -785,12 +798,12 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 					pc->fex[X] += klein_sum(&force_k[X]);
 					pc->fex[Y] += klein_sum(&force_k[Y]);
 					pc->fex[Z] += klein_sum(&force_k[Z]);
+
 				}
 			}
 		}
 	}
 
-	// colloid_sums_halo(cinfo, COLLOID_SUM_SUBGRID);
 	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
 
 	/* Now apply all accumulated electric forces to hydro by index */
@@ -862,6 +875,300 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 	return 0;
 
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_update_Esub
+ *
+ *  Calculate electric field on subgrid particles
+ *****************************************************************************/
+int subgrid_update_Esub(colloids_info_t* cinfo,
+						psi_t* psi,
+						int step,
+						FILE* fp) {
+
+	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
+	int ncell[3];
+	int index;
+	int nlocal[3], offset[3];
+	double dr;
+	double r[3], r0[3];
+	double e[3];           						/* Total electric field */
+	double E_field[3] = { 0.0, 0.0, 0.0 };      /* Electric field on particle from this lattice site */
+	double E_self[3] = { 0.0, 0.0, 0.0 };      	/* Self-field */
+
+	colloid_t* pc;
+	MPI_Comm comm;
+
+	// FILE* fp;
+	int rank;
+
+	assert(cinfo);
+	assert(psi);
+
+	if (cinfo->nsubgrid == 0) return 0;
+
+	cs_nlocal(cinfo->cs, nlocal);
+	cs_nlocal_offset(cinfo->cs, offset);
+	cs_cart_comm(cinfo->cs, &comm);
+	colloids_info_ncell(cinfo, ncell);
+	MPI_Comm_rank(comm, &rank);
+
+	/* Loop through all cells (including the halo cells) and set
+	 * the field at each particle to zero for this step. */
+
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					pc->Esub[X] = 0.0;
+					pc->Esub[Y] = 0.0;
+					pc->Esub[Z] = 0.0;
+				}
+			}
+		}
+	}
+
+	/* First pass: Calculate electric field on particles*/
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					klein_t E_field_k[3];
+					E_field_k[X] = klein_zero();
+					E_field_k[Y] = klein_zero();
+					E_field_k[Z] = klein_zero();
+
+					/* Translate colloid position to local coordinates */
+					r0[X] = pc->s.r[X] - 1.0 * offset[X];
+					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+					/* Work out which local lattice sites are involved */
+					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+					for (i = i_min; i <= i_max; i++) {
+						for (j = j_min; j <= j_max; j++) {
+							for (k = k_min; k <= k_max; k++) {
+
+								index = cs_index(cinfo->cs, i, j, k);
+
+								/* Separation between r0 and the lattice site */
+								r[X] = r0[X] - 1.0 * i;
+								r[Y] = r0[Y] - 1.0 * j;
+								r[Z] = r0[Z] - 1.0 * k;
+
+								/* Peskin delta function weight */
+								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+								/* Electric field at this lattice site */
+								psi_electric_field(psi, index, e);
+
+								/* Field on particle from electric field at this site */
+								E_field[X] = e[X] * dr;
+								E_field[Y] = e[Y] * dr;
+								E_field[Z] = e[Z] * dr;
+
+								/* Add to particle field */
+								klein_add_double(&E_field_k[X], E_field[X]);
+								klein_add_double(&E_field_k[Y], E_field[Y]);
+								klein_add_double(&E_field_k[Z], E_field[Z]);
+
+							}
+						}
+					}
+
+					pc->Esub[X] = klein_sum(&E_field_k[X]);
+					pc->Esub[Y] = klein_sum(&E_field_k[Y]);
+					pc->Esub[Z] = klein_sum(&E_field_k[Z]);
+
+					// /* Write data for each particle */
+					char string[256];
+					double Emod = sqrt(pc->Esub[X]*pc->Esub[X] + pc->Esub[Y]*pc->Esub[Y] + pc->Esub[Z]*pc->Esub[Z]);
+					sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e;%.15e; %.15e;%.15e\n", step, Emod, pc->s.index, pc->Esub[X], pc->Esub[Y], pc->Esub[Z], E_self[X], E_self[Y], E_self[Z]);
+					for (i = 0;i < strlen(string);i++)if (string[i] == '.')string[i] = ',';
+					fprintf(fp, "%s", string);
+
+					// /* NUEVO: Calcular el autocampo de la partícula */
+					// if (subgrid_compute_self_field_single_particle(pc, cinfo, psi, E_self) == 0) {
+
+					// 	/* Write data for each particle */
+					// 	char string[256];
+					// 	double Emod = sqrt(pc->Esub[X]*pc->Esub[X] + pc->Esub[Y]*pc->Esub[Y] + pc->Esub[Z]*pc->Esub[Z]);
+					// 	sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e;%.15e; %.15e;%.15e\n", step, Emod, pc->s.index, pc->Esub[X], pc->Esub[Y], pc->Esub[Z], E_self[X], E_self[Y], E_self[Z]);
+					// 	for (i = 0;i < strlen(string);i++)if (string[i] == '.')string[i] = ',';
+					// 	fprintf(fp, "%s", string);
+
+					// 	/* Restar el autocampo del campo total */
+					// 	pc->Esub[X] -= E_self[X];
+					// 	pc->Esub[Y] -= E_self[Y];
+					// 	pc->Esub[Z] -= E_self[Z];
+					// }
+
+				}
+			}
+		}
+	}
+
+	colloid_sums_halo(cinfo, COLLOID_SUM_ELECTRIC_FIELD);
+
+	return 0;
+
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_compute_self_field_single_particle
+ *
+ *  Calculates the self-field (autocampo) for a single particle using PETSc
+ *  Poisson solver with Peskin charge distribution
+ *
+ *****************************************************************************/
+int subgrid_compute_self_field_single_particle(colloid_t* pc,
+											   colloids_info_t* cinfo,
+											   psi_t* psi_global,
+											   double E_self[3]) {
+
+	int i, j, k, ia, ja, ka, i_min, i_max, j_min, j_max, k_min, k_max;
+	int nlocal[3], offset[3];
+	double r_i[3], r_j[3], r0[3], r_ij[3];
+	double dr_i, dr_j, q_i, q_j;
+	double dist, dist3;
+	double epsilon, eunit, beta, kt;
+	double prefactor;
+	PI_DOUBLE(pi);
+	klein_t E_k[3];
+
+	cs_t* cs = cinfo->cs;
+
+	assert(pc);
+	assert(cinfo);
+	assert(psi_global);
+	assert(E_self);
+
+	cs_nlocal(cs, nlocal);
+	cs_nlocal_offset(cs, offset);
+
+	psi_epsilon(psi_global, &epsilon);
+	psi_unit_charge(psi_global, &eunit);
+	psi_beta(psi_global, &beta);
+	kt = 1.0 / beta;
+
+	/* Prefactor for Coulomb force: (eunit * kt) / (4 * pi * epsilon) */
+	prefactor = eunit * kt / (4.0 * pi * epsilon);
+
+	/* Initialize Klein sums */
+	E_k[X] = klein_zero();
+	E_k[Y] = klein_zero();
+	E_k[Z] = klein_zero();
+
+	/* Particle position in local coordinates */
+	r0[X] = pc->s.r[X] - 1.0 * offset[X];
+	r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+	r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+	/* Range of lattice sites where charge is distributed */
+	i_min = imax(1, (int)floor(r0[X] - drange_));
+	i_max = imin(nlocal[X], (int)ceil(r0[X] + drange_));
+	j_min = imax(1, (int)floor(r0[Y] - drange_));
+	j_max = imin(nlocal[Y], (int)ceil(r0[Y] + drange_));
+	k_min = imax(1, (int)floor(r0[Z] - drange_));
+	k_max = imin(nlocal[Z], (int)ceil(r0[Z] + drange_));
+
+	/* Double loop: for each pair of lattice sites (i,j) with distributed charge */
+	/* compute the Coulomb interaction from site i acting on site j */
+	/* then interpolate back to particle center */
+
+	for (i = i_min; i <= i_max; i++) {
+		for (j = j_min; j <= j_max; j++) {
+			for (k = k_min; k <= k_max; k++) {
+
+				/* Position of source site i */
+				r_i[X] = r0[X] - 1.0 * i;
+				r_i[Y] = r0[Y] - 1.0 * j;
+				r_i[Z] = r0[Z] - 1.0 * k;
+
+				/* Peskin weight and charge at site i */
+				dr_i = d_peskin(r_i[X]) * d_peskin(r_i[Y]) * d_peskin(r_i[Z]);
+				// q_i = (pc->s.q0 - pc->s.q1) * dr_i;
+
+				// prueba loca
+				int index = cs_index(cinfo->cs, i, j, k);
+				double rho0,rho1;
+				psi_rho(psi_global, index, 0, &rho0);
+				psi_rho(psi_global, index, 0, &rho1);
+				q_i = ( (rho0 - rho1) + (pc->s.q0 - pc->s.q1) ) * dr_i;
+				// prueba loca
+
+				if (fabs(q_i) < 1e-14) continue; /* Skip if no charge */
+
+				/* For each source site, compute field at particle center */
+				/* from ALL charged sites (including itself if dist > 0) */
+
+				for (ia = i_min; ia <= i_max; ia++) {
+					for (ja = j_min; ja <= j_max; ja++) {
+						for (ka = k_min; ka <= k_max; ka++) {
+
+							/* Position of field evaluation site j relative to particle */
+							r_j[X] = r0[X] - 1.0 * ia;
+							r_j[Y] = r0[Y] - 1.0 * ja;
+							r_j[Z] = r0[Z] - 1.0 * ka;
+
+							/* Peskin weight at site j for interpolation back */
+							dr_j = d_peskin(r_j[X]) * d_peskin(r_j[Y]) * d_peskin(r_j[Z]);
+
+							/* Distance vector from site i to site j */
+							r_ij[X] = (1.0 * ia - 1.0 * i);
+							r_ij[Y] = (1.0 * ja - 1.0 * j);
+							r_ij[Z] = (1.0 * ka - 1.0 * k);
+
+							dist = sqrt(r_ij[X] * r_ij[X] + r_ij[Y] * r_ij[Y] + r_ij[Z] * r_ij[Z]);
+
+							/* Skip self-interaction at same site */
+							if (dist < 0.1) continue;
+
+							dist3 = dist * dist * dist;
+
+							/* Coulomb field from charge at i evaluated at j */
+							/* E = prefactor * q_i * r_ij / |r_ij|^3 */
+							/* Then interpolate with weight dr_j */
+
+							double E_contrib[3];
+							E_contrib[X] = prefactor * q_i * r_ij[X] / dist3 * dr_j;
+							E_contrib[Y] = prefactor * q_i * r_ij[Y] / dist3 * dr_j;
+							E_contrib[Z] = prefactor * q_i * r_ij[Z] / dist3 * dr_j;
+
+							klein_add_double(&E_k[X], E_contrib[X]);
+							klein_add_double(&E_k[Y], E_contrib[Y]);
+							klein_add_double(&E_k[Z], E_contrib[Z]);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/* Extract final self-field values */
+	E_self[X] = klein_sum(&E_k[X]);
+	E_self[Y] = klein_sum(&E_k[Y]);
+	E_self[Z] = klein_sum(&E_k[Z]);
+
+	return 0;
+
+	return 0;
 }
 
 /*****************************************************************************

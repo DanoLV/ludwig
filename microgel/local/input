@@ -53,8 +53,8 @@ electric_e0 0.0_0.0_0.0
 # electrokinetics_eunit   0.5
 # electrokinetics_epsilon   4.0e03
 # electrokinetics_init_rho_el 0.001
-# electrokinetics_rel_tol  1.0e-10
-# electrokinetics_abs_tol  1.0e-16
+electrokinetics_rel_tol  1.0e-22
+electrokinetics_abs_tol  1.0e-24
 # electrokinetics_maxits   10000
 #electrokinetics_diffacc  0
 # electrokinetics_multisteps 5

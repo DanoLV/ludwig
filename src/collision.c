@@ -2374,6 +2374,9 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   /* END NEW CODE */
 
   /* m=4*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * t3;
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * t3;
@@ -2393,8 +2396,162 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * t3;
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * t3;
   for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * t3;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[4] */
+  {
+    volatile double mode4_sum[NSIMDVL];
+    volatile double mode4_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode4_sum[iv] = 0.0;
+      mode4_c[iv] = 0.0;
+    }
+
+    /* Add positive contributions (t3) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+
+    /* Add negative contributions (-r3) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[0 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode4_c[iv];
+      volatile double t = mode4_sum[iv] + y;
+      mode4_c[iv] = (t - mode4_sum[iv]) - y;
+      mode4_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[4 * NSIMDVL + iv] = mode4_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=5*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c0;
@@ -2414,8 +2571,57 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c1;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[5] */
+  {
+    volatile double mode5_sum[NSIMDVL];
+    volatile double mode5_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode5_sum[iv] = 0.0;
+      mode5_c[iv] = 0.0;
+    }
+
+    /* Add positive contributions (c1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode5_c[iv];
+      volatile double t = mode5_sum[iv] + y;
+      mode5_c[iv] = (t - mode5_sum[iv]) - y;
+      mode5_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode5_c[iv];
+      volatile double t = mode5_sum[iv] + y;
+      mode5_c[iv] = (t - mode5_sum[iv]) - y;
+      mode5_sum[iv] = t;
+    }
+
+    /* Add negative contributions (-c1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode5_c[iv];
+      volatile double t = mode5_sum[iv] + y;
+      mode5_c[iv] = (t - mode5_sum[iv]) - y;
+      mode5_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode5_c[iv];
+      volatile double t = mode5_sum[iv] + y;
+      mode5_c[iv] = (t - mode5_sum[iv]) - y;
+      mode5_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[5 * NSIMDVL + iv] = mode5_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=6*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2435,8 +2641,57 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[6] */
+  {
+    volatile double mode6_sum[NSIMDVL];
+    volatile double mode6_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode6_sum[iv] = 0.0;
+      mode6_c[iv] = 0.0;
+    }
+
+    /* Add positive contributions (c1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode6_c[iv];
+      volatile double t = mode6_sum[iv] + y;
+      mode6_c[iv] = (t - mode6_sum[iv]) - y;
+      mode6_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode6_c[iv];
+      volatile double t = mode6_sum[iv] + y;
+      mode6_c[iv] = (t - mode6_sum[iv]) - y;
+      mode6_sum[iv] = t;
+    }
+
+    /* Add negative contributions (-c1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode6_c[iv];
+      volatile double t = mode6_sum[iv] + y;
+      mode6_c[iv] = (t - mode6_sum[iv]) - y;
+      mode6_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode6_c[iv];
+      volatile double t = mode6_sum[iv] + y;
+      mode6_c[iv] = (t - mode6_sum[iv]) - y;
+      mode6_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[6 * NSIMDVL + iv] = mode6_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=7*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * t3;
   for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * -r3;
@@ -2456,8 +2711,159 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * t3;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[7] */
+  {
+    volatile double mode7_sum[NSIMDVL];
+    volatile double mode7_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode7_sum[iv] = 0.0;
+      mode7_c[iv] = 0.0;
+    }
+    /* Add positive contributions (t3) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    /* Add negative contributions (-r3) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[0 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode7_c[iv];
+      volatile double t = mode7_sum[iv] + y;
+      mode7_c[iv] = (t - mode7_sum[iv]) - y;
+      mode7_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) mode[7 * NSIMDVL + iv] = mode7_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=8*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c0;
@@ -2477,8 +2883,54 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[8] */
+  {
+    volatile double mode8_sum[NSIMDVL];
+    volatile double mode8_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode8_sum[iv] = 0.0;
+      mode8_c[iv] = 0.0;
+    }
+    /* Add positive contributions (c1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode8_c[iv];
+      volatile double t = mode8_sum[iv] + y;
+      mode8_c[iv] = (t - mode8_sum[iv]) - y;
+      mode8_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode8_c[iv];
+      volatile double t = mode8_sum[iv] + y;
+      mode8_c[iv] = (t - mode8_sum[iv]) - y;
+      mode8_sum[iv] = t;
+    }
+    /* Add negative contributions (-c1) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode8_c[iv];
+      volatile double t = mode8_sum[iv] + y;
+      mode8_c[iv] = (t - mode8_sum[iv]) - y;
+      mode8_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode8_c[iv];
+      volatile double t = mode8_sum[iv] + y;
+      mode8_c[iv] = (t - mode8_sum[iv]) - y;
+      mode8_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) mode[8 * NSIMDVL + iv] = mode8_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=9*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * t3;
@@ -2498,8 +2950,159 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * -r3;
   for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * t3;
   for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * -r3;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[9] */
+  {
+    volatile double mode9_sum[NSIMDVL];
+    volatile double mode9_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode9_sum[iv] = 0.0;
+      mode9_c[iv] = 0.0;
+    }
+    /* Add positive contributions (t3): 2,4,6,8,9,10,11,13,15,17 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * t3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    /* Add negative contributions (-r3): 0,1,3,5,7,12,14,16,18 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[0 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * -r3;
+      volatile double y = val - mode9_c[iv];
+      volatile double t = mode9_sum[iv] + y;
+      mode9_c[iv] = (t - mode9_sum[iv]) - y;
+      mode9_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) mode[9 * NSIMDVL + iv] = mode9_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=10*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * -c2;
   for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2519,8 +3122,152 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * -c2;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[10] */
+  {
+    volatile double mode10_sum[NSIMDVL];
+    volatile double mode10_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode10_sum[iv] = 0.0;
+      mode10_c[iv] = 0.0;
+    }
+    /* Add positive contributions (c1): 2,3,4,6,7,8,11,12,13,15,16,17 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    /* Add negative contributions (-c2): 1,5,9,10,14,18 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode10_c[iv];
+      volatile double t = mode10_sum[iv] + y;
+      mode10_c[iv] = (t - mode10_sum[iv]) - y;
+      mode10_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) mode[10 * NSIMDVL + iv] = mode10_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=11*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * -c2;
   for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2540,8 +3287,98 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c2;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[11] */
+  {
+    volatile double mode11_sum[NSIMDVL];
+    volatile double mode11_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode11_sum[iv] = 0.0;
+      mode11_c[iv] = 0.0;
+    }
+    /* Add positive contributions (c1): 2,3,4 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    /* Add positive contributions (c2): 14,18 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * c2;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * c2;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    /* Add negative contributions (-c2): 1,5 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    /* Add negative contributions (-c1): 15,16,17 */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode11_c[iv];
+      volatile double t = mode11_sum[iv] + y;
+      mode11_c[iv] = (t - mode11_sum[iv]) - y;
+      mode11_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) mode[11 * NSIMDVL + iv] = mode11_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=12*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * -c2;
   for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c0;
@@ -2561,8 +3398,103 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c2;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[12] */
+  {
+    volatile double mode12_sum[NSIMDVL];
+    volatile double mode12_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode12_sum[iv] = 0.0;
+      mode12_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 6, 7, 8) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+
+    /* Add positive c2 contributions (indices 5, 18) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * c2;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * c2;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+
+    /* Add negative -c1 contributions (indices 11, 12, 13) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+
+    /* Add negative -c2 contributions (indices 1, 14) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode12_c[iv];
+      volatile double t = mode12_sum[iv] + y;
+      mode12_c[iv] = (t - mode12_sum[iv]) - y;
+      mode12_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[12 * NSIMDVL + iv] = mode12_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=13*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2582,8 +3514,96 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[13] */
+  {
+    volatile double mode13_sum[NSIMDVL];
+    volatile double mode13_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode13_sum[iv] = 0.0;
+      mode13_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 2, 6, 11, 15) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+
+    /* Add positive c2 contribution (index 10) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * c2;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+
+    /* Add negative -c1 contributions (indices 8, 13, 17) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+
+    /* Add negative -c2 contribution (index 9) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode13_c[iv];
+      volatile double t = mode13_sum[iv] + y;
+      mode13_c[iv] = (t - mode13_sum[iv]) - y;
+      mode13_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[13 * NSIMDVL + iv] = mode13_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=14*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * -c1;
@@ -2603,8 +3623,113 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[14] */
+  {
+    volatile double mode14_sum[NSIMDVL];
+    volatile double mode14_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode14_sum[iv] = 0.0;
+      mode14_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 3, 6, 8, 11, 13, 16) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+
+    /* Add negative -c1 contributions (indices 2, 4, 7, 12, 15, 17) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode14_c[iv];
+      volatile double t = mode14_sum[iv] + y;
+      mode14_c[iv] = (t - mode14_sum[iv]) - y;
+      mode14_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[14 * NSIMDVL + iv] = mode14_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=15*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * -c1;
@@ -2624,8 +3749,71 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * -c1;
   for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[15] */
+  {
+    volatile double mode15_sum[NSIMDVL];
+    volatile double mode15_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode15_sum[iv] = 0.0;
+      mode15_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 3, 15, 17) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode15_c[iv];
+      volatile double t = mode15_sum[iv] + y;
+      mode15_c[iv] = (t - mode15_sum[iv]) - y;
+      mode15_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode15_c[iv];
+      volatile double t = mode15_sum[iv] + y;
+      mode15_c[iv] = (t - mode15_sum[iv]) - y;
+      mode15_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode15_c[iv];
+      volatile double t = mode15_sum[iv] + y;
+      mode15_c[iv] = (t - mode15_sum[iv]) - y;
+      mode15_sum[iv] = t;
+    }
+
+    /* Add negative -c1 contributions (indices 2, 4, 16) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode15_c[iv];
+      volatile double t = mode15_sum[iv] + y;
+      mode15_c[iv] = (t - mode15_sum[iv]) - y;
+      mode15_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode15_c[iv];
+      volatile double t = mode15_sum[iv] + y;
+      mode15_c[iv] = (t - mode15_sum[iv]) - y;
+      mode15_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode15_c[iv];
+      volatile double t = mode15_sum[iv] + y;
+      mode15_c[iv] = (t - mode15_sum[iv]) - y;
+      mode15_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[15 * NSIMDVL + iv] = mode15_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=16*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c0;
@@ -2645,8 +3833,71 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[16] */
+  {
+    volatile double mode16_sum[NSIMDVL];
+    volatile double mode16_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode16_sum[iv] = 0.0;
+      mode16_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 6, 8, 12) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode16_c[iv];
+      volatile double t = mode16_sum[iv] + y;
+      mode16_c[iv] = (t - mode16_sum[iv]) - y;
+      mode16_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode16_c[iv];
+      volatile double t = mode16_sum[iv] + y;
+      mode16_c[iv] = (t - mode16_sum[iv]) - y;
+      mode16_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode16_c[iv];
+      volatile double t = mode16_sum[iv] + y;
+      mode16_c[iv] = (t - mode16_sum[iv]) - y;
+      mode16_sum[iv] = t;
+    }
+
+    /* Add negative -c1 contributions (indices 7, 11, 13) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode16_c[iv];
+      volatile double t = mode16_sum[iv] + y;
+      mode16_c[iv] = (t - mode16_sum[iv]) - y;
+      mode16_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode16_c[iv];
+      volatile double t = mode16_sum[iv] + y;
+      mode16_c[iv] = (t - mode16_sum[iv]) - y;
+      mode16_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode16_c[iv];
+      volatile double t = mode16_sum[iv] + y;
+      mode16_c[iv] = (t - mode16_sum[iv]) - y;
+      mode16_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[16 * NSIMDVL + iv] = mode16_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=17*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * -c1;
@@ -2666,8 +3917,85 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * c0;
   for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c0;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[17] */
+  {
+    volatile double mode17_sum[NSIMDVL];
+    volatile double mode17_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode17_sum[iv] = 0.0;
+      mode17_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 4, 6, 11, 17) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+
+    /* Add negative -c1 contributions (indices 2, 8, 13, 15) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * -c1;
+      volatile double y = val - mode17_c[iv];
+      volatile double t = mode17_sum[iv] + y;
+      mode17_c[iv] = (t - mode17_sum[iv]) - y;
+      mode17_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[17 * NSIMDVL + iv] = mode17_sum[iv];
+  }
+  /* END NEW CODE */
 
   /* m=18*/
+  /* MODIFIED: Added Kahan compensated summation to reduce roundoff error */
+  /* To revert: uncomment the original code below and delete the new block */
+  /* ORIGINAL CODE (commented out):
   for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] += fchunk[0 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] += fchunk[1 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] += fchunk[2 * NSIMDVL + iv] * c1;
@@ -2687,6 +4015,157 @@ __device__ void d3q19_f2mode_chunk(double* mode, const double* __restrict__ fchu
   for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] += fchunk[16 * NSIMDVL + iv] * -c2;
   for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] += fchunk[17 * NSIMDVL + iv] * c1;
   for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] += fchunk[18 * NSIMDVL + iv] * c1;
+  END ORIGINAL CODE */
+
+  /* NEW CODE: Kahan compensated summation for mode[18] */
+  {
+    volatile double mode18_sum[NSIMDVL];
+    volatile double mode18_c[NSIMDVL];
+    for_simd_v(iv, NSIMDVL) {
+      mode18_sum[iv] = 0.0;
+      mode18_c[iv] = 0.0;
+    }
+
+    /* Add positive c1 contributions (indices 0, 1, 2, 4, 5, 6, 8, 11, 13, 14, 15, 17, 18) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[0 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[1 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[2 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[4 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[5 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[6 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[8 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[11 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[13 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[14 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[15 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[17 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[18 * NSIMDVL + iv] * c1;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+
+    /* Add negative -c2 contributions (indices 3, 7, 9, 10, 12, 16) */
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[3 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[7 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[9 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[10 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[12 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+    for_simd_v(iv, NSIMDVL) {
+      volatile double val = fchunk[16 * NSIMDVL + iv] * -c2;
+      volatile double y = val - mode18_c[iv];
+      volatile double t = mode18_sum[iv] + y;
+      mode18_c[iv] = (t - mode18_sum[iv]) - y;
+      mode18_sum[iv] = t;
+    }
+
+    for_simd_v(iv, NSIMDVL) mode[18 * NSIMDVL + iv] = mode18_sum[iv];
+  }
+  /* END NEW CODE */
 
 }
 

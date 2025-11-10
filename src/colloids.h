@@ -77,6 +77,8 @@ struct colloid {
   double fex[3];        /* External forces (non-fluid) on particle */
   double tex[3];        /* External torques on particle */
 
+  double Esub[3];       /* CHANGE INIT - Subgrid particle electric field */ 
+
   /* Diagnostic utilities (all for current time step) */
 
   colloid_diagnostic_t diagnostic;

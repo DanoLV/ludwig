@@ -21,12 +21,14 @@ SIMULATION OPTIONS (alphabetically sorted):
   -a, --angle-harmonic PARAMS     Angle harmonic: on_k_theta0 (e.g., 1_1.0e-04_2.0944)
   -b, --bond-harmonic PARAMS      Bond harmonic: on_k_r0 (e.g., 1_5.0e-5_0.5)
   -c, --cores NUMBER              Number of OpenMP threads per MPI process (default: 1)
+      --config-file FILE          Path to config file (default: config.cds.init.001-001)
   -d, --delete-files y/n          Delete previous files before starting (default: n)
   -e, --electric-field Ex_Ey_Ez   External electric field components (e.g., 0.0_0.0_0.0)
   -f, --freq-config NUMBER        Configuration output frequency
   -w, --fluctuations 0/1          LB fluctuations: 0=off, 1=on (default: 0)
   -g, --grid-mpi NX_NY_NZ         MPI grid decomposition (e.g., 2_2_1 for 2x2x1 grid)
   -j, --gravity Gx_Gy_Gz          Colloid gravity vector (e.g., 0.0_0.0_-0.000005)
+      --input-file FILE           Path to input file (default: input)
   -k, --temperature NUMBER        Temperature (kT) for thermal fluctuations
   -l, --fluid-only y/n            Plot only fluid average velocity (y/n, default: n)
   -m, --mpi-procs NUMBER          Number of MPI processes (default: 1)
@@ -56,6 +58,10 @@ EXAMPLES:
   # Continue previous simulation:
   ./runbg_new.sh -i 1000000 -n 500000 -s 500 -o results
 
+  # New simulation with custom input and config files:
+  ./runbg_new.sh -i 0 -n 1000000 -s 500 -o results \\
+                 --input-file input.custom --config-file config.cds.init.001-001-L32
+
 EOF
 }
 
@@ -73,10 +79,12 @@ mpi_grid=""
 single="n"
 solver="petsc"
 relaxation_scheme="M10"
+input_file="input"
+config_file="config.cds.init.001-001"
 
 # Parse command line arguments
 OPTS=$(getopt -o a:b:c:d:e:f:w:g:hj:k:i:l:m:n:o:p:q:r:s:t:u:v:x:y:z: \
-              --long angle-harmonic:,bond-harmonic:,cores:,delete-files:,electric-field:,freq-config:,fluctuations:,grid-mpi:,help,gravity:,temperature:,initial-step:,fluid-only:,mpi-procs:,nsteps:,output-dir:,plot-interval:,relaxation-scheme:,rho:,step-interval:,free-energy:,single-monomer:,viscosity:,size-x:,size-yz:,solver: \
+              --long angle-harmonic:,bond-harmonic:,cores:,config-file:,delete-files:,electric-field:,freq-config:,fluctuations:,grid-mpi:,help,gravity:,input-file:,temperature:,initial-step:,fluid-only:,mpi-procs:,nsteps:,output-dir:,plot-interval:,relaxation-scheme:,rho:,step-interval:,free-energy:,single-monomer:,viscosity:,size-x:,size-yz:,solver: \
               -n 'runbg_new.sh' -- "$@")
 
 if [ $? != 0 ]; then
@@ -92,6 +100,7 @@ while true; do
         -a|--angle-harmonic)    angle_harmonic="$2"; shift 2 ;;
         -b|--bond-harmonic)     bond_harmonic="$2"; shift 2 ;;
         -c|--cores)             cores="$2"; shift 2 ;;
+        --config-file)          config_file="$2"; shift 2 ;;
         -d|--delete-files)      del="$2"; shift 2 ;;
         -e|--electric-field)    electric_e0="$2"; shift 2 ;;
         -w|--fluctuations)      fluctuations="$2"; shift 2 ;;
@@ -102,6 +111,7 @@ while true; do
         -g|--grid-mpi)          mpi_grid="$2"; shift 2 ;;
         -h|--help)              show_help; exit 0 ;;
         -i|--initial-step)      Ninicio="$2"; shift 2 ;;
+        --input-file)           input_file="$2"; shift 2 ;;
         -m|--mpi-procs)         mpi_procs="$2"; shift 2 ;;
         -n|--nsteps)            Nsteps="$2"; shift 2 ;;
         -o|--output-dir)        dir="$2"; shift 2 ;;
@@ -137,6 +147,17 @@ if [[ -z "$Ninicio" || -z "$Nsteps" || -z "$paso" ]]; then
         exit 1
 fi
 
+# Verify input and config files exist
+if [ ! -f "$input_file" ]; then
+    echo "ERROR: Input file '$input_file' not found" >&2
+    exit 1
+fi
+
+if [ ! -f "$config_file" ]; then
+    echo "ERROR: Config file '$config_file' not found" >&2
+    exit 1
+fi
+
 # outputdir
 RESULTS_DIR="$dir"
 
@@ -158,13 +179,13 @@ elif [ "$Ninicio" -eq 0  ]; then
 
     # Create outputdir
     mkdir -p $RESULTS_DIR
-    cp config.cds.init.001-001 $RESULTS_DIR
+    cp "$config_file" $RESULTS_DIR/config.cds.init.001-001
 
     # If using MPI, copy initial config for each process
     if [ "$mpi_procs" -gt 1 ]; then
         for ((proc=1; proc<=mpi_procs; proc++)); do
             proc_str=$(printf "%03d" $proc)
-            cp config.cds.init.001-001 $RESULTS_DIR/config.cds.init.001-${proc_str}
+            cp "$config_file" $RESULTS_DIR/config.cds.init.001-${proc_str}
         done
     fi
 
@@ -174,7 +195,7 @@ else
 fi
 
 # Copy files to execute simulation
-cp input $RESULTS_DIR
+cp "$input_file" $RESULTS_DIR/input
 cp Ludwig.exe $RESULTS_DIR
 cp del.sh $RESULTS_DIR
 
@@ -233,6 +254,8 @@ echo "=========================================="
 echo "MPI processes:     $mpi_procs"
 echo "OpenMP threads:    $cores"
 echo "Output directory:  $RESULTS_DIR"
+echo "Input file:        $input_file"
+echo "Config file:       $config_file"
 echo "Initial step:      $Ninicio"
 echo "Total steps:       $Nsteps"
 echo "Step interval:     $paso"
@@ -346,6 +369,12 @@ NT=$((Nsteps + Ninicio))
 # Set number of OpenMP threads per MPI process
 export OMP_NUM_THREADS=$cores
 
+# # Set GPU options for OpenCL (Ludwig uses OpenCL, not CUDA directly)
+# export GPU_DEVICE_ORDINAL=0
+# export OPENCL_VISIBLE_DEVICES=0
+# # Allow concurrent kernel execution
+# export CUDA_VISIBLE_DEVICES=0
+
 # --- 1. Execute main task in background ---
 echo "Starting background simulation task..."
 
@@ -361,7 +390,8 @@ fi
 
 # Ludwig run with MPI on background
 if [ "$mpi_procs" -gt 1 ]; then
-    $MPI_CMD -np $mpi_procs ./Ludwig.exe >> output.txt 2>&1 &
+    # Use process binding for better performance and consistency
+    $MPI_CMD -np $mpi_procs --bind-to core --map-by core ./Ludwig.exe >> output.txt 2>&1 &
 else
     # Single process without MPI
     ./Ludwig.exe >> output.txt 2>&1 &

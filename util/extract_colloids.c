@@ -72,7 +72,7 @@ static const char* format3_ = "%10.15f, %10.15f, %10.15f, ";
 static const char* format3end_ = "%10.15ff, %10.15f, %10.15f\n";
 static const char* format3wocomma_ = "%10.15f %10.15f %10.15f ";
 static const char* format3wocommaend_ = "%10.15f%10.15f %10.15f\n";
-static const char* formate4end_ = "%14.15e, %14.15e, %14.15e, %14.15e\n";
+// static const char* formate4end_ = "%14.15e, %14.15e, %14.15e, %14.15e\n";
 static const char* formate4_ = "%14.15e, %14.15e, %14.15e, %14.15e, ";
 static const char* formati7_end = "%d, %d, %d, %d, %d, %d, %d\n";
 // CHANGE -------------------------

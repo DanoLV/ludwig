@@ -84,7 +84,7 @@ vzr = y1[:,9]
 
 # x_min_set = x1.min() 
 x_min_set = x1.min() - (x1.max() - x1.min())/50
-# x_min_set = -10
+# x_min_set = -10 # -10 5000 7500 10000 15000 20000
 x_max_set = x1.max() 
 # x_max_set = 5000
 

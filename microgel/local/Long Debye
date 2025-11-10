@@ -1,0 +1,33 @@
+============================================================
+CÁLCULO CORRECTO DE LONGITUD DE DEBYE
+============================================================
+
+Densidades en bulk:
+  ρ₊ = 0.000000e+00
+  ρ₋ = 3.050621e-05
+
+Parámetros:
+  ε = 1.00e+04
+  kT = 5.00e-04
+  e = 1.00e+00
+
+Longitud de Debye (CORRECTO):
+  λ_D = sqrt(ε kT / (z² e² n₋))
+      = sqrt(1.00e+04 × 5.00e-04 / (1² × 1² × 3.050621e-05))
+      = 404.8469 unidades de lattice
+  κ = 1/λ_D = 0.002470
+
+Comparación con tamaño de caja:
+  L_caja = 32
+  λ_D / L_caja = 12.65
+
+Longitud de Bjerrum:
+  λ_B = e² / (4πε kT)
+      = 0.015915 unidades de lattice
+  (del output: 1.5915494e-02)
+
+Electroneutralidad:
+  Carga total iones = -1.000000
+  Carga coloide = +1.0
+  Balance = 6.661338e-16
+============================================================

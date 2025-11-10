@@ -15,7 +15,9 @@
         "psi_stats.h": "c",
         "psi.h": "c",
         "psi_colloid.h": "c",
-        "algorithm": "c"
+        "algorithm": "c",
+        "coords.h": "c",
+        "variant": "c"
     },
     "C_Cpp.dimInactiveRegions": false
 }

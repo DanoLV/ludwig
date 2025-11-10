@@ -533,6 +533,14 @@ void ludwig_run(const char* inputfile) {
   /* sync tasks before main loop for timing purposes */
   MPI_Barrier(comm);
 
+  // CHANGE INIT -Subgrid charge debug data
+  FILE* fp;
+  fp = fopen("graficos/particle_Esub.csv", "w");
+  if (fp != NULL) {
+    fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;Eself_X;Eself_Y;Eself_Z\n");
+  }
+  // CHANGE END -Subgrid charge debug data  
+
   while (physics_control_next_step(ludwig->phys)) {
 
     TIMER_start(TIMER_STEPS);
@@ -608,6 +616,7 @@ void ludwig_run(const char* inputfile) {
      * gradients for phi) */
 
     if (ludwig->psi) {
+
       /* Set charge distribution according to updated map */
       psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
 
@@ -708,8 +717,14 @@ void ludwig_run(const char* inputfile) {
       if (ludwig->psi) {
         /* Force in electrokinetic models is computed above */
         /*CHANGE INIT - Subgrid charge */
+        subgrid_update_Esub(ludwig->collinfo,
+                            ludwig->psi,
+                            step,
+                            fp);
+
         subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map, ludwig->phys, ludwig->psi, ludwig->hydro);
         /*CHANGE END - Subgrid charge */
+
       }
       else {
         if (ncolloid == 0) {
@@ -737,7 +752,7 @@ void ludwig_run(const char* inputfile) {
           /* Force calculation as divergence of stress tensor */
 
           phi_force_calculation(ludwig->pe, ludwig->cs, ludwig->le,
-        ludwig->wall,
+                                ludwig->wall,
                                 ludwig->pth, ludwig->fe, ludwig->map,
                                 ludwig->phi, ludwig->hydro);
 
@@ -821,7 +836,7 @@ void ludwig_run(const char* inputfile) {
       TIMER_start(TIMER_COLLIDE);
 
       lb_collide(ludwig->lb, ludwig->hydro, ludwig->map, ludwig->noise,
-     ludwig->fe, ludwig->visc);
+                 ludwig->fe, ludwig->visc);
 
       TIMER_stop(TIMER_COLLIDE);
 

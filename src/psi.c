@@ -22,7 +22,9 @@
 #include <limits.h>
 
 #include "psi.h"
-
+ /*CHANGE INIT - Subgrid charge */
+#include "util_sum.h"
+/*CHANGE END - Subgrid charge */
  /*****************************************************************************
   *
   *  psi_create
@@ -582,6 +584,11 @@ int psi_zero_mean(psi_t* psi) {
   double psi_offset;
   double ltot[3];
 
+  /*CHANGE INIT - Subgrid charge */
+  klein_t psi_k;
+  psi_k = klein_zero();
+  /*CHANGE END - Subgrid charge */
+
   MPI_Comm comm;
 
   assert(psi);
@@ -600,10 +607,17 @@ int psi_zero_mean(psi_t* psi) {
         index = cs_index(psi->cs, ic, jc, kc);
 
         psi_psi(psi, index, &psi0);
-        sum_local += psi0;
+        /*CHANGE INIT - Subgrid charge */
+        // sum_local += psi0;
+        klein_add_double(&psi_k, psi0);
+        /*CHANGE END - Subgrid charge */
       }
     }
   }
+
+  /*CHANGE INIT - Subgrid charge */
+  sum_local = klein_sum(&psi_k);
+  /*CHANGE END - Subgrid charge */
 
   MPI_Allreduce(&sum_local, &psi_offset, 1, MPI_DOUBLE, MPI_SUM, comm);
 

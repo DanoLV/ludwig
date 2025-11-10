@@ -200,8 +200,10 @@ int angle_dihedral_compute(colloids_info_t * cinfo, void * self) {
   angle_dihedral_t * obj = (angle_dihedral_t *) self;
 
   double r0[3], r1[3], r2[3];  /* separations */
-  double r0sq, r1sq, r2sq;     /* squared separations */
-  double r0md, r1md, r2md;     /* moduli */
+  // double r0sq, r1sq, r2sq;     /* squared separations */
+  // double r0md, r1md, r2md;     /* moduli */
+  double r1sq;                 /* squared separations */
+  double r1md;                 /* moduli */
   double cosine;               /* of angle */
   double f0[3], f2[3];         /* forces */
   int b0, b1, b2;              /* index of the bonds */
@@ -257,20 +259,20 @@ int angle_dihedral_compute(colloids_info_t * cinfo, void * self) {
 
           if (pc->s.index < pc->bonded[b0]->bonded[b1]->bonded[b2]->s.index) continue; /* To avoid double counting */
 
-          /* Bond between 0 and 1 */
-          cs_minimum_distance(obj->cs, pc->bonded[b0]->s.r, pc->s.r, r0);
-          r0sq = r0[X]*r0[X] + r0[Y]*r0[Y] + r0[Z]*r0[Z];
-          r0md = sqrt(r0sq);
+          // /* Bond between 0 and 1 */
+          // cs_minimum_distance(obj->cs, pc->bonded[b0]->s.r, pc->s.r, r0);
+          // r0sq = r0[X]*r0[X] + r0[Y]*r0[Y] + r0[Z]*r0[Z];
+          // r0md = sqrt(r0sq);
 
           /* Bond between 1 and 2 */
           cs_minimum_distance(obj->cs, pc->bonded[b0]->s.r, pc->bonded[b0]->bonded[b1]->s.r, r1);
           r1sq = r1[X]*r1[X] + r1[Y]*r1[Y] + r1[Z]*r1[Z];
           r1md = sqrt(r1sq);
 
-          /* Bond between 2 and 3 */
-          cs_minimum_distance(obj->cs, pc->bonded[b0]->bonded[b1]->bonded[b2]->s.r, pc->bonded[b0]->bonded[b1]->s.r, r2);
-          r2sq = r2[X]*r2[X] + r2[Y]*r2[Y] + r2[Z]*r2[Z];
-          r2md = sqrt(r2sq);
+          // /* Bond between 2 and 3 */
+          // cs_minimum_distance(obj->cs, pc->bonded[b0]->bonded[b1]->bonded[b2]->s.r, pc->bonded[b0]->bonded[b1]->s.r, r2);
+          // r2sq = r2[X]*r2[X] + r2[Y]*r2[Y] + r2[Z]*r2[Z];
+          // r2md = sqrt(r2sq);
 
           /* calculate the normoal vector for surface 012 */
           cross_product(r0,r1,m);
