@@ -46,15 +46,16 @@ free_energy fe_electro
 electric_e0 0.0_0.0_0.0
 
 # electrokinetics_init   point_charges
+# electrokinetics_init   uniform
 # electrokinetics_z0      +1
 # electrokinetics_z1      -1
-# electrokinetics_d0      0.1
-# electrokinetics_d1      0.1
+electrokinetics_d0      0.1
+electrokinetics_d1      0.1
 # electrokinetics_eunit   0.5
-# electrokinetics_epsilon   4.0e03
-# electrokinetics_init_rho_el 0.001
-electrokinetics_rel_tol  1.0e-22
-electrokinetics_abs_tol  1.0e-24
+# electrokinetics_epsilon     1.0e4
+# electrokinetics_init_rho_el 5.0e-3
+electrokinetics_rel_tol     1.0e-26
+electrokinetics_abs_tol     1.0e-27
 # electrokinetics_maxits   10000
 #electrokinetics_diffacc  0
 # electrokinetics_multisteps 5
@@ -134,7 +135,7 @@ periodicity 1_1_1
 default_io_mode   mpiio
 default_io_format ascii
 
-freq_statistics     200
+freq_statistics     100
 vel_io_freq         500
 # psi_io_freq         5
 freq_config       50

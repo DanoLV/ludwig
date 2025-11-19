@@ -15,6 +15,9 @@
 
 #include "hydro.h"
 #include "map.h"
+/*CHANGE INIT - Total force calculation */
+#include "colloids.h"
+/*CHANGE END - Total force calculation */
 
 typedef struct stats_vel_s stats_vel_t;
 
@@ -25,5 +28,13 @@ struct stats_vel_s {
 stats_vel_t stats_vel_default(void);
 
 int stats_velocity_minmax(stats_vel_t * stat, hydro_t * hydro, map_t * map);
+
+/*CHANGE INIT - Total force calculation */
+int stats_total_force(hydro_t * hydro, map_t * map, colloids_info_t * cinfo,
+                      double ffluid[3], double fcoll[3], double fsubgrid[3],
+                      double ftotal[3]);
+int stats_total_force_write(hydro_t * hydro, map_t * map, colloids_info_t * cinfo,
+                             int timestep, const char * filename);
+/*CHANGE END - Total force calculation */
 
 #endif

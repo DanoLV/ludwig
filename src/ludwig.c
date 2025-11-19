@@ -298,7 +298,11 @@ static int ludwig_rt(ludwig_t* ludwig) {
 
   if (ntstep == 0) {
     double rho0 = 1.0;
-    lb_rt_initial_conditions(pe, rt, ludwig->lb, ludwig->phys);
+    /*CHANGE INIT - Correct initial momentum to exactly zero */
+    /* Original call (commented out): */
+    /* lb_rt_initial_conditions(pe, rt, ludwig->lb, ludwig->phys); */
+    lb_rt_initial_conditions(pe, rt, ludwig->lb, ludwig->phys, ludwig->map, ludwig->collinfo);
+    /*CHANGE END - Correct initial momentum to exactly zero */
     physics_rho0(ludwig->phys, &rho0);
     if (ludwig->hydro) hydro_rho0(ludwig->hydro, rho0);
 
@@ -535,9 +539,17 @@ void ludwig_run(const char* inputfile) {
 
   // CHANGE INIT -Subgrid charge debug data
   FILE* fp;
-  fp = fopen("graficos/particle_Esub.csv", "w");
-  if (fp != NULL) {
-    fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;Eself_X;Eself_Y;Eself_Z\n");
+  fp = fopen("./proceced_data/particle_Esub.csv", "r");
+  if (fp == NULL) {
+    fp = fopen("./proceced_data/particle_Esub.csv", "w");
+    if (fp != NULL) {
+      // fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;Eself_X;Eself_Y;Eself_Z\n");
+      fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z\n");
+    }
+  }
+  else {
+    fclose(fp);
+    fp = fopen("./proceced_data/particle_Esub.csv", "a");
   }
   // CHANGE END -Subgrid charge debug data  
 
@@ -897,7 +909,7 @@ void ludwig_run(const char* inputfile) {
 
     /* Configuration dump */
 
-    if (is_config_step()) {
+    if (is_config_step() || step == 1) {
       io_event_t event = { 0 };
       pe_info(ludwig->pe, "Writing distribution output at step %d!\n", step);
       lb_memcpy(ludwig->lb, tdpMemcpyDeviceToHost);
@@ -907,11 +919,16 @@ void ludwig_run(const char* inputfile) {
     /* is_measurement_step() is here to prevent 'breaking' old input
      * files; it should really be removed. */
 
-    if (is_config_step() || is_measurement_step() || is_colloid_io_step()) {
+    if (is_config_step() || is_measurement_step() || is_colloid_io_step() || step == 1) {
       if (ncolloid > 0) {
         pe_info(ludwig->pe, "Writing colloid output at step %d!\n", step);
         sprintf(filename, "%s%8.8d", "config.cds", step);
         colloid_io_write(ludwig->cio, filename);
+        /*CHANGE INIT - Total force calculation */
+        /* Write total force to file */
+        stats_total_force_write(ludwig->hydro, ludwig->map, ludwig->collinfo,
+                                step, "./proceced_data/total_force.csv");
+        /*CHANGE END - Total force calculation */
       }
     }
 
@@ -947,7 +964,7 @@ void ludwig_run(const char* inputfile) {
     if (ludwig->psi) {
       /* The potential and the charge densities (both controlled by "psi") */
       int output = (0 == util_mod(step, ludwig->psi->psi->opts.iodata.iofreq));
-      if (output || is_config_step()) {
+      if (output || is_config_step() || step == 1) {
         pe_info(ludwig->pe, "Writing electrokinetic data at step %d!\n", step);
         psi_io_write(ludwig->psi, step);
       }
@@ -974,7 +991,7 @@ void ludwig_run(const char* inputfile) {
 
     /* Hydrodynamic quantities */
     if (ludwig->hydro) {
-      if (is_config_step()) {
+      if (is_config_step() || step == 1) {
         io_event_t event = { 0 };
         pe_info(ludwig->pe, "Writing rho/velocity output at step %d!\n", step);
         hydro_io_write(ludwig->hydro, step, &event);
@@ -1107,11 +1124,21 @@ static int ludwig_report_momentum(ludwig_t* ludwig) {
   int n;
   int ncolloid;
   int is_pm;
+  /*CHANGE INIT - Subgrid momentum */
+  int nsubgrid;
+  /*CHANGE END - Subgrid momentum */
 
   double g[3];         /* Fluid momentum (total) */
   double gc[3];        /* Colloid momentum (total) */
   double gwall[3];     /* Wall momentum (for accounting purposes only) */
+  /*CHANGE INIT - Subgrid momentum */
+  double gsubgrid[3];  /* Subgrid colloid momentum */
+  /*CHANGE END - Subgrid momentum */
   double gtotal[3];
+
+  /*CHANGE INIT - Total force calculation */
+  double ffluid[3], fcoll[3], fsubgrid[3], ftotal[3];
+  /*CHANGE END - Total force calculation */
 
   MPI_Comm comm;
   pe_t* pe = NULL;
@@ -1125,11 +1152,21 @@ static int ludwig_report_momentum(ludwig_t* ludwig) {
     g[n] = 0.0;
     gc[n] = 0.0;
     gwall[n] = 0.0;
+    /*CHANGE INIT - Subgrid momentum */
+    gsubgrid[n] = 0.0;
+    /*CHANGE END - Subgrid momentum */
   }
 
   stats_distribution_momentum(ludwig->lb, ludwig->map, g);
   stats_colloid_momentum(ludwig->collinfo, gc);
   colloids_info_ntotal(ludwig->collinfo, &ncolloid);
+
+  /*CHANGE INIT - Subgrid momentum */
+  nsubgrid = ludwig->collinfo->nsubgrid;
+  if (nsubgrid > 0) {
+    stats_colloid_momentum_subgrid(ludwig->collinfo, gsubgrid);
+  }
+  /*CHANGE END - Subgrid momentum */
 
   if (wall_present(ludwig->wall) || is_pm) {
     double gtmp[3];
@@ -1145,12 +1182,45 @@ static int ludwig_report_momentum(ludwig_t* ludwig) {
   pe_info(pe, "Momentum - x y z\n");
   pe_info(pe, "[total   ] %14.7e %14.7e %14.7e\n", gtotal[X], gtotal[Y], gtotal[Z]);
   pe_info(pe, "[fluid   ] %14.7e %14.7e %14.7e\n", g[X], g[Y], g[Z]);
+  /*CHANGE INIT - Subgrid momentum */
+  /* OLD CODE:
   if (ncolloid > 0) {
     pe_info(pe, "[colloids] %14.7e %14.7e %14.7e\n", gc[X], gc[Y], gc[Z]);
   }
+  */
+  /* NEW CODE: Separate resolved and subgrid colloid momentum */
+  if (ncolloid > 0) {
+    /* gc includes all colloids, subtract subgrid to show only resolved */
+    double gc_resolved[3];
+    gc_resolved[X] = gc[X] - gsubgrid[X];
+    gc_resolved[Y] = gc[Y] - gsubgrid[Y];
+    gc_resolved[Z] = gc[Z] - gsubgrid[Z];
+    pe_info(pe, "[colloids] %14.7e %14.7e %14.7e\n", gc_resolved[X], gc_resolved[Y], gc_resolved[Z]);
+  }
+  if (nsubgrid > 0) {
+    pe_info(pe, "[subgrid ] %14.7e %14.7e %14.7e\n", gsubgrid[X], gsubgrid[Y], gsubgrid[Z]);
+  }
+  /*CHANGE END - Subgrid momentum */
   if (wall_present(ludwig->wall) || is_pm) {
     pe_info(pe, "[walls   ] %14.7e %14.7e %14.7e\n", gwall[X], gwall[Y], gwall[Z]);
   }
+
+  /*CHANGE INIT - Total force calculation */
+  /* Calculate and report total forces */
+  stats_total_force(ludwig->hydro, ludwig->map, ludwig->collinfo,
+                    ffluid, fcoll, fsubgrid, ftotal);
+
+  pe_info(pe, "\n");
+  pe_info(pe, "Total force - x y z\n");
+  // pe_info(pe, "[total   ] %14.7e %14.7e %14.7e\n", ftotal[X], ftotal[Y], ftotal[Z]);
+  pe_info(pe, "[fluid   ] %14.7e %14.7e %14.7e\n", ffluid[X], ffluid[Y], ffluid[Z]);
+  if (ncolloid > 0) {
+    pe_info(pe, "[colloids] %14.7e %14.7e %14.7e\n", fcoll[X], fcoll[Y], fcoll[Z]);
+  }
+  if (nsubgrid > 0) {
+    pe_info(pe, "[subgrid ] %14.7e %14.7e %14.7e\n", fsubgrid[X], fsubgrid[Y], fsubgrid[Z]);
+  }
+  /*CHANGE END - Total force calculation */
 
   return 0;
 }

@@ -169,6 +169,13 @@ int lb_halo(lb_t * lb);
 int lb_init_rest_f(lb_t * lb, double rho0);
 int lb_2nd_moment(lb_t * lb, int index, lb_dist_enum_t nd, double s[3][3]);
 int lb_1st_moment_equilib_set(lb_t * lb, int index, double rho, double u[3]);
+/*CHANGE INIT - Correct initial momentum to exactly zero */
+struct map_s; /* Forward declaration */
+typedef struct map_s map_t;
+struct colloids_info_s; /* Forward declaration */
+typedef struct colloids_info_s colloids_info_t;
+int lb_correct_initial_momentum(lb_t * lb, map_t * map, colloids_info_t * cinfo);
+/*CHANGE END - Correct initial momentum to exactly zero */
 
 int lb_read_buf(lb_t * lb, int index, const char * buf);
 int lb_read_buf_ascii(lb_t * lb, int index, const char * buf);

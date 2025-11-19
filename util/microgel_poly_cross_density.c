@@ -1629,7 +1629,11 @@ NearbyMonomerList* findNearbyMonomers(const MicrogelPolymer* polymer, double fac
   int N = polymer->total_nmon;
   double max_dist = polymer->target_distance * factor;
 
-  NearbyMonomerList* result = malloc(N * sizeof(NearbyMonomerList));
+  /*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
+  /* Original: NearbyMonomerList* result = malloc(N * sizeof(NearbyMonomerList)); */
+  /* C++ requires explicit cast from void* */
+  NearbyMonomerList* result = (NearbyMonomerList*)malloc(N * sizeof(NearbyMonomerList));
+  /*CHANGE END*/
   if (!result) {
     fprintf(stderr, "Error: No se pudo asignar memoria para NearbyMonomerList\n");
     exit(1);
@@ -1649,7 +1653,11 @@ NearbyMonomerList* findNearbyMonomers(const MicrogelPolymer* polymer, double fac
     }
 
     // Asignar memoria para los vecinos
-    result[i].neighbors = malloc(result[i].num_neighbors * sizeof(int));
+    /*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
+    /* Original: result[i].neighbors = malloc(result[i].num_neighbors * sizeof(int)); */
+    /* C++ requires explicit cast from void* */
+    result[i].neighbors = (int*)malloc(result[i].num_neighbors * sizeof(int));
+    /*CHANGE END*/
     if (!result[i].neighbors) {
       fprintf(stderr, "Error: No se pudo asignar memoria para vecinos de monomero %d\n", i);
       exit(1);

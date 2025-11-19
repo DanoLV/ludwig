@@ -60,7 +60,14 @@ int stats_colloid_momentum(colloids_info_t * cinfo, double g[3]) {
     double mass = 0.0;
 
     colloid_state_mass(&pc->s, rho0, &mass);
-    if (pc->s.bc == COLLOID_BC_SUBGRID) mass = 0.0; /* No inertia */
+    /*CHANGE INIT - Subgrid momentum */
+    if (pc->s.bc == COLLOID_BC_SUBGRID) {
+      /* Subgrid particles: use effective mass from displaced fluid volume */
+      PI_DOUBLE(pi);
+      double volume = (4.0/3.0) * pi * pow(pc->s.ah, 3.0);
+      mass = rho0 * volume;
+    }
+    /*CHANGE END - Subgrid momentum */
 
     glocal[X] += mass*pc->s.v[X];
     glocal[Y] += mass*pc->s.v[Y];
@@ -180,3 +187,57 @@ int stats_colloid_write_info(pe_t * pe, colloids_info_t * info,
 
   return 0;
 }
+
+/*CHANGE INIT - Subgrid momentum */
+/*****************************************************************************
+ *
+ *  stats_colloid_momentum_subgrid
+ *
+ *  Return net subgrid colloid momentum as g[3].
+ *  This function computes momentum only for COLLOID_BC_SUBGRID particles.
+ *
+ *****************************************************************************/
+
+int stats_colloid_momentum_subgrid(colloids_info_t * cinfo, double g[3]) {
+
+  int nsubgrid = 0;
+  double glocal[3] = {0.0, 0.0, 0.0};
+  double rho0;
+
+  colloid_t * pc = NULL;
+  MPI_Comm comm = MPI_COMM_NULL;
+
+  assert(cinfo);
+
+  nsubgrid = cinfo->nsubgrid;
+  if (nsubgrid == 0) {
+    g[X] = 0.0;
+    g[Y] = 0.0;
+    g[Z] = 0.0;
+    return 0;
+  }
+
+  colloids_info_rho0(cinfo, &rho0);
+  pe_mpi_comm(cinfo->pe, &comm);
+
+  colloids_info_local_head(cinfo, &pc);
+
+  for (; pc; pc = pc->nextlocal) {
+
+    if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+    /* Subgrid particles: use effective mass from displaced fluid volume */
+    PI_DOUBLE(pi);
+    double volume = (4.0/3.0) * pi * pow(pc->s.ah, 3.0);
+    double mass = rho0 * volume;
+
+    glocal[X] += mass*pc->s.v[X];
+    glocal[Y] += mass*pc->s.v[Y];
+    glocal[Z] += mass*pc->s.v[Z];
+  }
+
+  MPI_Reduce(glocal, g, 3, MPI_DOUBLE, MPI_SUM, 0, comm);
+
+  return 0;
+}
+/*CHANGE END - Subgrid momentum */

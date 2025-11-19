@@ -6,13 +6,20 @@
 
 ## Parámetros que se pueden modificar
 
-El script modifica los siguientes parámetros de la estructura `colloid_state_t`:
+El script modifica los siguientes parámetros:
 
+### Parámetros del coloide (en config.cds.init.001-001):
 1. **Carga (q0)**: Línea 51 del archivo config
 2. **Posición X**: Primera coordenada en línea 40
 3. **Posición Y**: Segunda coordenada en línea 40
 4. **Posición Z**: Tercera coordenada en línea 40
 5. **Parámetro AL**: Línea 58 del archivo config
+
+### Parámetros del fluido/sistema (vía runbg.sh):
+6. **Campo eléctrico**: Vector Ex_Ey_Ez
+7. **Temperatura**: Valor de kT
+8. **Densidad del fluido**: Valor de rho
+9. **Viscosidad**: Valores de viscosidad de corte y volumétrica
 
 ## Uso básico
 
@@ -22,18 +29,30 @@ El script modifica los siguientes parámetros de la estructura `colloid_state_t`
 
 ### Opciones específicas de runmulti.sh
 
+**Parámetros del coloide:**
 - `--charge VALUES`: Lista de valores de carga separados por comas
 - `--position VALUES`: Lista de vectores de posición completos (formato x_y_z separados por comas)
 - `--position-x VALUES`: Lista de valores de posición X separados por comas
 - `--position-y VALUES`: Lista de valores de posición Y separados por comas
 - `--position-z VALUES`: Lista de valores de posición Z separados por comas
 - `--al VALUES`: Lista de valores del parámetro AL separados por comas
+
+**Parámetros del fluido/sistema:**
+- `--electric-field VALUES`: Lista de vectores de campo eléctrico (formato ex_ey_ez separados por comas)
+- `--temperature VALUES`: Lista de valores de temperatura (kT) separados por comas
+- `--rho VALUES`: Lista de valores de densidad del fluido separados por comas
+- `--viscosity VALUES`: Lista de valores de viscosidad separados por comas
+
+**Opciones de control:**
 - `--base-dir DIR`: **OBLIGATORIO** - Directorio base para las simulaciones
 - `--param-name NAME`: Nombre del parámetro para nombrar carpetas (opcional, se determina automáticamente)
+- `--parallel`: Ejecutar simulaciones en paralelo
+- `--max-parallel N`: Límite de simulaciones paralelas simultáneas
 
 **Notas importantes**:
 - No se puede usar `--position` junto con `--position-x`, `--position-y` o `--position-z`. Usar `--position` para posiciones completas o las opciones individuales para variar componentes específicas.
-- Todas las opciones de `runbg.sh` se pasan directamente al script. **Excepto** `-o/--output-dir` que se reemplaza por `--base-dir`.
+- Para variar parámetros del fluido, usar las opciones largas (ej: `--temperature` en lugar de `-k`)
+- Todas las opciones de `runbg.sh` se pasan directamente al script. **Excepto** `-o/--output-dir` que se reemplaza por `--base-dir`, y `-e/-k/-r/-v` que se usan para variar parámetros.
 
 ### Opciones de runbg.sh disponibles
 
@@ -129,7 +148,56 @@ Esto creará 4 simulaciones (2 cargas × 2 posiciones):
   -t fe_electro -e 0.0_0.0_0.0
 ```
 
-### Ejemplo 5: Variar posición completa (X, Y, Z)
+### Ejemplo 5: Variar campo eléctrico
+
+```bash
+./runmulti.sh \
+  --electric-field 0.001_0.0_0.0,0.005_0.0_0.0,0.01_0.0_0.0 \
+  --base-dir test-efield \
+  -i 0 -n 10000 -s 500 \
+  -x 32 -y 32 -v 0.02
+```
+
+Esto creará 3 simulaciones con diferentes campos eléctricos en X:
+- `test-efield_0.001_0.0_0.0`
+- `test-efield_0.005_0.0_0.0`
+- `test-efield_0.01_0.0_0.0`
+
+### Ejemplo 6: Variar temperatura (kT)
+
+```bash
+./runmulti.sh \
+  --temperature 0.0001,0.0005,0.001,0.005 \
+  --base-dir test-temperature \
+  -i 0 -n 10000 -s 500 \
+  -x 32 -y 32 -v 0.02 -e 0.005_0.0_0.0
+```
+
+Esto creará 4 simulaciones con diferentes temperaturas:
+- `test-temperature_0.0001`
+- `test-temperature_0.0005`
+- `test-temperature_0.001`
+- `test-temperature_0.005`
+
+### Ejemplo 7: Variar densidad y viscosidad (producto cartesiano)
+
+```bash
+./runmulti.sh \
+  --rho 0.6,0.8,1.0 \
+  --viscosity 0.01,0.02,0.05 \
+  --base-dir test-fluid \
+  -i 0 -n 10000 -s 500 \
+  -x 32 -y 32
+```
+
+Esto creará 9 simulaciones (3 densidades × 3 viscosidades):
+- `test-fluid_0.6_0.01`
+- `test-fluid_0.6_0.02`
+- `test-fluid_0.6_0.05`
+- `test-fluid_0.8_0.01`
+- ... (9 combinaciones totales)
+
+### Ejemplo 8: Variar posición completa (X, Y, Z)
 
 ```bash
 # Opción 1: Usando --position para vectores completos
@@ -153,9 +221,42 @@ Esto creará 4 simulaciones (2 cargas × 2 posiciones):
   -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5
 ```
 
-### Ejemplo 6: Variar parámetros del archivo input (usando runbg.sh)
+### Ejemplo 9: Variar múltiples parámetros físicos
 
-Para variar parámetros como campo eléctrico, densidad o temperatura, usa las opciones de `runbg.sh` directamente. El script creará carpetas separadas solo si especificas diferentes valores en la línea de comando para cada ejecución manual, **O** puedes crear un script wrapper:
+```bash
+./runmulti.sh \
+  --electric-field 0.001_0.0_0.0,0.005_0.0_0.0 \
+  --temperature 0.0001,0.0005 \
+  --charge 0.5,1.0 \
+  --base-dir scan-multiparametro \
+  -i 0 -n 10000 -s 500 \
+  -x 32 -y 32 -v 0.02
+```
+
+Esto creará 8 simulaciones (2 campos × 2 temperaturas × 2 cargas):
+- `scan-multiparametro_0.5_0.001_0.0_0.0_0.0001`
+- `scan-multiparametro_0.5_0.001_0.0_0.0_0.0005`
+- `scan-multiparametro_0.5_0.005_0.0_0.0_0.0001`
+- ... (8 combinaciones totales)
+
+### Ejemplo 10: Ejecución en paralelo
+
+```bash
+# Ejecutar todas las simulaciones en paralelo (sin límite)
+./runmulti.sh \
+  --temperature 0.0001,0.0005,0.001 \
+  --base-dir test-parallel \
+  --parallel \
+  -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.02
+
+# Ejecutar con límite de 4 simulaciones simultáneas
+./runmulti.sh \
+  --electric-field 0.001_0.0_0.0,0.005_0.0_0.0,0.01_0.0_0.0 \
+  --temperature 0.0001,0.0005 \
+  --base-dir test-parallel-limited \
+  --parallel --max-parallel 4 \
+  -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.02
+```
 
 ```bash
 # Ejemplo de script wrapper para variar temperatura

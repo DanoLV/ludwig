@@ -22,6 +22,10 @@
 #include "hydro.h"
 #include "stats_velocity.h"
 #include "util.h"
+/*CHANGE INIT - Total force calculation */
+#include "util_sum.h"
+#include "colloids.h"
+/*CHANGE END - Total force calculation */
 
 /****************************************************************************
  *
@@ -123,3 +127,178 @@ int stats_velocity_minmax(stats_vel_t * stat, hydro_t * hydro, map_t * map) {
 
   return 0;
 }
+
+/*CHANGE INIT - Total force calculation */
+/****************************************************************************
+ *
+ *  stats_total_force
+ *
+ *  Calculate total force on the system using Klein summation:
+ *  - Force on fluid nodes (from hydro->force)
+ *  - Force on resolved colloids (force + fex)
+ *  - Force on subgrid colloids (fex)
+ *
+ *  Returns individual components in ffluid, fcoll, fsubgrid, and ftotal.
+ *
+ ****************************************************************************/
+
+int stats_total_force(hydro_t * hydro, map_t * map, colloids_info_t * cinfo,
+                      double ffluid[3], double fcoll[3], double fsubgrid[3],
+                      double ftotal[3]) {
+
+  int ic, jc, kc, ia, index;
+  int nlocal[3];
+  int status;
+
+  klein_t ffluid_local[3];
+  klein_t fcoll_local[3];
+  klein_t fsubgrid_local[3];
+  double ftmp[3];
+
+  colloid_t * pc = NULL;
+  MPI_Comm comm;
+  MPI_Datatype klein_mpi_type;
+  MPI_Op klein_mpi_sum;
+
+  assert(hydro);
+  assert(map);
+  assert(cinfo);
+  assert(ffluid);
+  assert(fcoll);
+  assert(fsubgrid);
+  assert(ftotal);
+
+  cs_nlocal(hydro->cs, nlocal);
+  pe_mpi_comm(hydro->pe, &comm);
+
+  /* Initialize Klein sums */
+  for (ia = 0; ia < 3; ia++) {
+    ffluid_local[ia] = klein_zero();
+    fcoll_local[ia] = klein_zero();
+    fsubgrid_local[ia] = klein_zero();
+  }
+
+  /* Copy force data from device to host */
+  hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+
+  /* Sum forces on fluid nodes using Klein summation */
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(hydro->cs, ic, jc, kc);
+        map_status(map, index, &status);
+
+        if (status == MAP_FLUID) {
+          hydro_f_local(hydro, index, ftmp);
+          for (ia = 0; ia < 3; ia++) {
+            klein_add_double(&ffluid_local[ia], ftmp[ia]);
+          }
+        }
+      }
+    }
+  }
+
+  /* Sum forces on colloids using Klein summation */
+  colloids_info_local_head(cinfo, &pc);
+
+  for (; pc; pc = pc->nextlocal) {
+    if (pc->s.bc == COLLOID_BC_SUBGRID) {
+      /* Subgrid particles: only external force (fex) */
+      for (ia = 0; ia < 3; ia++) {
+        klein_add_double(&fsubgrid_local[ia], pc->fex[ia]);
+      }
+    }
+    else {
+      /* Resolved colloids: force + fex */
+      for (ia = 0; ia < 3; ia++) {
+        klein_add_double(&fcoll_local[ia], pc->force[ia]);
+        klein_add_double(&fcoll_local[ia], pc->fex[ia]);
+      }
+    }
+  }
+
+  /* Set up MPI operations for Klein type */
+  klein_mpi_datatype(&klein_mpi_type);
+  klein_mpi_op_sum(&klein_mpi_sum);
+
+  /* Reduce across all MPI ranks using Klein MPI sum */
+  klein_t ffluid_klein[3], fcoll_klein[3], fsubgrid_klein[3];
+
+  MPI_Reduce(ffluid_local, ffluid_klein, 3, klein_mpi_type, klein_mpi_sum, 0, comm);
+  MPI_Reduce(fcoll_local, fcoll_klein, 3, klein_mpi_type, klein_mpi_sum, 0, comm);
+  MPI_Reduce(fsubgrid_local, fsubgrid_klein, 3, klein_mpi_type, klein_mpi_sum, 0, comm);
+
+  /* Extract sums */
+  for (ia = 0; ia < 3; ia++) {
+    ffluid[ia] = klein_sum(&ffluid_klein[ia]);
+    fcoll[ia] = klein_sum(&fcoll_klein[ia]);
+    fsubgrid[ia] = klein_sum(&fsubgrid_klein[ia]);
+    // ftotal[ia] = ffluid[ia] + fcoll[ia] + fsubgrid[ia];
+  }
+
+  /* Free MPI operations */
+  MPI_Type_free(&klein_mpi_type);
+  MPI_Op_free(&klein_mpi_sum);
+
+  return 0;
+}
+
+/****************************************************************************
+ *
+ *  stats_total_force_write
+ *
+ *  Write total force to file
+ *
+ ****************************************************************************/
+
+int stats_total_force_write(hydro_t * hydro, map_t * map, colloids_info_t * cinfo,
+                             int timestep, const char * filename) {
+
+  double ffluid[3], fcoll[3], fsubgrid[3], ftotal[3];
+  FILE * fp = NULL;
+  int rank;
+  MPI_Comm comm;
+
+  assert(hydro);
+  assert(map);
+  assert(cinfo);
+  assert(filename);
+
+  pe_mpi_comm(hydro->pe, &comm);
+  MPI_Comm_rank(comm, &rank);
+
+  /* Calculate forces */
+  stats_total_force(hydro, map, cinfo, ffluid, fcoll, fsubgrid, ftotal);
+
+  /* Only rank 0 writes to file */
+  if (rank == 0) {
+    fp = fopen(filename, "a");
+    if (fp == NULL) {
+      pe_fatal(hydro->pe, "Failed to open force output file: %s\n", filename);
+      return -1;
+    }
+
+    /* Write header if file is empty (first write) */
+    fseek(fp, 0, SEEK_END);
+    if (ftell(fp) == 0) {
+      fprintf(fp, "# Total force output\n");
+      fprintf(fp, "timestep;");// ftotal_x ftotal_y ftotal_z ");
+      fprintf(fp, "ffluid_x;ffluid_y;ffluid_z;");
+      // fprintf(fp, "fcoll_x;fcoll_y;fcoll_z;");
+      fprintf(fp, "fsubgrid_x;fsubgrid_y;fsubgrid_z\n");
+    }
+
+    /* Write force data */
+    // fprintf(fp, "%d;%.15e;%.15e;%.15e;", timestep, ftotal[X], ftotal[Y], ftotal[Z]);
+    fprintf(fp, "%d;", timestep);
+    fprintf(fp, "%.15e;%.15e;%.15e;", ffluid[X], ffluid[Y], ffluid[Z]);
+    // fprintf(fp, "%.15e;%.15e;%.15e;", fcoll[X], fcoll[Y], fcoll[Z]);
+    fprintf(fp, "%.15e;%.15e;%.15e\n", fsubgrid[X], fsubgrid[Y], fsubgrid[Z]);
+
+    fclose(fp);
+  }
+
+  return 0;
+}
+/*CHANGE END - Total force calculation */

@@ -23,9 +23,9 @@ include ../Makefile.mk
 # Compilation etc
 
 SRC  = $(ROOT_DIR)./src
-INCL = -I$(SRC) $(TARGET_INC_PATH) $(MPI_INC_PATH)
+INCL = -I$(SRC) $(TARGET_INC_PATH) $(MPI_INC_PATH) $(PETSC_INC)
 
-BLIBS = $(MPI_LIB_PATH) $(MPI_LIB) $(TARGET_LIB_PATH) $(TARGET_LIB)
+BLIBS = $(MPI_LIB_PATH) $(MPI_LIB) $(TARGET_LIB_PATH) $(TARGET_LIB) $(PETSC_LIB)
 LIBS  = $(SRC)/libludwig.a ${BLIBS} -lm
 
 

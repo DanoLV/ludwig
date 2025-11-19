@@ -56,7 +56,7 @@ int interact_statistic_add(interact_t* obj, interact_enum_t it,
 int interact_rc_set(interact_t* obj, interact_enum_t it, double rc);
 int interact_hc_set(interact_t* obj, interact_enum_t it, double hc);
 int interact_range_check(interact_t* obj, colloids_info_t* cinfo);
-int interact_compute(interact_t* interact, colloids_info_t* cinfo, map_t* map, psi_t* psi, ewald_t* ewald);
+int interact_compute(interact_t* interact, colloids_info_t* cinfo, map_t* map, psi_t* psi, ewald_t* ewald); 
 int interact_pairwise(interact_t* interact, colloids_info_t* cinfo);
 int interact_wall(interact_t* interact, colloids_info_t* cinfo);
 int interact_bonds(interact_t* obj, colloids_info_t* cinfo);

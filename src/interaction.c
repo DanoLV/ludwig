@@ -186,6 +186,7 @@ int interact_statistic_add(interact_t* obj, interact_enum_t it, void* pot,
  *
  *****************************************************************************/
   int interact_compute(interact_t * interact, colloids_info_t * cinfo, map_t * map, psi_t * psi, ewald_t * ewald) {
+  
   int nc;
 
   assert(interact);

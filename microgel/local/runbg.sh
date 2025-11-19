@@ -39,8 +39,13 @@ SIMULATION OPTIONS (alphabetically sorted):
   -u, --single-monomer y/n        Single monomer mode (y/n, default: n)
   -v, --viscosity NUMBER          Fluid viscosity value
   -x, --size-x NUMBER             Frame size in X direction (grid units)
-  -y, --size-yz NUMBER            Frame size in Y and Z directions (grid units)
-  -z, --solver TYPE               Electrokinetics solver: 'petsc' or 'sor' (default: sor)
+  -y, --size-y NUMBER             Frame size in Y direction (grid units)
+  -z, --size-z NUMBER             Frame size in Z direction (grid units)
+      --solver TYPE               Electrokinetics solver: 'petsc' or 'sor' (default: sor)
+      --epsilon NUMBER            Electrokinetics epsilon value
+      --electrokinetics-init TYPE Electrokinetics init mode: 'point_charges', 'uniform', or 'none'
+                                  (default: none - line stays commented)
+      --rho-el NUMBER             Electrokinetics init rho el value
 
 HELP:
   -h, --help                      Display this help message and exit
@@ -48,11 +53,11 @@ HELP:
 EXAMPLES:
   # New simulation with single MPI process:
   ./runbg_new.sh --initial-step 0 --nsteps 1000000 --step-interval 500 \\
-                 --output-dir results --size-x 26 --size-yz 26 --viscosity 0.5 \\
+                 --output-dir results --size-x 26 --size-y 26 --size-z 26 --viscosity 0.5 \\
                  --free-energy fe_electro --electric-field 0.0_0.0_0.1
 
   # Simulation with MPI (4 processes on 2x2x1 grid):
-  ./runbg_new.sh -i 0 -n 1000000 -s 500 -o results -x 26 -y 26 -v 0.5 \\
+  ./runbg_new.sh -i 0 -n 1000000 -s 500 -o results -x 26 -y 26 -z 26 -v 0.5 \\
                  -t fe_electro -e 0.0_0.0_0.1 -m 4 -g 2_2_1 -c 10
 
   # Continue previous simulation:
@@ -64,8 +69,6 @@ EXAMPLES:
 
 EOF
 }
-
-clear
 
 # Default values
 cores=1
@@ -84,7 +87,7 @@ config_file="config.cds.init.001-001"
 
 # Parse command line arguments
 OPTS=$(getopt -o a:b:c:d:e:f:w:g:hj:k:i:l:m:n:o:p:q:r:s:t:u:v:x:y:z: \
-              --long angle-harmonic:,bond-harmonic:,cores:,config-file:,delete-files:,electric-field:,freq-config:,fluctuations:,grid-mpi:,help,gravity:,input-file:,temperature:,initial-step:,fluid-only:,mpi-procs:,nsteps:,output-dir:,plot-interval:,relaxation-scheme:,rho:,step-interval:,free-energy:,single-monomer:,viscosity:,size-x:,size-yz:,solver: \
+              --long angle-harmonic:,bond-harmonic:,cores:,config-file:,delete-files:,electric-field:,freq-config:,fluctuations:,grid-mpi:,help,gravity:,input-file:,temperature:,initial-step:,fluid-only:,mpi-procs:,nsteps:,output-dir:,plot-interval:,relaxation-scheme:,rho:,step-interval:,free-energy:,single-monomer:,viscosity:,size-x:,size-y:,size-z:,solver:,epsilon:,electrokinetics-init:,rho-el: \
               -n 'runbg_new.sh' -- "$@")
 
 if [ $? != 0 ]; then
@@ -119,12 +122,16 @@ while true; do
         -q|--relaxation-scheme) relaxation_scheme="$2"; shift 2 ;;
         -r|--rho)               rho="$2"; shift 2 ;;
         -u|--single-monomer)    single="$2"; shift 2 ;;
-        -z|--solver)            solver="$2"; shift 2 ;;
         -s|--step-interval)     paso="$2"; shift 2 ;;
         -k|--temperature)       temperature="$2"; shift 2 ;;
         -v|--viscosity)         viscosidad="$2"; shift 2 ;;
         -x|--size-x)            ladox="$2"; shift 2 ;;
-        -y|--size-yz)           ladoyz="$2"; shift 2 ;;
+        -y|--size-y)            ladoy="$2"; shift 2 ;;
+        -z|--size-z)            ladoz="$2"; shift 2 ;;
+        --solver)               solver="$2"; shift 2 ;;
+        --epsilon)              epsilon="$2"; shift 2 ;;
+        --electrokinetics-init) electrokinetics_init="$2"; shift 2 ;;
+        --rho-el)               rho_el="$2"; shift 2 ;;
         --)                     shift; break ;;
         *)                      echo "Internal error!"; exit 1 ;;
     esac
@@ -197,45 +204,53 @@ fi
 # Copy files to execute simulation
 cp "$input_file" $RESULTS_DIR/input
 cp Ludwig.exe $RESULTS_DIR
-cp del.sh $RESULTS_DIR
+# cp del.sh $RESULTS_DIR
 
 # Create graphics subdirectory
-mkdir -p $RESULTS_DIR/graficos
+mkdir -p $RESULTS_DIR/scripts
+mkdir -p $RESULTS_DIR/plots
+mkdir -p $RESULTS_DIR/proceced_data
+mkdir -p $RESULTS_DIR/colloid_data
+mkdir -p $RESULTS_DIR/logs
 
 # Copy files to execute plot
-cp runplot.sh $RESULTS_DIR
-cp extract_colloids $RESULTS_DIR
-cp coloideacsv.sh $RESULTS_DIR
+cp runplot.sh $RESULTS_DIR/scripts
+cp extract_colloids $RESULTS_DIR/scripts
+cp coloideacsv.sh $RESULTS_DIR/scripts
 
 # Scripts that process raw data (need access to colloids-*.csv and vel-*) stay in root
-cp calculosvel.py $RESULTS_DIR
-cp calculosvelfluid.py $RESULTS_DIR
-cp calculosvelfluidonly.py $RESULTS_DIR
-cp extraer_posicion.py $RESULTS_DIR
-cp calculos.py $RESULTS_DIR
+cp calculosvel.py $RESULTS_DIR/scripts
+cp calculosvelfluid.py $RESULTS_DIR/scripts
+cp calculosvelfluidonly.py $RESULTS_DIR/scripts
+cp extraer_posicion.py $RESULTS_DIR/scripts
+cp calculos.py $RESULTS_DIR/scripts
 
-# Plotting scripts (only read processed CSVs) go to graficos subdirectory
-cp plotvel.py $RESULTS_DIR/graficos
-cp plot.py $RESULTS_DIR/graficos
-cp plot_charge_distribution.py $RESULTS_DIR/graficos
-cp plot_electric_field.py $RESULTS_DIR/graficos
-cp plotdatos.py $RESULTS_DIR/graficos
-cp batch_plot_electric_field.py $RESULTS_DIR/graficos
+# Plotting scripts (only read processed CSVs) go to plot subdirectory
+cp plotvel.py $RESULTS_DIR/scripts
+cp plot.py $RESULTS_DIR/scripts
+cp plot_velocity_field.py $RESULTS_DIR/scripts
+cp plot_charge_distribution.py $RESULTS_DIR/scripts
+cp plot_electric_field.py $RESULTS_DIR/scripts
+# cp plot_electric_field_peskin.py $RESULTS_DIR/scripts
+cp plotdatos.py $RESULTS_DIR/scripts
+# cp batch_plot_electric_field.py $RESULTS_DIR/scripts
+cp compare_field_theory.py $RESULTS_DIR/scripts
+# cp compare_field_theory_peskin.py $RESULTS_DIR/scripts
 
 # Provide access to plot scripts
-chmod +x $RESULTS_DIR/runplot.sh
-chmod +x $RESULTS_DIR/extract_colloids
-chmod +x $RESULTS_DIR/calculosvel.py
-chmod +x $RESULTS_DIR/calculosvelfluid.py
-chmod +x $RESULTS_DIR/calculosvelfluidonly.py
-chmod +x $RESULTS_DIR/extraer_posicion.py
-chmod +x $RESULTS_DIR/calculos.py
-chmod +x $RESULTS_DIR/graficos/plotvel.py
-chmod +x $RESULTS_DIR/graficos/plot.py
-chmod +x $RESULTS_DIR/graficos/plot_charge_distribution.py
-chmod +x $RESULTS_DIR/graficos/plot_electric_field.py
-chmod +x $RESULTS_DIR/graficos/plotdatos.py
-chmod +x $RESULTS_DIR/graficos/batch_plot_electric_field.py
+chmod +x $RESULTS_DIR/scripts/runplot.sh
+chmod +x $RESULTS_DIR/scripts/extract_colloids
+chmod +x $RESULTS_DIR/scripts/calculosvel.py
+chmod +x $RESULTS_DIR/scripts/calculosvelfluid.py
+chmod +x $RESULTS_DIR/scripts/extraer_posicion.py
+chmod +x $RESULTS_DIR/scripts/calculos.py
+chmod +x $RESULTS_DIR/scripts/plotvel.py
+chmod +x $RESULTS_DIR/scripts/plot.py
+chmod +x $RESULTS_DIR/scripts/plot_velocity_field.py
+chmod +x $RESULTS_DIR/scripts/plot_charge_distribution.py
+chmod +x $RESULTS_DIR/scripts/plot_electric_field.py
+chmod +x $RESULTS_DIR/scripts/plotdatos.py
+chmod +x $RESULTS_DIR/scripts/compare_field_theory.py
 
 # Change to result dir
 cd $RESULTS_DIR/
@@ -273,7 +288,50 @@ sed -i -e "/^free_energy/c\free_energy $energy" input
 [ -n "$electric_e0" ] && sed -i -e "/^electric_e0/c\electric_e0 $electric_e0" input
 sed -i -e "/colloid_io_freq/c\colloid_io_freq $paso" input
 sed -i -e "/vel_io_freq/c\vel_io_freq $paso" input
-[ -n "$ladox" ] && [ -n "$ladoyz" ] && sed -i -e "/size/c\size $ladox\_$ladoyz\_$ladoyz" input
+[ -n "$ladox" ] && [ -n "$ladoy" ] && [ -n "$ladoz" ] && sed -i -e "/size/c\size $ladox\_$ladoy\_$ladoz" input
+
+# Electrokinetics epsilon parameter
+if [ -n "$epsilon" ]; then
+    if grep -q "^electrokinetics_epsilon" input; then
+        sed -i -e "/^electrokinetics_epsilon/c\electrokinetics_epsilon $epsilon" input
+    else
+        sed -i -e "/^# electrokinetics_epsilon/a electrokinetics_epsilon $epsilon" input
+    fi
+fi
+
+# Electrokinetics init parameter
+if [ -n "$electrokinetics_init" ]; then
+    if [ "$electrokinetics_init" = "none" ]; then
+        # Comment out the line if it exists uncommented
+        if grep -q "^electrokinetics_init" input; then
+            sed -i -e "s/^electrokinetics_init/# electrokinetics_init/" input
+        fi
+    else
+        # Uncomment and set the value
+        if grep -q "^electrokinetics_init" input; then
+            sed -i -e "/^electrokinetics_init/c\electrokinetics_init $electrokinetics_init" input
+        elif grep -q "^# electrokinetics_init" input; then
+            sed -i -e "0,/^# electrokinetics_init/s/^# electrokinetics_init.*/electrokinetics_init $electrokinetics_init/" input
+        else
+            # If line doesn't exist at all, add it after the commented lines
+            sed -i -e "/^# electrokinetics_init.*point_charges/a electrokinetics_init $electrokinetics_init" input
+        fi
+    fi
+else
+    # If not specified, comment out the line if it exists uncommented
+    if grep -q "^electrokinetics_init" input; then
+        sed -i -e "s/^electrokinetics_init/# electrokinetics_init/" input
+    fi
+fi
+
+# Electrokinetics init rho el parameter
+if [ -n "$rho_el" ]; then
+    if grep -q "^electrokinetics_init_rho_el" input; then
+        sed -i -e "/^electrokinetics_init_rho_el/c\electrokinetics_init_rho_el $rho_el" input
+    else
+        sed -i -e "/^# electrokinetics_init_rho_el/a electrokinetics_init_rho_el $rho_el" input
+    fi
+fi
 
 # Temperature parameter
 if [ -n "$temperature" ]; then
@@ -369,11 +427,11 @@ NT=$((Nsteps + Ninicio))
 # Set number of OpenMP threads per MPI process
 export OMP_NUM_THREADS=$cores
 
-# # Set GPU options for OpenCL (Ludwig uses OpenCL, not CUDA directly)
-# export GPU_DEVICE_ORDINAL=0
-# export OPENCL_VISIBLE_DEVICES=0
-# # Allow concurrent kernel execution
-# export CUDA_VISIBLE_DEVICES=0
+# Set GPU options for OpenCL (Ludwig uses OpenCL, not CUDA directly)
+export GPU_DEVICE_ORDINAL=0
+export OPENCL_VISIBLE_DEVICES=0
+# Allow concurrent kernel execution
+export CUDA_VISIBLE_DEVICES=0
 
 # --- 1. Execute main task in background ---
 echo "Starting background simulation task..."
@@ -391,10 +449,10 @@ fi
 # Ludwig run with MPI on background
 if [ "$mpi_procs" -gt 1 ]; then
     # Use process binding for better performance and consistency
-    $MPI_CMD -np $mpi_procs --bind-to core --map-by core ./Ludwig.exe >> output.txt 2>&1 &
+    $MPI_CMD -np $mpi_procs --bind-to core --map-by core ./Ludwig.exe >> logs/output.txt 2>&1 &
 else
     # Single process without MPI
-    ./Ludwig.exe >> output.txt 2>&1 &
+    ./Ludwig.exe >> logs/output.txt 2>&1 &
 fi
 
 PID_BG=$!
@@ -404,13 +462,16 @@ echo "Simulation PID: $PID_BG"
 count=0
 ni=$Ninicio
 
+sleep 10
+cp $RESULTS_DIR/vel-000000001.001-001 $RESULTS_DIR/vel-000000000.001-001
+
 while kill -0 $PID_BG 2>/dev/null; do
 
     echo "[INFO] Starting periodic plot at $(date)"
 
     # Count output files
     file_count=$(find . -maxdepth 1 -type f -name "config.cds*" | wc -l)
-    file_count=$((file_count - 1))
+    file_count=$((file_count - 2))
 
     if  [ "$fluid_only" == "y" ]; then
         file_count=$(find . -maxdepth 1 -type f -name "vel-*" | wc -l)
@@ -436,12 +497,12 @@ while kill -0 $PID_BG 2>/dev/null; do
         continue
     fi
 
-    ./runplot.sh   \
+    ./scripts/runplot.sh \
                 -n "$count"  \
                 -i "$ni"   \
                 -p "$paso"   \
                 -s "$single" \
-                -q "$fluid_only" >> outputplot.txt 2>&1
+                -q "$fluid_only" >> logs/outputplot.txt 2>&1
 
     ni=$((ni+count+paso))
     sleep $deltat
@@ -481,12 +542,12 @@ echo "Final plot - Current step:       $current_step"
 echo "Final plot - Steps to process:   $count"
 
 # Execute final plot
-./runplot.sh   \
+./scripts/runplot.sh   \
                 -n "$count"  \
                 -i "$ni"   \
                 -p "$paso"   \
                 -s "$single" \
-                -q "$fluid_only" >> outputplot.txt 2>&1
+                -q "$fluid_only" >> logs/outputplot.txt 2>&1
 
 echo "=========================================="
 echo "Simulation completed successfully!"

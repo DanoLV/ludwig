@@ -150,51 +150,51 @@ int psi_force_gradmu_e(psi_t* psi, fe_t* fe, hydro_t* hydro,
 
         /* Accumulate contribution to total force on system */
 
-        // CHANGE INIT - Subgrid charge
-        // flocal[X] += force[X];
-        // flocal[Y] += force[Y];
-        // flocal[Z] += force[Z];
-        klein_add_double(&flocal_k[X], force[X]);
-        klein_add_double(&flocal_k[Y], force[Y]);
-        klein_add_double(&flocal_k[Z], force[Z]);
-        // CHANGE END - Subgrid charge
+        // // CHANGE INIT - Subgrid charge
+        // // flocal[X] += force[X];
+        // // flocal[Y] += force[Y];
+        // // flocal[Z] += force[Z];
+        // klein_add_double(&flocal_k[X], force[X]);
+        // klein_add_double(&flocal_k[Y], force[Y]);
+        // klein_add_double(&flocal_k[Z], force[Z]);
+        // // CHANGE END - Subgrid charge
 
       }
     }
   }
 
-  // CHANGE INIT - Subgrid charge
-  flocal[X] = klein_sum(&flocal_k[X]);
-  flocal[Y] = klein_sum(&flocal_k[Y]);
-  flocal[Z] = klein_sum(&flocal_k[Z]);
-  // CHANGE END - Subgrid charge
+  // // CHANGE INIT - Subgrid charge
+  // flocal[X] = klein_sum(&flocal_k[X]);
+  // flocal[Y] = klein_sum(&flocal_k[Y]);
+  // flocal[Z] = klein_sum(&flocal_k[Z]);
+  // // CHANGE END - Subgrid charge
 
-  MPI_Allreduce(flocal, fsum, 4, MPI_DOUBLE, MPI_SUM, comm);
+  // MPI_Allreduce(flocal, fsum, 4, MPI_DOUBLE, MPI_SUM, comm);
 
-  fsum[X] /= fsum[3];
-  fsum[Y] /= fsum[3];
-  fsum[Z] /= fsum[3];
+  // fsum[X] /= fsum[3];
+  // fsum[Y] /= fsum[3];
+  // fsum[Z] /= fsum[3];
 
-  /* Now actually compute the force on the fluid with the correction
-     (based on number of fluid nodes) and store */
+  // /* Now actually compute the force on the fluid with the correction
+  //    (based on number of fluid nodes) and store */
 
-  for (ic = 1; ic <= nlocal[X]; ic++) {
-    for (jc = 1; jc <= nlocal[Y]; jc++) {
-      for (kc = 1; kc <= nlocal[Z]; kc++) {
+  // for (ic = 1; ic <= nlocal[X]; ic++) {
+  //   for (jc = 1; jc <= nlocal[Y]; jc++) {
+  //     for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-        index = cs_index(psi->cs, ic, jc, kc);
+  //       index = cs_index(psi->cs, ic, jc, kc);
 
-        colloids_info_map(cinfo, index, &pc);
-        if (pc) continue;
+  //       colloids_info_map(cinfo, index, &pc);
+  //       if (pc) continue;
 
-        force[X] = -fsum[X];
-        force[Y] = -fsum[Y];
-        force[Z] = -fsum[Z];
+  //       force[X] = -fsum[X];
+  //       force[Y] = -fsum[Y];
+  //       force[Z] = -fsum[Z];
 
-        if (hydro) hydro_f_local_add(hydro, index, force);
-      }
-    }
-  }
+  //       if (hydro) hydro_f_local_add(hydro, index, force);
+  //     }
+  //   }
+  // }
 
   return 0;
 }
@@ -449,3 +449,68 @@ int psi_force_divstress(psi_t* psi, fe_t* fe, hydro_t* hydro,
 
   return 0;
 }
+
+// CHANGE INIT - Subgrid charge
+/*****************************************************************************
+ *
+ *  psi_force_gradmu_e_subgrid
+ *
+ *  Calculate electric force on fluid when there is only subgrid particles
+ *
+ *****************************************************************************/
+
+int psi_force_gradmu_e_subgrid(psi_t* psi, fe_t* fe, hydro_t* hydro,
+           colloids_info_t* cinfo) {
+
+  int ic, jc, kc;
+  int ia;
+  int nlocal[3];
+  int index;
+  // int xs, ys, zs;          /* Coordinate strides */
+  double rho_elec;            /* Species and electric charge density */
+  double e[3];                /* Total electric field */
+  double kt, eunit, reunit;
+  double force[3];
+
+
+  physics_t* phys = NULL;
+  MPI_Comm comm;
+
+  colloid_t* pc = NULL;
+
+  assert(fe);
+  assert(psi);
+  assert(cinfo);
+
+  cs_nlocal(psi->cs, nlocal);
+  // cs_strides(psi->cs, &xs, &ys, &zs);
+  // cs_cart_comm(psi->cs, &comm);
+
+  physics_ref(&phys);
+  physics_kt(phys, &kt);
+  psi_unit_charge(psi, &eunit);
+  reunit = 1.0 / eunit;
+
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(psi->cs, ic, jc, kc);
+
+        psi_rho_elec(psi, index, &rho_elec);
+        psi_electric_field(psi, index, e);
+
+        for (ia = 0; ia < 3; ia++) {
+          e[ia] *= kt * reunit;
+          force[ia] = rho_elec * e[ia];
+        }
+
+        if (hydro) hydro_f_local_add(hydro, index, force);
+
+      }
+    }
+  }
+
+  return 0;
+}
+// CHANGE END - Subgrid charge

@@ -28,6 +28,18 @@ MULTI-SIMULATION OPTIONS:
   --position-z VALUES         Comma-separated list of Z position values
   --al VALUES                 Comma-separated list of al parameter values
                               Example: --al 0.5,0.6,0.7
+  --electric-field VALUES     Comma-separated list of electric field vectors (ex_ey_ez)
+                              Example: --electric-field 0.001_0.0_0.0,0.005_0.0_0.0
+  --temperature VALUES        Comma-separated list of temperature values (kT)
+                              Example: --temperature 0.0001,0.0005,0.001
+  --rho VALUES                Comma-separated list of fluid density values
+                              Example: --rho 0.6,0.8,1.0
+  --viscosity VALUES          Comma-separated list of viscosity values
+                              Example: --viscosity 0.01,0.02,0.05
+  --epsilon VALUES            Comma-separated list of electrokinetics epsilon values
+                              Example: --epsilon 1.0e4,5.0e4,1.0e5
+  --rho-el VALUES             Comma-separated list of electrokinetics init rho el values
+                              Example: --rho-el 1.0e-3,5.0e-3,1.0e-2
   --param-name NAME           Name of the varying parameter for directory naming
                               (default: automatically determined)
   --base-dir DIR              Base directory name (will be used with runbg.sh -o)
@@ -46,35 +58,60 @@ RUNBG.SH OPTIONS:
 EXAMPLES:
   # Run simulations with varying charge:
   ./runmulti.sh --charge 0.5,1.0,1.5 --base-dir test-charge \\
-                -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.5
 
   # Run simulations with varying position:
   ./runmulti.sh --position-x 16.0,16.5,17.0 --base-dir test-pos \\
-                -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.5
 
   # Run simulations with varying al parameter:
   ./runmulti.sh --al 0.5,0.6,0.7 --base-dir test-al \\
-                -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5 -t fe_electro
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.5 -t fe_electro
+
+  # Run simulations with varying electric field:
+  ./runmulti.sh --electric-field 0.001_0.0_0.0,0.005_0.0_0.0,0.01_0.0_0.0 \\
+                --base-dir test-efield -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32
+
+  # Run simulations with varying temperature:
+  ./runmulti.sh --temperature 0.0001,0.0005,0.001 --base-dir test-kt \\
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.02
+
+  # Run simulations with varying density and viscosity:
+  ./runmulti.sh --rho 0.6,0.8,1.0 --viscosity 0.01,0.02,0.05 \\
+                --base-dir test-fluid -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32
+
+  # Run simulations with varying electrokinetics epsilon:
+  ./runmulti.sh --epsilon 1.0e4,5.0e4,1.0e5 --base-dir test-epsilon \\
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -t fe_electro
+
+  # Run simulations with varying electrokinetics rho_el:
+  ./runmulti.sh --rho-el 1.0e-3,5.0e-3,1.0e-2 --base-dir test-rhoel \\
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -t fe_electro
 
   # Combine multiple varying parameters (Cartesian product):
   ./runmulti.sh --charge 1.0,2.0 --position-x 16.0,17.0 --base-dir test-combined \\
-                -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.5
 
   # Run simulations in PARALLEL (all at once):
   ./runmulti.sh --charge 0.5,1.0,1.5 --base-dir test-parallel \\
                 --parallel \\
-                -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.5
 
   # Run simulations in parallel with limit (max 4 at a time):
   ./runmulti.sh --charge 0.5,1.0,1.5,2.0,2.5 --base-dir test-parallel-limited \\
                 --parallel --max-parallel 4 \\
-                -i 0 -n 10000 -s 500 -x 32 -y 32 -v 0.5
+                -i 0 -n 10000 -s 500 -x 32 -y 32 -z 32 -v 0.5
 
 NOTE:
   - If multiple parameter lists are provided, all combinations will be run
   - The base config.cds.init.001-001 file must exist in the current directory
-  - Each simulation gets a unique directory: base-dir-param_value
-  - For multiple varying parameters: base-dir-param1_val1-param2_val2
+  - Directory naming format: base-dir-n_NSTEPS-s_STEPINT-L_SIZE-param_value
+    * n_NSTEPS: Number of steps (from -n/--nsteps)
+    * s_STEPINT: Step interval (from -s/--step-interval)
+    * L_SIZE: Volume size (compact if all equal, e.g., L_32)
+              or Lx_X_Ly_Y_Lz_Z if different dimensions
+    * param_value: Values of varying parameters
+  - For multiple varying parameters: base-dir-n_X-s_Y-L_Z-param1_val1-param2_val2
   - By default, simulations run SEQUENTIALLY (one after another)
   - Use --parallel to run all simulations simultaneously (parallel mode)
   - Use --max-parallel N with --parallel to limit concurrent simulations
@@ -118,6 +155,12 @@ pos_x_values=""
 pos_y_values=""
 pos_z_values=""
 al_values=""
+electric_field_values=""
+temperature_values=""
+rho_values=""
+viscosity_values=""
+epsilon_values=""
+rho_el_values=""
 param_name=""
 base_dir=""
 parallel_mode=0
@@ -125,6 +168,13 @@ max_parallel=0
 
 # Arrays to hold runbg.sh arguments
 runbg_args=()
+
+# Variables to track simulation parameters for directory naming
+sim_nsteps=""
+sim_step_interval=""
+sim_size_x=""
+sim_size_y=""
+sim_size_z=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -153,6 +203,30 @@ while [[ $# -gt 0 ]]; do
             al_values="$2"
             shift 2
             ;;
+        --electric-field)
+            electric_field_values="$2"
+            shift 2
+            ;;
+        --temperature)
+            temperature_values="$2"
+            shift 2
+            ;;
+        --rho)
+            rho_values="$2"
+            shift 2
+            ;;
+        --viscosity)
+            viscosity_values="$2"
+            shift 2
+            ;;
+        --epsilon)
+            epsilon_values="$2"
+            shift 2
+            ;;
+        --rho-el)
+            rho_el_values="$2"
+            shift 2
+            ;;
         --param-name)
             param_name="$2"
             shift 2
@@ -178,14 +252,45 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         # All other options are passed through to runbg.sh
+        # Note: -e, -k, -r, -v are now handled above for multi-simulation
         -a|--angle-harmonic|-b|--bond-harmonic|-c|--cores|-d|--delete-files|\
-        -e|--electric-field|-f|--freq-config|-w|--fluctuations|-g|--grid-mpi|\
-        -j|--gravity|-k|--temperature|-i|--initial-step|-l|--fluid-only|\
-        -m|--mpi-procs|-n|--nsteps|-p|--plot-interval|-q|--relaxation-scheme|\
-        -r|--rho|-s|--step-interval|-t|--free-energy|-u|--single-monomer|\
-        -v|--viscosity|-x|--size-x|-y|--size-yz|-z|--solver|--input-file)
+        -f|--freq-config|-w|--fluctuations|-g|--grid-mpi|\
+        -j|--gravity|-i|--initial-step|-l|--fluid-only|\
+        -m|--mpi-procs|-p|--plot-interval|-q|--relaxation-scheme|\
+        -t|--free-energy|-u|--single-monomer|\
+        --solver|--input-file|--electrokinetics-init)
             runbg_args+=("$1" "$2")
             shift 2
+            ;;
+        -n|--nsteps)
+            sim_nsteps="$2"
+            runbg_args+=("$1" "$2")
+            shift 2
+            ;;
+        -s|--step-interval)
+            sim_step_interval="$2"
+            runbg_args+=("$1" "$2")
+            shift 2
+            ;;
+        -x|--size-x)
+            sim_size_x="$2"
+            runbg_args+=("$1" "$2")
+            shift 2
+            ;;
+        -y|--size-y)
+            sim_size_y="$2"
+            runbg_args+=("$1" "$2")
+            shift 2
+            ;;
+        -z|--size-z)
+            sim_size_z="$2"
+            runbg_args+=("$1" "$2")
+            shift 2
+            ;;
+        -e|--electric-field|-k|-r|-v)
+            echo "ERROR: To vary $1, use the long form (--electric-field, --temperature, --rho, --viscosity)" >&2
+            echo "       If not varying, pass it after the multi-simulation options." >&2
+            exit 1
             ;;
         *)
             echo "ERROR: Unknown option: $1" >&2
@@ -204,9 +309,12 @@ fi
 
 # Check that at least one parameter is specified to vary
 if [ -z "$charge_values" ] && [ -z "$position_values" ] && [ -z "$pos_x_values" ] && \
-   [ -z "$pos_y_values" ] && [ -z "$pos_z_values" ] && [ -z "$al_values" ]; then
+   [ -z "$pos_y_values" ] && [ -z "$pos_z_values" ] && [ -z "$al_values" ] && \
+   [ -z "$electric_field_values" ] && [ -z "$temperature_values" ] && \
+   [ -z "$rho_values" ] && [ -z "$viscosity_values" ] && \
+   [ -z "$epsilon_values" ] && [ -z "$rho_el_values" ]; then
     echo "ERROR: At least one varying parameter must be specified" >&2
-    echo "       (--charge, --position, --position-x, --position-y, --position-z, or --al)" >&2
+    echo "       (--charge, --position, --position-x/y/z, --al, --electric-field, --temperature, --rho, --viscosity, --epsilon, or --rho-el)" >&2
     exit 1
 fi
 
@@ -223,6 +331,45 @@ if [ ! -f "config.cds.init.001-001" ]; then
     exit 1
 fi
 
+#------------------------------------------------------------------------
+# Create  subdirectory
+mkdir -p $base_dir
+
+# Copy files to execute simulation
+cp "$input_file" $base_dir
+cp input $base_dir
+cp config.cds.init.001-001 $base_dir
+cp runbg.sh $base_dir
+cp Ludwig.exe $base_dir
+# cp del.sh $base_dir
+
+# Copy files to execute plot
+cp runplot.sh $base_dir/
+cp extract_colloids $base_dir/
+cp coloideacsv.sh $base_dir/
+
+# Scripts that process raw data (need access to colloids-*.csv and vel-*) stay in root
+cp calculosvel.py $base_dir/
+cp calculosvelfluid.py $base_dir/
+cp calculosvelfluidonly.py $base_dir/
+cp extraer_posicion.py $base_dir/
+cp calculos.py $base_dir/
+
+# Plotting scripts (only read processed CSVs) go to plot subdirectory
+cp plotvel.py $base_dir/
+cp plot.py $base_dir/
+cp plot_velocity_field.py $base_dir/
+cp plot_charge_distribution.py $base_dir/
+cp plot_electric_field.py $base_dir/
+# cp plot_electric_field_peskin.py $base_dir/scripts
+cp plotdatos.py $base_dir/
+# cp batch_plot_electric_field.py $base_dir/scripts
+cp compare_field_theory.py $base_dir/
+# cp compare_field_theory_peskin.py $base_dir/scripts
+
+cd $base_dir
+pwd
+#--------------------------------------------------------------------------------
 # Create backup of original config file
 backup_file="config.cds.init.001-001.backup.$$"
 cp config.cds.init.001-001 "$backup_file"
@@ -235,6 +382,12 @@ IFS=',' read -ra POS_X_ARRAY <<< "$pos_x_values"
 IFS=',' read -ra POS_Y_ARRAY <<< "$pos_y_values"
 IFS=',' read -ra POS_Z_ARRAY <<< "$pos_z_values"
 IFS=',' read -ra AL_ARRAY <<< "$al_values"
+IFS=',' read -ra EFIELD_ARRAY <<< "$electric_field_values"
+IFS=',' read -ra TEMP_ARRAY <<< "$temperature_values"
+IFS=',' read -ra RHO_ARRAY <<< "$rho_values"
+IFS=',' read -ra VISC_ARRAY <<< "$viscosity_values"
+IFS=',' read -ra EPSILON_ARRAY <<< "$epsilon_values"
+IFS=',' read -ra RHOEL_ARRAY <<< "$rho_el_values"
 
 # If arrays are empty, add a dummy element to allow iteration
 [ ${#CHARGE_ARRAY[@]} -eq 0 ] && CHARGE_ARRAY=("")
@@ -243,6 +396,12 @@ IFS=',' read -ra AL_ARRAY <<< "$al_values"
 [ ${#POS_Y_ARRAY[@]} -eq 0 ] && POS_Y_ARRAY=("")
 [ ${#POS_Z_ARRAY[@]} -eq 0 ] && POS_Z_ARRAY=("")
 [ ${#AL_ARRAY[@]} -eq 0 ] && AL_ARRAY=("")
+[ ${#EFIELD_ARRAY[@]} -eq 0 ] && EFIELD_ARRAY=("")
+[ ${#TEMP_ARRAY[@]} -eq 0 ] && TEMP_ARRAY=("")
+[ ${#RHO_ARRAY[@]} -eq 0 ] && RHO_ARRAY=("")
+[ ${#VISC_ARRAY[@]} -eq 0 ] && VISC_ARRAY=("")
+[ ${#EPSILON_ARRAY[@]} -eq 0 ] && EPSILON_ARRAY=("")
+[ ${#RHOEL_ARRAY[@]} -eq 0 ] && RHOEL_ARRAY=("")
 
 # Automatically determine parameter name if not specified
 if [ -z "$param_name" ]; then
@@ -253,6 +412,12 @@ if [ -z "$param_name" ]; then
     [ -n "$pos_y_values" ] && param_components+=("y")
     [ -n "$pos_z_values" ] && param_components+=("z")
     [ -n "$al_values" ] && param_components+=("al")
+    [ -n "$electric_field_values" ] && param_components+=("e")
+    [ -n "$temperature_values" ] && param_components+=("kT")
+    [ -n "$rho_values" ] && param_components+=("rho")
+    [ -n "$viscosity_values" ] && param_components+=("visc")
+    [ -n "$epsilon_values" ] && param_components+=("eps")
+    [ -n "$rho_el_values" ] && param_components+=("rhoel")
 
     # Join with underscore
     param_name=$(IFS='_'; echo "${param_components[*]}")
@@ -269,6 +434,12 @@ echo "Position X values: ${pos_x_values:-[not varying]}"
 echo "Position Y values: ${pos_y_values:-[not varying]}"
 echo "Position Z values: ${pos_z_values:-[not varying]}"
 echo "AL values: ${al_values:-[not varying]}"
+echo "Electric field values: ${electric_field_values:-[not varying]}"
+echo "Temperature values: ${temperature_values:-[not varying]}"
+echo "Density values: ${rho_values:-[not varying]}"
+echo "Viscosity values: ${viscosity_values:-[not varying]}"
+echo "Epsilon values: ${epsilon_values:-[not varying]}"
+echo "Rho_el values: ${rho_el_values:-[not varying]}"
 if [ $parallel_mode -eq 1 ]; then
     echo "Execution mode: PARALLEL"
     if [ $max_parallel -gt 0 ]; then
@@ -288,7 +459,6 @@ sim_count=0
 declare -a bg_pids=()
 declare -a bg_dirs=()
 num=0
-runbg_args_aux=runbg_args
 # Nested loops for all parameter combinations
 for charge in "${CHARGE_ARRAY[@]}"; do
 for position in "${POSITION_ARRAY[@]}"; do
@@ -296,6 +466,12 @@ for pos_x in "${POS_X_ARRAY[@]}"; do
 for pos_y in "${POS_Y_ARRAY[@]}"; do
 for pos_z in "${POS_Z_ARRAY[@]}"; do
 for al in "${AL_ARRAY[@]}"; do
+for efield in "${EFIELD_ARRAY[@]}"; do
+for temp in "${TEMP_ARRAY[@]}"; do
+for rho in "${RHO_ARRAY[@]}"; do
+for visc in "${VISC_ARRAY[@]}"; do
+for epsilon in "${EPSILON_ARRAY[@]}"; do
+for rho_el in "${RHOEL_ARRAY[@]}"; do
     num=$((num+1))
     # If using --position, extract x, y, z components
     if [ -n "$position" ]; then
@@ -310,16 +486,39 @@ for al in "${AL_ARRAY[@]}"; do
     dir_suffix=""
     suffix_parts=()
 
-    [ -n "$charge" ] && suffix_parts+=("${charge}")
-    [ -n "$position" ] && suffix_parts+=("${position}")
-    [ -n "$pos_x_val" ] && [ -z "$position" ] && suffix_parts+=("${pos_x_val}")
-    [ -n "$pos_y_val" ] && [ -z "$position" ] && suffix_parts+=("${pos_y_val}")
-    [ -n "$pos_z_val" ] && [ -z "$position" ] && suffix_parts+=("${pos_z_val}")
-    [ -n "$al" ] && suffix_parts+=("${al}")
+    # Add simulation parameters (nsteps, step-interval, size) first
+    [ -n "$sim_nsteps" ] && suffix_parts+=("n_${sim_nsteps}")
+    [ -n "$sim_step_interval" ] && suffix_parts+=("s_${sim_step_interval}")
 
-    # Join with underscores for the suffix
+    # Add size as a combined parameter if all three dimensions are specified
+    if [ -n "$sim_size_x" ] && [ -n "$sim_size_y" ] && [ -n "$sim_size_z" ]; then
+        if [ "$sim_size_x" = "$sim_size_y" ] && [ "$sim_size_y" = "$sim_size_z" ]; then
+            # All dimensions equal: use compact notation L_X
+            suffix_parts+=("L_${sim_size_x}")
+        else
+            # Different dimensions: use full notation Lx_X_Ly_Y_Lz_Z
+            suffix_parts+=("Lx_${sim_size_x}_Ly_${sim_size_y}_Lz_${sim_size_z}")
+        fi
+    fi
+
+    # Add varying parameters
+    [ -n "$charge" ] && suffix_parts+=("q_${charge}")
+    [ -n "$position" ] && suffix_parts+=("pos_${position}")
+    # [ -n "$pos_x_val" ] && [ -z "$position" ] && suffix_parts+=("pos_${pos_x_val}")
+    # [ -n "$pos_y_val" ] && [ -z "$position" ] && suffix_parts+=("_${pos_y_val}")
+    # [ -n "$pos_z_val" ] && [ -z "$position" ] && suffix_parts+=("_${pos_z_val}")
+    [ -n "$pos_x_val" ] && [ -n "$pos_y_val" ] && [ -n "$pos_z_val" ] && [ -z "$position" ] && suffix_parts+=("pos_${pos_x_val}_${pos_y_val}_${pos_z_val}")
+    [ -n "$al" ] && suffix_parts+=("al_${al}")
+    [ -n "$efield" ] && suffix_parts+=("e_${efield}")
+    [ -n "$temp" ] && suffix_parts+=("kT_${temp}")
+    [ -n "$rho" ] && suffix_parts+=("rho_${rho}")
+    [ -n "$visc" ] && suffix_parts+=("eta_${visc}")
+    [ -n "$epsilon" ] && suffix_parts+=("eps_${epsilon}")
+    [ -n "$rho_el" ] && suffix_parts+=("rhoel_${rho_el}")
+
+    # Join with `-` for the suffix
     if [ ${#suffix_parts[@]} -gt 0 ]; then
-        dir_suffix="_$(IFS='_'; echo "${suffix_parts[*]}")"
+        dir_suffix="-$(IFS='-'; echo "${suffix_parts[*]}")"
     fi
 
     # Create output directory name
@@ -340,6 +539,12 @@ for al in "${AL_ARRAY[@]}"; do
         [ -n "$pos_z_val" ] && echo "  Position Z: $pos_z_val"
     fi
     [ -n "$al" ] && echo "  AL parameter: $al"
+    [ -n "$efield" ] && echo "  Electric field: $efield"
+    [ -n "$temp" ] && echo "  Temperature: $temp"
+    [ -n "$rho" ] && echo "  Density: $rho"
+    [ -n "$visc" ] && echo "  Viscosity: $visc"
+    [ -n "$epsilon" ] && echo "  Epsilon: $epsilon"
+    [ -n "$rho_el" ] && echo "  Rho_el: $rho_el"
 
     # Restore original config from backup for each simulation
     cp "$backup_file" config.cds.init.001-001
@@ -376,7 +581,20 @@ for al in "${AL_ARRAY[@]}"; do
     [ -n "$al" ] && modify_line_in_config 58 "$al" "$temp_config"
 
     # Replace the original config with modified one
-    mv "$temp_config" config.cds.init.001-001-$num
+    temp_parallel_config="config.cds.init.001-001-$num"
+    mv "$temp_config" "$temp_parallel_config"
+
+    # Build additional runbg.sh arguments for this specific simulation
+    sim_args=("${runbg_args[@]}")
+    sim_args+=("--config-file" "$temp_parallel_config")
+
+    # Add varying parameters to runbg.sh arguments
+    [ -n "$efield" ] && sim_args+=("-e" "$efield")
+    [ -n "$temp" ] && sim_args+=("-k" "$temp")
+    [ -n "$rho" ] && sim_args+=("-r" "$rho")
+    [ -n "$visc" ] && sim_args+=("-v" "$visc")
+    [ -n "$epsilon" ] && sim_args+=("--epsilon" "$epsilon")
+    [ -n "$rho_el" ] && sim_args+=("--rho-el" "$rho_el")
 
     # Call runbg.sh with the modified config
     if [ $parallel_mode -eq 1 ]; then
@@ -403,24 +621,23 @@ for al in "${AL_ARRAY[@]}"; do
             done
         fi
 
-        runbg_args+=("--config-file" "config.cds.init.001-001-$num")
+        echo "[PARALLEL] Starting: ./runbg.sh ${sim_args[@]} -o $output_dir"
 
-        echo "[PARALLEL] Starting: ./runbg.sh ${runbg_args[@]} -o $output_dir"
-
-        ./runbg.sh "${runbg_args[@]}" -o "$output_dir" &
+        ./runbg.sh "${sim_args[@]}" -o "$output_dir" &
         bg_pid=$!
         bg_pids+=("$bg_pid")
         bg_dirs+=("$output_dir")
         echo "[PARALLEL] Launched simulation in background (PID: $bg_pid, Dir: $output_dir)"
         sim_count=$((sim_count + 1))
 
+        # wait 5
+        # rm -f "$temp_parallel_config"
+
     else
         # SEQUENTIAL MODE: Run and wait for completion
 
-        runbg_args+=("--config-file" "config.cds.init.001-001-$num")
-
-        echo "Running: ./runbg.sh ${runbg_args[@]} -o $output_dir"
-        ./runbg.sh "${runbg_args[@]}" -o "$output_dir"
+        echo "Running: ./runbg.sh ${sim_args[@]} -o $output_dir"
+        ./runbg.sh "${sim_args[@]}" -o "$output_dir"
 
         if [ $? -eq 0 ]; then
             echo "Simulation completed successfully!"
@@ -434,8 +651,12 @@ for al in "${AL_ARRAY[@]}"; do
         fi
     fi
 
-    runbg_args=${runbg_args_aux[@]}
-
+done
+done
+done
+done
+done
+done
 done
 done
 done

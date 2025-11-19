@@ -257,8 +257,8 @@ void lb_collision_mrt1_site(lb_t* lb, hydro_t* hydro, map_t* map,
 
   int p, m;                               /* velocity index */
   int ia, ib;                             /* indices ("alphabeta") */
-  int iv = 0;                               /* SIMD loop counter */
-  double mode[NVEL * NSIMDVL];              /* Modes; hydrodynamic + ghost */
+  int iv = 0;                             /* SIMD loop counter */
+  double mode[NVEL * NSIMDVL];            /* Modes; hydrodynamic + ghost */
   double rho[NSIMDVL], rrho[NSIMDVL];     /* Density, reciprocal density */
   double u[3][NSIMDVL];                   /* Velocity */
   double s[3][3][NSIMDVL];                /* Stress */
@@ -274,12 +274,12 @@ void lb_collision_mrt1_site(lb_t* lb, hydro_t* hydro, map_t* map,
 
   double force[3][NSIMDVL];               /* External force */
   double tr_s[NSIMDVL], tr_seq[NSIMDVL];  /* Vectors for stress trace */
-  double fchunk[NVEL * NSIMDVL];            /* 1-d SIMD distribution vector */
+  double fchunk[NVEL * NSIMDVL];          /* 1-d SIMD distribution vector */
 
   char fullchunk = 1;
   char includeSite[NSIMDVL];
 
-  const double rdim = (1.0 / NDIM);         /* 1 / dimension */
+  const double rdim = (1.0 / NDIM);       /* 1 / dimension */
   KRONECKER_DELTA_CHAR(d);                /* delta_ab */
 
   assert(lb);
@@ -541,10 +541,11 @@ void lb_collision_mrt1_site(lb_t* lb, hydro_t* hydro, map_t* map,
 
   /* Project post-collision modes back onto the distribution */
 #ifdef _D3Q19_
+  //CHANGE INIT - Subgrid charge
   /* MODIFIED: Using Kahan version to reduce roundoff error accumulation */
-  /* To revert: uncomment the line below and comment out the Kahan version */
   /* d3q19_mode2f_chunk(mode, fchunk); */
   d3q19_mode2f_chunk_kahan(mode, fchunk);
+  //CHANGE END - Subgrid charge
 #else
   for (p = 0; p < NVEL; p++) {
     double ftmp[NSIMDVL];
@@ -4631,7 +4632,7 @@ __device__ void d3q19_mode2f_chunk_kahan(double* mode, double* fchunk) {
   int iv;
 
   /* Helper macro for Kahan summation */
-  #define KAHAN_ADD(coeff, mode_idx) \
+#define KAHAN_ADD(coeff, mode_idx) \
     for_simd_v(iv, NSIMDVL) { \
       volatile double val = (coeff) * mode[(mode_idx) * NSIMDVL + iv]; \
       volatile double y = val - ftmp_c[iv]; \
@@ -5077,7 +5078,7 @@ __device__ void d3q19_mode2f_chunk_kahan(double* mode, double* fchunk) {
   KAHAN_ADD(wc, 18);
   for_simd_v(iv, NSIMDVL) fchunk[18 * NSIMDVL + iv] = ftmp[iv];
 
-  #undef KAHAN_ADD
+#undef KAHAN_ADD
 }
 
 /*****************************************************************************

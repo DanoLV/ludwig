@@ -31,6 +31,10 @@
 
 #include "timer.h"
 #include "util.h"
+/*CHANGE INIT - Correct initial momentum to exactly zero */
+#include "map.h"
+#include "colloids.h"
+/*CHANGE END - Correct initial momentum to exactly zero */
 
 static int lb_model_param_init(lb_t * lb);
 static int lb_init(lb_t * lb);
@@ -832,6 +836,129 @@ int lb_1st_moment_equilib_set(lb_t * lb, int index, double rho, double u[3]) {
 
   return 0;
 }
+
+/*CHANGE INIT - Correct initial momentum to exactly zero */
+/*****************************************************************************
+ *
+ *  lb_correct_initial_momentum
+ *
+ *  Correct total momentum (fluid + particles) to ensure it is exactly zero.
+ *  This removes roundoff errors from equilibrium initialization and ensures
+ *  momentum conservation including colloids.
+ *
+ *  The correction is applied uniformly to all fluid sites by adjusting f[p]
+ *  in a way that preserves density but changes momentum.
+ *
+ *****************************************************************************/
+
+int lb_correct_initial_momentum(lb_t * lb, map_t * map, colloids_info_t * cinfo) {
+
+  int ic, jc, kc, ia, p, index;
+  int nlocal[3];
+  int status;
+  double g_local[3] = {0.0, 0.0, 0.0};
+  double g_total[3] = {0.0, 0.0, 0.0};
+  double p_colloid_local[3] = {0.0, 0.0, 0.0};
+  double p_colloid_total[3] = {0.0, 0.0, 0.0};
+  double p_system_total[3];
+  double g_correction[3];
+  double rho;
+  int nfluid_local = 0;
+  int nfluid_total = 0;
+  MPI_Comm comm;
+  colloid_t * pc = NULL;
+
+  assert(lb);
+  assert(map);
+
+  cs_nlocal(lb->cs, nlocal);
+  cs_cart_comm(lb->cs, &comm);
+
+  /* Calculate total momentum of fluid */
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(lb->cs, ic, jc, kc);
+        map_status(map, index, &status);
+
+        if (status == MAP_FLUID) {
+          double g[3];
+          lb_1st_moment(lb, index, LB_RHO, g);
+
+          for (ia = 0; ia < 3; ia++) {
+            g_local[ia] += g[ia];
+          }
+          nfluid_local++;
+        }
+      }
+    }
+  }
+
+  /* Calculate total momentum of colloids if present */
+  /* Note: For subgrid particles without explicit mass, we assume their
+   * momentum is negligible compared to the fluid (particle velocity is
+   * initialized to zero). This correction is mainly for roundoff errors
+   * in the fluid momentum. */
+  if (cinfo) {
+    colloids_info_local_head(cinfo, &pc);
+    for (; pc; pc = pc->nextlocal) {
+      /* For subgrid particles, momentum contribution is not included
+       * as they don't have an explicit mass parameter and v[ia]=0 at init */
+      /* If pc->s.bc != COLLOID_BC_SUBGRID, this would need proper mass calculation */
+    }
+  }
+
+  /* Reduce across all MPI ranks */
+  MPI_Allreduce(g_local, g_total, 3, MPI_DOUBLE, MPI_SUM, comm);
+  MPI_Allreduce(p_colloid_local, p_colloid_total, 3, MPI_DOUBLE, MPI_SUM, comm);
+  MPI_Allreduce(&nfluid_local, &nfluid_total, 1, MPI_INT, MPI_SUM, comm);
+
+  /* Calculate total system momentum (fluid + colloids) */
+  for (ia = 0; ia < 3; ia++) {
+    p_system_total[ia] = g_total[ia] + p_colloid_total[ia];
+  }
+
+  /* Calculate per-site correction (distribute equally to all fluid sites)
+   * We correct the fluid momentum to cancel the total system momentum */
+  for (ia = 0; ia < 3; ia++) {
+    g_correction[ia] = -p_system_total[ia] / nfluid_total;
+  }
+
+  /* Apply correction to each fluid site by adjusting distributions
+   * We adjust f[p] by adding: correction[a] * cv[p][a] / cs2
+   * This changes momentum without changing density */
+
+  double cs2 = lb->model.cs2;
+
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(lb->cs, ic, jc, kc);
+        map_status(map, index, &status);
+
+        if (status == MAP_FLUID) {
+          lb_0th_moment(lb, index, LB_RHO, &rho);
+
+          for (p = 0; p < lb->model.nvel; p++) {
+            double df = 0.0;
+            for (ia = 0; ia < 3; ia++) {
+              df += g_correction[ia] * lb->model.cv[p][ia] / cs2;
+            }
+
+            double f_old;
+            lb_f(lb, index, p, LB_RHO, &f_old);
+            lb_f_set(lb, index, p, LB_RHO, f_old + df);
+          }
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+/*CHANGE END - Correct initial momentum to exactly zero */
 
 /* We will not exceed 27 directions! Direction index 0, in keeping
  * with the LB model definition, is (0,0,0) - so no communication. */

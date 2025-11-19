@@ -321,7 +321,14 @@ int psi_solver_petsc_matrix_set(psi_solver_petsc_t * solver) {
     for (int j = ys; j < ye; j++) {
       for (int i = xs; i < xe; i++) {
 
-	MatStencil row = {.i = i, .j = j, .k = k};
+	/*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
+	/* Original: MatStencil row = {.i = i, .j = j, .k = k}; */
+	/* CUDA nvcc requires explicit member assignment instead of designated initializers */
+	MatStencil row;
+	row.i = i;
+	row.j = j;
+	row.k = k;
+	/*CHANGE END*/
 
 	for (int p = 0; p < s->npoints; p++) {
 	  col[p].i = i + s->cv[p][X];
@@ -685,7 +692,14 @@ int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t * solver) {
 	double epsilon0 = 0.0;
 	double gradeps[3] = {0};
 
-	MatStencil row = {.i = i, .j = j, .k = k};
+	/*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
+	/* Original: MatStencil row = {.i = i, .j = j, .k = k}; */
+	/* CUDA nvcc requires explicit member assignment instead of designated initializers */
+	MatStencil row;
+	row.i = i;
+	row.j = j;
+	row.k = k;
+	/*CHANGE END*/
 
 	solver->epsilon(solver->fe, index, &epsilon0);
 

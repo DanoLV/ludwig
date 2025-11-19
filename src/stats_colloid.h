@@ -16,6 +16,9 @@
 #include "colloids.h"
 
 int stats_colloid_momentum(colloids_info_t * cinfo, double g[3]);
+/*CHANGE INIT - Subgrid momentum */
+int stats_colloid_momentum_subgrid(colloids_info_t * cinfo, double g[3]);
+/*CHANGE END - Subgrid momentum */
 int stats_colloid_velocity_minmax(colloids_info_t * cinfo);
 int stats_colloid_write_velocities(pe_t * pe, colloids_info_t * cinfo);
 int stats_colloid_write_info(pe_t * pe, colloids_info_t * cinfo, const double t);

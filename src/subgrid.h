@@ -52,11 +52,15 @@ int subgrid_charge_from_particles_restore(colloids_info_t* cinfo, psi_t* obj, di
 void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge);
 void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro);
+int subgrid_update_forces_electrokinetics_theory(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro);
 int subgrid_update_Esub(colloids_info_t* cinfo, psi_t* psi, int step, FILE* fp);
-int subgrid_compute_self_field_single_particle(colloid_t* pc, 
+int subgrid_compute_self_field_single_particle(colloid_t* pc,
                                                 colloids_info_t* cinfo,
                                                 psi_t* psi_global,
                                                 double E_self[3]);
+double d_isdw(double r0[3], int node_i, int node_j, int node_k,
+                    int i_min, int i_max, int j_min, int j_max,
+                    int k_min, int k_max);
 /*CHANGE END - Subgrid charge */
 
 int subgrid_update(colloids_info_t* cinfo, hydro_t* hydro, int noise_flag);
