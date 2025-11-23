@@ -6,7 +6,7 @@
 ##############################################################################
 
 N_start 0
-N_cycles 5000
+N_cycles 2000
 
 ##############################################################################
 #
@@ -14,7 +14,7 @@ N_cycles 5000
 # 
 ##############################################################################
 
-size 32_32_32
+size 16_16_16
 grid 1_1_1
 
 ##############################################################################
@@ -23,15 +23,15 @@ grid 1_1_1
 #
 ##############################################################################
 
-fluid_rho0       0.8
-viscosity 1e-04
-viscosity_bulk 1e-04
+fluid_rho0 0.8
+viscosity 0.05
+viscosity_bulk 0.05
 
 lb_relaxation_scheme M10
 # lb_relaxation_scheme BGK
-lb_fluctuations  0 #yes
+lb_fluctuations 0
 # temperature      0.0002
-temperature      0.0005
+temperature 0.00001
 # temperature      0.5
 # force 0.0_0.0_-0.00000001
 
@@ -45,15 +45,15 @@ free_energy fe_electro
 # External field
 electric_e0 0.0_0.0_0.0
 
-# electrokinetics_init   point_charges
-# electrokinetics_init   uniform
+electrokinetics_init uniform
 # electrokinetics_z0      +1
 # electrokinetics_z1      -1
-electrokinetics_d0      0.1
-electrokinetics_d1      0.1
+# electrokinetics_d0      0.1
+# electrokinetics_d1      0.1
 # electrokinetics_eunit   0.5
 # electrokinetics_epsilon     1.0e4
-# electrokinetics_init_rho_el 5.0e-3
+electrokinetics_epsilon 1.0e4
+electrokinetics_init_rho_el 2.0e-3
 electrokinetics_rel_tol     1.0e-26
 electrokinetics_abs_tol     1.0e-27
 # electrokinetics_maxits   10000
@@ -61,7 +61,7 @@ electrokinetics_abs_tol     1.0e-27
 # electrokinetics_multisteps 5
 # electrokinetics_solver_stencil 19
 
-electrokinetics_solver_type petsc 
+electrokinetics_solver_type petsc
 # electrokinetics_solver_type #petsc sor
 fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence
 
@@ -136,9 +136,9 @@ default_io_mode   mpiio
 default_io_format ascii
 
 freq_statistics     100
-vel_io_freq         500
+vel_io_freq 10
 # psi_io_freq         5
-freq_config       50
+freq_config 1000
 config_at_end     yes
 
 ##############################################################################
@@ -147,7 +147,7 @@ config_at_end     yes
 #
 ##############################################################################
 
-colloid_io_freq 500
+colloid_io_freq 10
 colloid_io_format_output ASCII
 
 ###############################################################################

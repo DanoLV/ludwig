@@ -4,12 +4,26 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import re
+import sys
 from pathlib import Path
 
 paso=1000
+
+# Parsear argumentos
+show_plot = True  # Por defecto mostrar el gráfico
+base_dir = None
+
+for arg in sys.argv[1:]:
+    if arg == '--no-show':
+        show_plot = False
+    else:
+        base_dir = arg
+
 # Directorio base
-os.chdir("..")
-base_dir = os.getcwd()
+if base_dir is None:
+    # Si no se pasa directorio, usar el comportamiento original
+    os.chdir("..")
+    base_dir = os.getcwd()
 
 # Lista para almacenar los resultados
 results = []
@@ -132,6 +146,7 @@ plot_file = os.path.join(base_dir, 'campo_electrico_vs_x.png')
 plt.savefig(plot_file, dpi=300, bbox_inches='tight')
 print(f"Gráfico guardado en: {plot_file}")
 
-plt.show()
+if show_plot:
+    plt.show()
 
 print("\n¡Análisis completado!")

@@ -11,12 +11,13 @@ import argparse
 import os
 import glob
 
-def read_velocity_file(filename):
+def read_velocity_file(filename, grid_size=None):
     """
     Lee un archivo de velocidades y devuelve un array 3D
 
     Args:
         filename: nombre del archivo vel-*
+        grid_size: tupla (nx, ny, nz) opcional. Si None, asume malla cúbica
 
     Returns:
         velocity_field: array de forma (nx, ny, nz, 3) con componentes vx, vy, vz
@@ -25,12 +26,26 @@ def read_velocity_file(filename):
     # Leer datos
     data = np.loadtxt(filename)
 
-    # Calcular tamaño de la malla (asumiendo malla cúbica)
-    total_points = data.shape[0]
-    nx = int(round(total_points ** (1/3)))
-    ny = nz = nx
+    if grid_size is not None:
+        # Usar dimensiones especificadas por el usuario
+        nx, ny, nz = grid_size
+        expected_points = nx * ny * nz
+        actual_points = data.shape[0]
 
-    print(f"Malla detectada: {nx}x{ny}x{nz} = {total_points} puntos")
+        if actual_points != expected_points:
+            raise ValueError(
+                f"El número de puntos en el archivo ({actual_points}) no coincide "
+                f"con las dimensiones especificadas {nx}x{ny}x{nz} = {expected_points}"
+            )
+
+        print(f"Malla especificada: {nx}x{ny}x{nz} = {actual_points} puntos")
+    else:
+        # Calcular tamaño de la malla (asumiendo malla cúbica)
+        total_points = data.shape[0]
+        nx = int(round(total_points ** (1/3)))
+        ny = nz = nx
+
+        print(f"Malla detectada (cúbica): {nx}x{ny}x{nz} = {total_points} puntos")
 
     # Reorganizar datos en malla 3D
     # Asumiendo orden: z varía más rápido, luego y, luego x
@@ -343,23 +358,26 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Ejemplos de uso:
-  # Graficar planos principales para el paso 50
+  # Graficar planos principales para el paso 50 (malla cúbica auto-detectada)
   %(prog)s -d ./directorio -t 50
 
-  # Graficar solo plano XY en z=16
-  %(prog)s -f vel-000000050.001-001 --plane xy --index 16
+  # Graficar con dimensiones específicas (por ejemplo, malla 2D: 64x64x4)
+  %(prog)s -f vel-000000050.001-001 -s 64 64 4
+
+  # Graficar solo plano XY en z=2 con dimensiones específicas
+  %(prog)s -f vel-000000050.001-001 -s 64 64 4 --plane xy --index 2
 
   # Graficar con submuestreo de flechas (cada 2 puntos)
-  %(prog)s -f vel-000000050.001-001 --skip 2
+  %(prog)s -f vel-000000050.001-001 -s 64 64 4 --skip 2
 
-  # Graficar plano XZ en y=10 con escala personalizada
-  %(prog)s -f vel-000000050.001-001 --plane xz --index 10 --scale 100
+  # Graficar plano XZ en y=32 con escala personalizada
+  %(prog)s -f vel-000000050.001-001 -s 64 64 4 --plane xz --index 32 --scale 100
 
   # Graficar solo la magnitud en plano (sin vectores)
-  %(prog)s -f vel-000000050.001-001 --plane xy --magnitude-only
+  %(prog)s -f vel-000000050.001-001 -s 64 64 4 --plane xy --magnitude-only
 
   # Graficar solo un panel con magnitud y vectores
-  %(prog)s -f vel-000000050.001-001 --plane xy --single-plot --skip 2
+  %(prog)s -f vel-000000050.001-001 -s 64 64 4 --plane xy --single-plot --skip 2
         """
     )
 
@@ -372,6 +390,11 @@ Ejemplos de uso:
 
     parser.add_argument('-t', '--timestep', type=int,
                         help='Número de paso temporal (requerido si se usa -d)')
+
+    # Dimensiones del grid
+    parser.add_argument('-s', '--size', nargs=3, type=int,
+                        metavar=('NX', 'NY', 'NZ'),
+                        help='Tamaño de la malla (nx ny nz). Si no se especifica, asume malla cúbica')
 
     # Opciones de plano
     parser.add_argument('--plane', type=str, choices=['xy', 'xz', 'yz', 'all'],
@@ -427,7 +450,8 @@ Ejemplos de uso:
     print(f"Leyendo archivo: {vel_file}")
 
     # Leer datos
-    velocity_field, grid_size = read_velocity_file(vel_file)
+    grid_size_input = tuple(args.size) if args.size else None
+    velocity_field, grid_size = read_velocity_file(vel_file, grid_size=grid_size_input)
     nx, ny, nz = grid_size
 
     # Crear directorio de salida si no existe

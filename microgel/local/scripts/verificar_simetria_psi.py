@@ -603,21 +603,33 @@ class SymmetryAnalyzer:
 
         return results
 
-    def plot_radial_symmetry(self, results, output=None, kappa=None, log_scale='none', psi_offset_factor=1.1, psi_theory_mean_offset=0.0):
+    def plot_radial_symmetry(self, results, output=None, kappa=None, log_scale='none', psi_offset_factor=1.1, psi_theory_mean_offset=0.0, symlog_linthresh=1e-6, efield_only=False):
         """Grafica los resultados del análisis de simetría radial con comparación teórica
 
         Args:
             results: Diccionario con resultados del análisis radial
             output: Ruta del archivo de salida (None para mostrar en pantalla)
             kappa: Parámetro de Debye (para mostrar en el título)
-            log_scale: 'none' (lineal), 'y' (log solo en Y), 'xy' (log-log en ambos ejes)
-            psi_offset_factor: Factor para calcular offset: offset = -psi_min * factor
+            log_scale: 'none' (lineal), 'y' (log solo en Y), 'xy' (log-log en ambos ejes), 'symlog' (symlog en Y), 'symlog-xy' (symlog en ambos ejes)
+            psi_offset_factor: Factor para calcular offset: offset = -psi_min * factor (solo para escalas log normales)
             psi_theory_mean_offset: Offset de media de teoría para recuperar valores absolutos en log
+            symlog_linthresh: Umbral lineal para escala symlog (rango lineal: [-linthresh, +linthresh])
+            efield_only: Si True, solo grafica campo eléctrico y su error (omite potencial)
         """
         # Verificar si hay datos teóricos
         has_theory = 'E_theory_mean' in results
 
-        if has_theory:
+        if efield_only:
+            # Solo graficar campo eléctrico y error
+            if has_theory:
+                # Layout 2x1: Campo (arriba), Error E (abajo)
+                fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(12, 10))
+                ax2, ax4 = None, None
+            else:
+                # Solo campo eléctrico
+                fig, ax1 = plt.subplots(1, 1, figsize=(12, 6))
+                ax2, ax3, ax4 = None, None, None
+        elif has_theory:
             # Layout 2x2: Campo (arriba izq), Potencial (arriba der),
             #             Error E (abajo izq), Error psi (abajo der)
             fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
@@ -652,6 +664,10 @@ class SymmetryAnalyzer:
             title_str += ' (escala log-Y)'
         elif log_scale == 'xy':
             title_str += ' (escala log-log)'
+        elif log_scale == 'symlog':
+            title_str += f' (escala symlog-Y, linthresh={symlog_linthresh:.1e})'
+        elif log_scale == 'symlog-xy':
+            title_str += f' (escala symlog-log, linthresh={symlog_linthresh:.1e})'
         ax1.set_title(title_str, fontsize=16)
         ax1.grid(True, alpha=0.3)
         ax1.legend(fontsize=12)
@@ -665,6 +681,14 @@ class SymmetryAnalyzer:
             ax1.set_yscale('log')
             ax1.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
             ax1.set_ylabel('Magnitud del campo eléctrico |E| (escala log)', fontsize=14)
+        elif log_scale == 'symlog':
+            ax1.set_yscale('symlog', linthresh=symlog_linthresh)
+            ax1.set_ylabel('Magnitud del campo eléctrico |E| (escala symlog)', fontsize=14)
+        elif log_scale == 'symlog-xy':
+            ax1.set_xscale('log')
+            ax1.set_yscale('symlog', linthresh=symlog_linthresh)
+            ax1.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
+            ax1.set_ylabel('Magnitud del campo eléctrico |E| (escala symlog)', fontsize=14)
 
         # Añadir línea de ajuste 1/r² solo si NO hay teoría
         if not has_theory:
@@ -685,88 +709,119 @@ class SymmetryAnalyzer:
                 except:
                     pass
 
-        # Gráfico de potencial
-        # Si se usa escala logarítmica, necesitamos desplazar el potencial para que sea positivo
-        psi_offset = 0.0
+        # Ajustar a ψ = k/r (Coulomb) solo si no hay teoría Y no es efield_only
+        if not has_theory and ax2 is not None:
+            valid_idx = ~np.isnan(psi_mean)
+            if np.any(valid_idx):
+                r_valid = np.array(radii)[valid_idx]
+                psi_valid = np.array(psi_mean)[valid_idx]
+                from scipy.optimize import curve_fit
+                try:
+                    def coulomb_potential(r, k):
+                        return k / r
+                    popt, _ = curve_fit(coulomb_potential, r_valid, psi_valid)
+                    r_fit = np.linspace(r_valid[0], r_valid[-1], 100)
+                    ax2.plot(r_fit, coulomb_potential(r_fit, *popt), '--',
+                            label=f'Ajuste: k/r (k={popt[0]:.4e})', linewidth=2)
+                    ax2.legend(fontsize=12)
+                except:
+                    pass
 
-        # Preparar datos para graficar
-        if log_scale in ['y', 'xy']:
-            # En escala log, queremos recuperar los valores absolutos originales
-            # Primero sumamos el offset de la teoría a ambas curvas
-            # Esto las pone en la misma referencia absoluta (la de la teoría original)
-            psi_mean_with_theory_ref = np.array(psi_mean) + psi_theory_mean_offset
-            if has_theory and 'psi_theory_mean' in results:
-                psi_theory_mean_values = results['psi_theory_mean']
-                psi_theory_with_ref = np.array(psi_theory_mean_values) + psi_theory_mean_offset
+        # Gráfico de potencial (solo si no es efield_only)
+        if ax2 is not None:
+            # Si se usa escala logarítmica (no symlog), necesitamos desplazar el potencial para que sea positivo
+            psi_offset = 0.0
+
+            # Preparar datos para graficar
+            if log_scale in ['y', 'xy']:
+                # En escala log, queremos recuperar los valores absolutos originales
+                # Primero sumamos el offset de la teoría a ambas curvas
+                # Esto las pone en la misma referencia absoluta (la de la teoría original)
+                psi_mean_with_theory_ref = np.array(psi_mean) + psi_theory_mean_offset
+                if has_theory and 'psi_theory_mean' in results:
+                    psi_theory_mean_values = results['psi_theory_mean']
+                    psi_theory_with_ref = np.array(psi_theory_mean_values) + psi_theory_mean_offset
+                else:
+                    psi_theory_with_ref = None
+
+                # Ahora encontrar el mínimo para calcular un offset adicional si es necesario
+                psi_min = np.nanmin(psi_mean_with_theory_ref)
+                if psi_theory_with_ref is not None:
+                    psi_min = min(psi_min, np.nanmin(psi_theory_with_ref))
+
+                # Si aún hay valores negativos, aplicar offset adicional
+                if psi_min < 0:
+                    psi_offset = -psi_min * psi_offset_factor
+                else:
+                    psi_offset = 0.0
+
+                # Aplicar offset final
+                psi_mean_plot = psi_mean_with_theory_ref + psi_offset
+                if psi_theory_with_ref is not None:
+                    psi_theory_mean_plot = psi_theory_with_ref + psi_offset
+                else:
+                    psi_theory_mean_plot = None
+
+                # El offset total es la suma de ambos
+                psi_offset = psi_theory_mean_offset + psi_offset
             else:
-                psi_theory_with_ref = None
+                # Escala lineal o symlog: usar valores originales (symlog maneja negativos)
+                psi_mean_plot = psi_mean
+                if has_theory and 'psi_theory_mean' in results:
+                    psi_theory_mean_plot = results['psi_theory_mean']
+                else:
+                    psi_theory_mean_plot = None
 
-            # Ahora encontrar el mínimo para calcular un offset adicional si es necesario
-            psi_min = np.nanmin(psi_mean_with_theory_ref)
-            if psi_theory_with_ref is not None:
-                psi_min = min(psi_min, np.nanmin(psi_theory_with_ref))
+            ax2.errorbar(radii, psi_mean_plot, yerr=psi_std, fmt='o-', linewidth=2,
+                        markersize=8, capsize=5, color='purple', label='Simulación ψ ± σ')
 
-            # Si aún hay valores negativos, aplicar offset adicional
-            if psi_min < 0:
-                psi_offset = -psi_min * psi_offset_factor
-            else:
-                psi_offset = 0.0
+            # Agregar potencial teórico si está disponible
+            if has_theory and psi_theory_mean_plot is not None:
+                psi_theory_std = results['psi_theory_std']
+                model_name = 'Debye-Hückel' if (kappa is not None and kappa > 0) else 'Coulomb'
+                ax2.errorbar(radii, psi_theory_mean_plot, yerr=psi_theory_std, fmt='s--', linewidth=2,
+                            markersize=6, capsize=5, label=f'Teoría ({model_name}) ± σ', color='orange')
 
-            # Aplicar offset final
-            psi_mean_plot = psi_mean_with_theory_ref + psi_offset
-            if psi_theory_with_ref is not None:
-                psi_theory_mean_plot = psi_theory_with_ref + psi_offset
-            else:
-                psi_theory_mean_plot = None
+            ax2.set_xlabel('Distancia desde la partícula', fontsize=14)
+            ylabel_psi = 'Potencial eléctrico ψ'
+            psi_title = 'Simetría Radial del Potencial'
+            if log_scale == 'y':
+                psi_title += ' (escala log-Y)'
+                ylabel_psi += ' (escala log)'
+                if psi_offset > 0:
+                    psi_title += f' [offset +{psi_offset:.4f}]'
+            elif log_scale == 'xy':
+                psi_title += ' (escala log-log)'
+                ylabel_psi += ' (escala log)'
+                if psi_offset > 0:
+                    psi_title += f' [offset +{psi_offset:.4f}]'
+            elif log_scale == 'symlog':
+                psi_title += f' (escala symlog-Y, linthresh={symlog_linthresh:.1e})'
+                ylabel_psi += ' (escala symlog)'
+            elif log_scale == 'symlog-xy':
+                psi_title += f' (escala symlog-log, linthresh={symlog_linthresh:.1e})'
+                ylabel_psi += ' (escala symlog)'
+            ax2.set_ylabel(ylabel_psi, fontsize=14)
+            ax2.set_title(psi_title, fontsize=16)
+            ax2.grid(True, alpha=0.3)
+            ax2.legend(fontsize=12)
 
-            # El offset total es la suma de ambos
-            psi_offset = psi_theory_mean_offset + psi_offset
-        else:
-            # Escala lineal: usar valores originales
-            psi_mean_plot = psi_mean
-            if has_theory and 'psi_theory_mean' in results:
-                psi_theory_mean_plot = results['psi_theory_mean']
-            else:
-                psi_theory_mean_plot = None
+            # Aplicar escala logarítmica si se solicita
+            if log_scale == 'y':
+                ax2.set_yscale('log')
+            elif log_scale == 'xy':
+                ax2.set_xscale('log')
+                ax2.set_yscale('log')
+                ax2.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
+            elif log_scale == 'symlog':
+                ax2.set_yscale('symlog', linthresh=symlog_linthresh)
+            elif log_scale == 'symlog-xy':
+                ax2.set_xscale('log')
+                ax2.set_yscale('symlog', linthresh=symlog_linthresh)
+                ax2.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
 
-        ax2.errorbar(radii, psi_mean_plot, yerr=psi_std, fmt='o-', linewidth=2,
-                    markersize=8, capsize=5, color='purple', label='Simulación ψ ± σ')
-
-        # Agregar potencial teórico si está disponible
-        if has_theory and psi_theory_mean_plot is not None:
-            psi_theory_std = results['psi_theory_std']
-            model_name = 'Debye-Hückel' if (kappa is not None and kappa > 0) else 'Coulomb'
-            ax2.errorbar(radii, psi_theory_mean_plot, yerr=psi_theory_std, fmt='s--', linewidth=2,
-                        markersize=6, capsize=5, label=f'Teoría ({model_name}) ± σ', color='orange')
-
-        ax2.set_xlabel('Distancia desde la partícula', fontsize=14)
-        ylabel_psi = 'Potencial eléctrico ψ'
-        psi_title = 'Simetría Radial del Potencial'
-        if log_scale == 'y':
-            psi_title += ' (escala log-Y)'
-            ylabel_psi += ' (escala log)'
-            if psi_offset > 0:
-                psi_title += f' [offset +{psi_offset:.4f}]'
-        elif log_scale == 'xy':
-            psi_title += ' (escala log-log)'
-            ylabel_psi += ' (escala log)'
-            if psi_offset > 0:
-                psi_title += f' [offset +{psi_offset:.4f}]'
-        ax2.set_ylabel(ylabel_psi, fontsize=14)
-        ax2.set_title(psi_title, fontsize=16)
-        ax2.grid(True, alpha=0.3)
-        ax2.legend(fontsize=12)
-
-        # Aplicar escala logarítmica si se solicita
-        if log_scale == 'y':
-            ax2.set_yscale('log')
-        elif log_scale == 'xy':
-            ax2.set_xscale('log')
-            ax2.set_yscale('log')
-            ax2.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
-
-        # Gráfico de error relativo del campo eléctrico (subplot inferior izquierdo)
-        if has_theory:
+        # Gráfico de error relativo del campo eléctrico (subplot inferior izquierdo o inferior si efield_only)
+        if has_theory and ax3 is not None:
             rel_error_E = results['relative_error']
             ax3.plot(radii, np.array(rel_error_E) * 100, 'o-', linewidth=2,
                     markersize=8, color='green')
@@ -781,7 +836,8 @@ class SymmetryAnalyzer:
             ax3.axhline(y=10, color='red', linestyle=':', linewidth=1, alpha=0.5, label='±10%')
             ax3.legend(fontsize=10)
 
-            # Gráfico de error relativo del potencial (subplot inferior derecho)
+        # Gráfico de error relativo del potencial (subplot inferior derecho, solo si no es efield_only)
+        if has_theory and ax4 is not None:
             # Calcular error relativo del potencial
             psi_sim = results['psi_mean']
             psi_theory = results['psi_theory_mean']
@@ -804,24 +860,6 @@ class SymmetryAnalyzer:
             ax4.axhline(y=5, color='orange', linestyle=':', linewidth=1, alpha=0.5, label='±5%')
             ax4.axhline(y=10, color='red', linestyle=':', linewidth=1, alpha=0.5, label='±10%')
             ax4.legend(fontsize=10)
-
-        # Ajustar a ψ = k/r (Coulomb) solo si no hay teoría
-        if not has_theory:
-            valid_idx = ~np.isnan(psi_mean)
-            if np.any(valid_idx):
-                r_valid = np.array(radii)[valid_idx]
-                psi_valid = np.array(psi_mean)[valid_idx]
-                from scipy.optimize import curve_fit
-                try:
-                    def coulomb_potential(r, k):
-                        return k / r
-                    popt, _ = curve_fit(coulomb_potential, r_valid, psi_valid)
-                    r_fit = np.linspace(r_valid[0], r_valid[-1], 100)
-                    ax2.plot(r_fit, coulomb_potential(r_fit, *popt), '--',
-                            label=f'Ajuste: k/r (k={popt[0]:.4e})', linewidth=2)
-                    ax2.legend(fontsize=12)
-                except:
-                    pass
 
         plt.tight_layout()
 
@@ -1137,6 +1175,14 @@ OPCIONES AVANZADAS:
    ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
        --compare-theory --kappa 0.1 --log-scale xy -o simetria_DH_loglog_
 
+   Usar escala symlog (logarítmica simétrica) - maneja valores positivos y negativos:
+   ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
+       --compare-theory --kappa 0.1 --log-scale symlog --symlog-linthresh 1e-5 -o simetria_DH_symlog_
+
+   Usar escala symlog-xy (log-X y symlog-Y):
+   ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
+       --compare-theory --kappa 0.1 --log-scale symlog-xy --symlog-linthresh 1e-6 -o simetria_DH_symlog_xy_
+
 10. Usar cáscaras esféricas más finas para mayor precisión:
    ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
        --compare-theory --kappa 0.1 --shell-thickness 0.1 -o simetria_DH_
@@ -1152,6 +1198,10 @@ OPCIONES AVANZADAS:
 13. Ajustar el offset del potencial en escala logarítmica:
    ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
        --compare-theory --kappa 0.1 --log-scale xy --psi-offset-factor 1.5 -o simetria_DH_
+
+14. Análisis radial graficando SOLO campo eléctrico y su error (omite potencial):
+   ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
+       --compare-theory --kappa 0.1 --log-scale xy --radial-only --efield-only -o simetria_DH_E_
 
 NOTAS:
   - kappa = 0: Modelo de Coulomb (vacío, sin screening iónico)
@@ -1187,10 +1237,14 @@ NOTAS:
     parser.add_argument('--planes', nargs='+', choices=['xy', 'xz', 'yz'],
                        default=['xy', 'xz', 'yz'],
                        help='Planos a analizar (default: xy xz yz)')
-    parser.add_argument('--log-scale', choices=['y', 'xy', 'none'], default='none',
-                       help='Escala logarítmica: "y" (solo eje Y), "xy" (ambos ejes log-log), "none" (lineal)')
+    parser.add_argument('--log-scale', choices=['y', 'xy', 'symlog', 'symlog-xy', 'none'], default='none',
+                       help='Escala logarítmica: "y" (solo eje Y), "xy" (ambos ejes log-log), "symlog" (symlog en Y), "symlog-xy" (log-X y symlog-Y), "none" (lineal)')
+    parser.add_argument('--symlog-linthresh', type=float, default=1e-6,
+                       help='Umbral lineal para escala symlog (región lineal: [-linthresh, +linthresh]). Default: 1e-6')
     parser.add_argument('--radial-only', action='store_true',
                        help='Solo realizar análisis radial (salta planos, componentes y métricas). Por defecto solo guarda el gráfico radial.')
+    parser.add_argument('--efield-only', action='store_true',
+                       help='En modo radial, solo graficar campo eléctrico y su error (omite potencial). Requiere --radial-only.')
     parser.add_argument('--save-csv', action='store_true',
                        help='Guardar perfiles radiales en archivos CSV (además de los gráficos). Por defecto solo se guardan gráficos.')
     parser.add_argument('--psi-offset-factor', type=float, default=1.1,
@@ -1213,6 +1267,11 @@ NOTAS:
                        help='Prefijo para archivos de salida (default: mostrar en pantalla)')
 
     args = parser.parse_args()
+
+    # Validar que --efield-only solo se use con --radial-only
+    if args.efield_only and not args.radial_only:
+        print("Error: --efield-only requiere --radial-only")
+        sys.exit(1)
 
     # Verificar que el archivo existe
     if not os.path.exists(args.file):
@@ -1275,16 +1334,45 @@ NOTAS:
 
         # Calcular potencial teórico
         print("Calculando potencial teórico...")
-        psi_theory = TheoreticalField.debye_huckel_potential(
+        psi_theory_raw = TheoreticalField.debye_huckel_potential(
             particle_pos, tuple(args.size),
             q=args.charge, epsilon=args.epsilon, kt=args.kt,
             kappa=args.kappa, scale_factor=scale_factor
         )
 
-        # Ajustar potencial teórico para tener media cero (igual que la simulación)
-        psi_theory_mean_offset = np.mean(psi_theory)
-        psi_theory = psi_theory - psi_theory_mean_offset
-        print(f"Potencial teórico calculado (ajustado a media cero, offset={psi_theory_mean_offset:.6e}).")
+        # IMPORTANTE: No podemos simplemente restar la media del potencial teórico,
+        # porque Ludwig resta la media del potencial simulado (que incluye efectos
+        # de borde periódico), y estos dos offsets no son iguales.
+        # En su lugar, ajustamos el offset del potencial teórico para que coincida
+        # con la simulación a una distancia de referencia específica.
+
+        # Primero, restamos la media de la simulación (Ludwig ya hizo esto)
+        # Luego, encontramos el offset que minimiza la diferencia con la simulación
+        # a distancias donde ambos deberían coincidir (excluyendo región muy cercana a la carga)
+
+        # Crear máscara para región de ajuste (entre radio 2 y max_radius)
+        nx, ny, nz = tuple(args.size)
+        xc, yc, zc = particle_pos
+        x_grid = np.arange(0.5, nx)
+        y_grid = np.arange(0.5, ny)
+        z_grid = np.arange(0.5, nz)
+        X, Y, Z = np.meshgrid(x_grid, y_grid, z_grid, indexing='ij')
+        r_grid = np.sqrt((X - xc)**2 + (Y - yc)**2 + (Z - zc)**2)
+
+        # Máscara para región de ajuste: 2 < r < max_radius
+        fit_mask = (r_grid > 2.0) & (r_grid < args.max_radius)
+
+        # Calcular offset óptimo: diferencia media entre simulación y teoría en la región de ajuste
+        if np.sum(fit_mask) > 0:
+            psi_theory_mean_offset = np.mean(psi_theory_raw[fit_mask] - psi[fit_mask])
+            psi_theory = psi_theory_raw - psi_theory_mean_offset
+            print(f"Potencial teórico calculado.")
+            print(f"Offset ajustado para coincidir con simulación en región 2 < r < {args.max_radius}: {psi_theory_mean_offset:.6e}")
+        else:
+            # Fallback: usar media simple si no hay puntos en la región de ajuste
+            psi_theory_mean_offset = np.mean(psi_theory_raw) - np.mean(psi)
+            psi_theory = psi_theory_raw - psi_theory_mean_offset
+            print(f"Potencial teórico calculado (ajustado a media relativa, offset={psi_theory_mean_offset:.6e}).")
 
     # Crear analizador de simetría
     analyzer = SymmetryAnalyzer(psi, Ex, Ey, Ez, tuple(args.size), particle_pos)
@@ -1310,7 +1398,9 @@ NOTAS:
                                   kappa=args.kappa if args.compare_theory else None,
                                   log_scale=args.log_scale,
                                   psi_offset_factor=args.psi_offset_factor,
-                                  psi_theory_mean_offset=psi_theory_mean_offset if args.compare_theory else 0.0)
+                                  psi_theory_mean_offset=psi_theory_mean_offset if args.compare_theory else 0.0,
+                                  symlog_linthresh=args.symlog_linthresh,
+                                  efield_only=args.efield_only)
 
     # Si solo se pidió análisis radial, terminar aquí
     if args.radial_only:

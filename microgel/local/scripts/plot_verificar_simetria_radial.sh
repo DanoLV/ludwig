@@ -3,7 +3,7 @@
 # Run multiple plots to compare teoretical Electric field to simulations
 #------------------------------------------------------------------------------------
 
-while getopts "d:e:k:l:o:p:q:r:s:f:t:" flag
+while getopts "d:e:k:l:o:p:q:r:s:f:t:a:" flag
 do
     case "${flag}" in
         d) dim=${OPTARG};;         # system dimension
@@ -17,6 +17,7 @@ do
         s) start=${OPTARG};;       # start position
         f) end=${OPTARG};;         # end position
         t) kt=${OPTARG};;          # thermal energy
+        a) shell_thick=${OPTARG};; # log shell thickness
     esac
 done
 
@@ -35,7 +36,7 @@ else
     exit 1
 fi
 
-for d in ../*/; do
+for d in ./*/; do
     [ -d "$d" ] || continue
 
     echo "Procesando carpeta: $d"
@@ -81,25 +82,25 @@ for d in ../*/; do
     # Ejecutar el script python dentro de la carpeta
     (
         cd "$d" || exit
-        ../scripts/verificar_simetria_psi.py -f ./psi-$(printf "%09d" "$paso").001-001 \
+        ../../scripts/verificar_simetria_psi.py -f ./psi-$(printf "%09d" "$paso").001-001 \
                  -c ./config.cds$(printf "%08d" "$paso").001-001 \
                  -s $L $L $Lz --compare-theory --charge 1.0 \
                  --kappa $kappa \
                  --epsilon $epsilon \
                  --kt $kt \
-                 --radial-only \
-                 --shell-thickness 0.15 \
+                 --radial-only --efield-only \
+                 --shell-thickness $shell_thick \
                  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-
 
-        ../scripts/verificar_simetria_psi.py -f ./psi-$(printf "%09d" "$paso").001-001 \
+        ../../scripts/verificar_simetria_psi.py -f ./psi-$(printf "%09d" "$paso").001-001 \
                  -c ./config.cds$(printf "%08d" "$paso").001-001 \
                  -s $L $L $Lz --compare-theory --charge 1.0 \
                  --kappa $kappa \
                  --epsilon $epsilon \
                  --kt $kt \
-                 --radial-only \
+                 --radial-only --efield-only \
                  --log-scale xy \
-                 --shell-thickness 0.15 \
+                 --shell-thickness $shell_thick \
                  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-log-
     )
 done

@@ -420,6 +420,10 @@ static int ludwig_rt(ludwig_t* ludwig) {
     psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
     /*CHANGE INIT - Subgrid charge */
     distributed_charge_klein_t* charge = NULL;
+    double kappa;
+
+    subgrid_compute_kappa(ludwig->psi, &kappa);
+
     subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
     /*CHANGE END - Subgrid charge */
     pe_info(pe, "\nArranging initial charge neutrality.\n\n");
@@ -427,6 +431,7 @@ static int ludwig_rt(ludwig_t* ludwig) {
     /*CHANGE INIT - Subgrid charge */
     subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi, &charge);
     subgrid_free_distributed_charge_t(&charge);
+    // subgrid_charge_from_particles_compenzate(ludwig->collinfo, ludwig->psi, &charge);
     /*CHANGE END - Subgrid charge */
   }
 
@@ -735,6 +740,14 @@ void ludwig_run(const char* inputfile) {
                             fp);
 
         subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map, ludwig->phys, ludwig->psi, ludwig->hydro);
+
+        // subgrid_force_poisson_boltzmann(ludwig->collinfo,
+        //                          ludwig->map,
+        //                          ludwig->phys,
+        //                          ludwig->psi,
+        //                          ludwig->hydro,
+        //                          step,
+        //                          fp);
         /*CHANGE END - Subgrid charge */
 
       }

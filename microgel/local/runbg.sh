@@ -303,24 +303,24 @@ fi
 if [ -n "$electrokinetics_init" ]; then
     if [ "$electrokinetics_init" = "none" ]; then
         # Comment out the line if it exists uncommented
-        if grep -q "^electrokinetics_init" input; then
-            sed -i -e "s/^electrokinetics_init/# electrokinetics_init/" input
+        if grep -q "^electrokinetics_init " input; then
+            sed -i -e "s/^electrokinetics_init /# electrokinetics_init /" input
         fi
     else
         # Uncomment and set the value
-        if grep -q "^electrokinetics_init" input; then
-            sed -i -e "/^electrokinetics_init/c\electrokinetics_init $electrokinetics_init" input
-        elif grep -q "^# electrokinetics_init" input; then
-            sed -i -e "0,/^# electrokinetics_init/s/^# electrokinetics_init.*/electrokinetics_init $electrokinetics_init/" input
+        if grep -q "^electrokinetics_init " input; then
+            sed -i -e "/^electrokinetics_init /c\electrokinetics_init $electrokinetics_init" input
+        elif grep -q "^# electrokinetics_init " input; then
+            sed -i -e "0,/^# electrokinetics_init /s/^# electrokinetics_init.*/electrokinetics_init $electrokinetics_init/" input
         else
             # If line doesn't exist at all, add it after the commented lines
-            sed -i -e "/^# electrokinetics_init.*point_charges/a electrokinetics_init $electrokinetics_init" input
+            sed -i -e "/^# electric_e0 /a electrokinetics_init $electrokinetics_init" input
         fi
     fi
 else
     # If not specified, comment out the line if it exists uncommented
-    if grep -q "^electrokinetics_init" input; then
-        sed -i -e "s/^electrokinetics_init/# electrokinetics_init/" input
+    if grep -q "^electrokinetics_init " input; then
+        sed -i -e "s/^electrokinetics_init /# electrokinetics_init /" input
     fi
 fi
 

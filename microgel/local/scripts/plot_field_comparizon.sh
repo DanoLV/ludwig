@@ -3,6 +3,9 @@
 # Run multiple plots to compare teoretical Electric field to simulations
 #------------------------------------------------------------------------------------
 
+# echo "SHELL: $SHELL"
+# echo "BASH_VERSION: $BASH_VERSION"
+
 while getopts "e:k:o:p:s:f:t:x:y:z:" flag
 do
     case "${flag}" in
@@ -18,6 +21,17 @@ do
         z) Lz=${OPTARG};;          # grid size Z
     esac
 done
+
+# echo "DEBUG: epsilon='$epsilon'"
+# echo "DEBUG: kappa='$kappa'"
+# echo "DEBUG: base_file='$base_file'"
+# echo "DEBUG: paso='$paso'"
+# echo "DEBUG: start='$start'"
+# echo "DEBUG: end='$end'"
+# echo "DEBUG: Lx='$Lx'"
+# echo "DEBUG: Ly='$Ly'"
+# echo "DEBUG: Lz='$Lz'"
+# echo  "----------------------------------------------------------------------------------------"
 
 # Check mandatory options
 if [[ -z "$epsilon" || -z "$kappa" || -z "$paso" ]]; then
@@ -44,9 +58,19 @@ if [[ -z "$Lx" || -z "$Ly" || -z "$Lz" ]]; then
         fi
 fi
 
-for d in ../*/; do
+for d in ./*/; do
+# for d in "$pd"*/; do
+
     [ -d "$d" ] || continue
 
+    parent_name=$(basename "$d")
+    # echo  "----------------------------------------------------------------------------------------"
+    # echo  "parent_name field comparizon = $parent_name"
+
+    if [[ "$parent_name" == "scripts" ]]; then
+        continue
+    fi
+    
     echo "Procesando carpeta: $d"
 
     # Extraer parámetros usando regex en bash
@@ -88,7 +112,8 @@ for d in ../*/; do
     # Ejecutar el script python dentro de la carpeta
     (
         cd "$d" || exit
-        ../scripts/compare_field_theory.py \
+        echo "dir: $d"
+        ../../scripts/compare_field_theory.py \
                  -f ./psi-$(printf "%09d" "$paso").001-001 \
                  --charge-pos $p1a $p2a $p3a --size $Lx $Ly $Lz \
                  --mode line --start $sx $sy $sz --end $fx $fy $fz \
