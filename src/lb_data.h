@@ -251,11 +251,29 @@ __host__ __device__ static inline int lb_0th_moment(lb_t * lb, int index,
   assert(index >= 0 && index < lb->nsite);
   assert((int) nd < lb->ndist);
 
+  /*CHANGE INIT - Kahan summation for 0th moment (density) */
+  /* Original code (without Kahan):
   *rho = 0.0;
 
   for (int p = 0; p < lb->nvel; p++) {
     *rho += lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, nd, p)];
   }
+  */
+
+  /* New code with Kahan compensated summation */
+  volatile double rho_sum = 0.0;
+  volatile double rho_c = 0.0;
+
+  for (int p = 0; p < lb->nvel; p++) {
+    volatile double val = lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, nd, p)];
+    volatile double y = val - rho_c;
+    volatile double t = rho_sum + y;
+    rho_c = (t - rho_sum) - y;
+    rho_sum = t;
+  }
+
+  *rho = rho_sum;
+  /*CHANGE END - Kahan summation for 0th moment (density) */
 
   return 0;
 }
@@ -275,7 +293,8 @@ __host__ __device__ static inline int lb_1st_moment(lb_t * lb, int index,
   assert(index >= 0 && index < lb->nsite);
   assert((int) nd < lb->ndist);
 
-  /* Loop to 3 here to cover initialisation in D2Q9 (appears in momentum) */
+  /*CHANGE INIT - Kahan summation for 1st moment calculation */
+  /* Original code (without Kahan):
   for (int n = 0; n < 3; n++) {
     g[n] = 0.0;
   }
@@ -286,6 +305,49 @@ __host__ __device__ static inline int lb_1st_moment(lb_t * lb, int index,
 	*lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, nd, p)];
     }
   }
+  */
+
+  /* New code with Kahan compensated summation - using fixed size arrays */
+  volatile double g_sum_x = 0.0, g_sum_y = 0.0, g_sum_z = 0.0;
+  volatile double g_c_x = 0.0, g_c_y = 0.0, g_c_z = 0.0;
+
+  /* Kahan summation over all velocities for x-component */
+  for (int p = 0; p < lb->model.nvel; p++) {
+    volatile double val = lb->model.cv[p][0]
+      *lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, nd, p)];
+    volatile double y = val - g_c_x;
+    volatile double t = g_sum_x + y;
+    g_c_x = (t - g_sum_x) - y;
+    g_sum_x = t;
+  }
+
+  /* Kahan summation over all velocities for y-component */
+  for (int p = 0; p < lb->model.nvel; p++) {
+    volatile double val = lb->model.cv[p][1]
+      *lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, nd, p)];
+    volatile double y = val - g_c_y;
+    volatile double t = g_sum_y + y;
+    g_c_y = (t - g_sum_y) - y;
+    g_sum_y = t;
+  }
+
+  /* Kahan summation over all velocities for z-component */
+  if (lb->model.ndim == 3) {
+    for (int p = 0; p < lb->model.nvel; p++) {
+      volatile double val = lb->model.cv[p][2]
+	*lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, nd, p)];
+      volatile double y = val - g_c_z;
+      volatile double t = g_sum_z + y;
+      g_c_z = (t - g_sum_z) - y;
+      g_sum_z = t;
+    }
+  }
+
+  /* Store final results */
+  g[0] = g_sum_x;
+  g[1] = g_sum_y;
+  g[2] = g_sum_z;
+  /*CHANGE END - Kahan summation for 1st moment calculation */
 
   return 0;
 }

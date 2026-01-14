@@ -45,6 +45,9 @@ struct psi_s {
 
   field_t* psi;            /* Electric potential */
   field_t* rho;            /* Charge densities */
+  /*CHANGE INIT - 20251203 Electric field output */
+  field_t* efield;         /* Electric field E = -grad(psi) */
+  /*CHANGE END - 20251203 */
 
   double* diffusivity;     /* Diffusivity for each species */
   int* valency;            /* Valency for each species */
@@ -85,6 +88,9 @@ int psi_halo_psijump(psi_t* obj);
 int psi_halo_rho(psi_t* obj);
 
 int psi_io_write(psi_t* psi, int nstep);
+/*CHANGE INIT - 20251203 Electric field output */
+int psi_compute_electric_field(psi_t* psi);
+/*CHANGE END - 20251203 */
 
 int psi_rho(psi_t* obj, int index, int n, double* rho);
 int psi_rho_set(psi_t* obj, int index, int n, double rho);
@@ -110,6 +116,10 @@ int psi_zero_mean(psi_t* obj);
 int psi_force_method(psi_t* obj, int* flag);
 int psi_force_method_set(psi_t* obj, int flag);
 
-int psi_electroneutral(psi_t* obj, map_t* map);
+// CHANGE INIT - Subgrid charge
+//  int psi_electroneutral(psi_t* obj, map_t* map);
+int psi_electroneutral(psi_t* psi, map_t* map,colloids_info_t* cinfo);
+// CHANGE END - Subgrid charge
+
 
 #endif

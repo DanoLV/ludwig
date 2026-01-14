@@ -35,11 +35,13 @@ int test_psi_solver_petsc_suite(void) {
   pe_t * pe = NULL;
 
   pe_create(MPI_COMM_WORLD, PE_QUIET, &pe);
-
   test_psi_solver_petsc_create(pe);
   test_psi_solver_petsc_solve(pe);
+  pe_info(pe, " test_psi_solver_petsc_solve\n");
   test_psi_solver_petsc_var_epsilon_create(pe);
+  pe_info(pe, " test_psi_solver_petsc_var_epsilon_create\n");
   test_psi_solver_petsc_var_epsilon_solve(pe);
+  pe_info(pe, " test_psi_solver_petsc_var_epsilon_solve\n");
 
   pe_info(pe, "%-9s %s\n", "PASS", __FILE__);
   pe_free(pe);
@@ -88,7 +90,6 @@ int test_psi_solver_petsc_solve(pe_t * pe) {
   if (isInitialised == 0) {
     psi_solver_petsc_t * petsc = NULL;
     int nt = 0;
-
     ifail = psi_solver_petsc_solve(petsc, nt);
     assert(ifail != 0);
     if (ifail != 0) ifail = 0;

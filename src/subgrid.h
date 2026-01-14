@@ -46,6 +46,7 @@ typedef struct distributed_force_klein_s {
 } distributed_force_klein_t;
 
 double d_peskin(double r);
+double d_trilinear(double r);
 int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_compenzate(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
@@ -55,7 +56,7 @@ void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_m
 void subgrid_get_lattice_index_fn(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro);
 int subgrid_update_forces_electrokinetics_theory(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro);
-int subgrid_update_Esub(colloids_info_t* cinfo, psi_t* psi, int step, FILE* fp);
+int subgrid_update_Esub(colloids_info_t* cinfo, psi_t* psi, int step, FILE* fp, pe_t * pe);
 /*CHANGE INIT - Poisson-Boltzmann force calculation */
 int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo, map_t* map,
                                      physics_t* phys, psi_t* psi, hydro_t* hydro,
@@ -78,6 +79,8 @@ double d_pb(double r0[3], int node_i, int node_j, int node_k,
 int subgrid_compute_kappa(psi_t* psi, double* kappa);
 double subgrid_get_kappa(void);
 void subgrid_set_kappa(double kappa);
+int subgrid_add_psi_grad_from_particles(colloids_info_t* cinfo, psi_t* psi,
+                                         physics_t* phys);
 /*CHANGE END - Poisson-Boltzmann weight */
 /*CHANGE END - Subgrid charge */
 

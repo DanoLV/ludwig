@@ -60,7 +60,16 @@ int stencil_d3q27_create(stencil_t ** stencil) {
       for (int ia = 0; ia < s->ndim; ia++) {
         s->cv[p][ia] = cv[p][ia];
       }
-      s->wlaplacian[p] = -216.0*wv[p];
+      /*CHANGE INIT - 20251203 Fix Laplacian normalization for consistency */
+      /* Original (incorrect): s->wlaplacian[p] = -216.0*wv[p]; */
+      /* The factor -216.0 over-scaled the Laplacian operator by 36×, causing
+       * inconsistency with the gradient operator. Changed to -6.0 to ensure:
+       *   1. ∇²ψ = -6.0 for test field ψ = x² + y² + z² (correct normalization)
+       *   2. Consistency relation |wlaplacian/wgradients| = 2.0 (same as D3Q7)
+       *   3. Mathematical consistency ∇·∇ψ = ∇²ψ between Poisson solver and
+       *      electric field calculation                                    */
+      s->wlaplacian[p] = -6.0*wv[p];  /* Changed from -216.0 to -6.0 */
+      /*CHANGE END - 20251203 */
       s->wgradients[p] =    3.0*wv[p];
       if (p > 0) wlap0 += s->wlaplacian[p];
     }

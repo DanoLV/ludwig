@@ -58,6 +58,13 @@ __host__ int hydro_lees_edwards(hydro_t * obj);
 __host__ int hydro_correct_momentum(hydro_t * obj);
 __host__ int hydro_f_zero(hydro_t * obj, const double fzero[3]);
 __host__ int hydro_u_zero(hydro_t * obj, const double uzero[3]);
+/*CHANGE INIT - Resta velocidad media del sistema */
+__host__ int hydro_subtract_mean_velocity(hydro_t * obj);
+/*CHANGE END - Resta velocidad media del sistema */
+/*CHANGE INIT - Predictor-corrector: copy and extrapolate velocity */
+__host__ int hydro_copy_u(hydro_t * dest, hydro_t * src);
+__host__ int hydro_extrapolate_velocity(hydro_t * hydro, hydro_t * hydro_old, hydro_t * u_predicted);
+/*CHANGE END - Predictor-corrector: copy and extrapolate velocity */
 __host__ int hydro_rho0(hydro_t * hydro, double rho0);
 
 __host__ int hydro_io_write(hydro_t * hydro, int timestep, io_event_t * event);

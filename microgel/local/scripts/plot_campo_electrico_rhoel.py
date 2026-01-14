@@ -12,7 +12,8 @@ from pathlib import Path
 
 def extract_rhoel(dirname):
     """Extrae el valor de rhoel del nombre del directorio"""
-    match = re.search(r'rhoel_([\d.e+-]+)', dirname)
+    # Busca rhoel_ seguido de notación científica: 1.000E+00, 5.000E-04, etc.
+    match = re.search(r'rhoel_([0-9]+\.[0-9]+[Ee][+-][0-9]+)', dirname)
     if match:
         return float(match.group(1))
     return None

@@ -1,0 +1,34 @@
+###############################################################################
+#
+#  Makefile.analytical
+#
+#  Standalone Makefile for test_stencil_d3q27_analytical
+#
+###############################################################################
+
+include ../../Makefile.mk
+
+SRC  = ../.././src
+INCL = -I$(SRC) $(TARGET_INC_PATH) $(MPI_INC_PATH)
+
+LIBS = $(MPI_LIB_PATH) $(MPI_LIB) $(TARGET_LIB_PATH) $(TARGET_LIB) $(SRC)/libludwig.a -lm
+
+MPI_RUN = $(LAUNCH_MPIRUN_CMD)
+
+# Only compile the minimal set of files needed for this test
+SOURCES = test_stencil_d3q27_analytical.c test_pe.c
+OBJECTS = ${SOURCES:.c=.o}
+
+default: build
+
+build: $(OBJECTS)
+	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS) -o test_analytical
+
+test: build
+	$(MPI_RUN) ./test_analytical
+
+.c.o:
+	$(CC) $(MODEL) $(CFLAGS) $(INCL) -c $*.c
+
+clean:
+	$(RM) test_analytical test_stencil_d3q27_analytical.o test_pe.o

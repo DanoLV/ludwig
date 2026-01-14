@@ -49,9 +49,14 @@ int test_colloid_suite(void) {
   char filename[FILENAME_MAX];
 
   colloid_state_t sref = {1, 2, 3, 4, 5, 6, 7, 8, 9,
-			  {10, 11}, 12, {13, 14, 15}, {16, 17, 18}, 19,
-			  20, 21, 22, 23, 24, 25,
-			   {26, 27, 28, 29, 30, 31, 32},
+        // CHANGE INIT: Extra bonds for microgel polimer networks
+			  // {10, 11}, 12, {13, 14, 15}, {16, 17, 18}, 19,    
+        // 20, 21, 22, 23, 24, 25,
+        // {26, 27, 28, 29, 30, 31, 32},
+        {10, 11, 12, 13, 14, 15}, 16, {17, 18, 19},
+			  {20, 21, 22}, 23, 24, 25,
+			   26, 27, 28, 29, {30, 31, 32},
+         // CHANGE END: Extra bonds for microgel polimer networks
 			  1.0, 2.0,
 			  { 3.0,  4.0,  5.0},
 			  { 6.0,  7.0,  8.0},

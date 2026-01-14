@@ -36,13 +36,14 @@ SRC  = $(ROOT_DIR)./src
 INCL = -I$(SRC) $(TARGET_INC_PATH) $(MPI_INC_PATH)
 
 BLIBS = $(MPI_LIB_PATH) $(MPI_LIB) $(TARGET_LIB_PATH) $(TARGET_LIB)
-LIBS = $(BLIBS) $(SRC)/libludwig.a -lm
 
 MPI_RUN = $(LAUNCH_MPIRUN_CMD)
 
 ifdef HAVE_PETSC
-INCL += $(PETSC_INCL)
-LIBS += $(PETSC_LIB)
+INCL += $(PETSC_INC) -DPETSC
+LIBS = $(BLIBS) /usr/local/petsc-cuda/lib/libpetsc.so $(SRC)/libludwig.a -lm
+else
+LIBS = $(BLIBS) $(SRC)/libludwig.a -lm
 endif
 
 #------------------------------------------------------------------------------
@@ -57,7 +58,7 @@ build:	$(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 test:
-	$(MPI_RUN) ./a.out
+	LD_LIBRARY_PATH=/usr/local/petsc-cuda/lib:/usr/local/ompi/lib:$$LD_LIBRARY_PATH ./a.out
 
 clean:
 	$(RM) core *.o a.out

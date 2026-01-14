@@ -60,7 +60,7 @@ for subdir in subdirs:
     try:
         # Leer archivo, saltando la primera línea (comentario con #)
         df = pd.read_csv(csv_file, sep=';', decimal=',', skiprows=1, header=None,
-                         names=['Step', 'Index', 'Emod', 'Esub_X', 'Esub_Y', 'Esub_Z'])
+                         names=['Step', 'Index', 'Emod', 'Esub_X', 'Esub_Y', 'Esub_Z', 'EmodPB', 'EPB_X', 'EPB_Y', 'EPB_Z'] )
 
         # Limpiar espacios en blanco de todas las columnas
         for col in df.columns:
@@ -79,6 +79,9 @@ for subdir in subdirs:
         mean_Esub_X = df_filtered['Esub_X'].mean()
         mean_Esub_Y = df_filtered['Esub_Y'].mean()
         mean_Esub_Z = df_filtered['Esub_Z'].mean()
+        mean_EPB_X = df_filtered['EPB_X'].mean()
+        mean_EPB_Y = df_filtered['EPB_Y'].mean()
+        mean_EPB_Z = df_filtered['EPB_Z'].mean()
 
         # Agregar resultados
         results.append({
@@ -88,7 +91,10 @@ for subdir in subdirs:
             'mean_Emod': mean_Emod,
             'mean_Esub_X': mean_Esub_X,
             'mean_Esub_Y': mean_Esub_Y,
-            'mean_Esub_Z': mean_Esub_Z
+            'mean_Esub_Z': mean_Esub_Z,
+            'mean_EPB_X': mean_EPB_X,
+            'mean_EPB_Y': mean_EPB_Y,
+            'mean_EPB_Z': mean_EPB_Z
         })
 
         print(f"  Procesados {len(df_filtered)} pasos (de {len(df)} totales)")

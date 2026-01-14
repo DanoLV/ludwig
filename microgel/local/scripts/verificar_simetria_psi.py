@@ -49,9 +49,12 @@ class PsiReader:
         self.psi = data.reshape((self.nx, self.ny, self.nz))
         return self.psi
 
-    def compute_electric_field(self):
+    def compute_electric_field(self, stencil='d3q19'):
         """
-        Calcula el campo eléctrico E = -∇ψ usando diferencias finitas centradas
+        Calcula el campo eléctrico E = -∇ψ usando el stencil de Ludwig
+
+        Args:
+            stencil: Tipo de stencil ('d3q7', 'd3q19', 'd3q27')
 
         Returns:
             Ex, Ey, Ez: Componentes del campo eléctrico
@@ -59,13 +62,77 @@ class PsiReader:
         if self.psi is None:
             raise ValueError("Primero debe leer el archivo con read()")
 
-        # Usar gradiente de numpy (diferencias finitas centradas en el interior)
-        grad_psi = np.gradient(self.psi)
+        # Definir stencils según Ludwig
+        if stencil == 'd3q7':
+            # D3Q7: 7 puntos (centro + 6 vecinos cara)
+            cv = np.array([
+                [0, 0, 0],
+                [1, 0, 0], [0, 1, 0], [0, 0, 1],
+                [0, 0, -1], [0, -1, 0], [-1, 0, 0]
+            ], dtype=np.int8)
+            wv = np.array([2.0/8.0, 1.0/8.0, 1.0/8.0, 1.0/8.0,
+                          1.0/8.0, 1.0/8.0, 1.0/8.0])
+            wgradients = 4.0 * wv  # Factor de escala para gradiente
 
-        # E = -∇ψ
-        Ex = -grad_psi[0]
-        Ey = -grad_psi[1]
-        Ez = -grad_psi[2]
+        elif stencil == 'd3q19':
+            # D3Q19: 19 puntos
+            cv = np.array([
+                [0, 0, 0],
+                [1, 1, 0], [1, 0, 1], [1, 0, 0], [1, 0, -1], [1, -1, 0],
+                [0, 1, 1], [0, 1, 0], [0, 1, -1], [0, 0, 1], [0, 0, -1],
+                [0, -1, 1], [0, -1, 0], [0, -1, -1], [-1, 1, 0], [-1, 0, 1],
+                [-1, 0, 0], [-1, 0, -1], [-1, -1, 0]
+            ], dtype=np.int8)
+            wv = np.array([12.0/36.0,
+                          1.0/36.0, 1.0/36.0, 2.0/36.0, 1.0/36.0, 1.0/36.0,
+                          1.0/36.0, 2.0/36.0, 1.0/36.0, 2.0/36.0, 2.0/36.0,
+                          1.0/36.0, 2.0/36.0, 1.0/36.0, 1.0/36.0, 1.0/36.0,
+                          2.0/36.0, 1.0/36.0, 1.0/36.0])
+            wgradients = 3.0 * wv  # Factor de escala para gradiente
+
+        elif stencil == 'd3q27':
+            # D3Q27: 27 pontos
+            cv = np.array([
+                [0, 0, 0],
+                [-1, -1, -1], [-1, -1, 0], [-1, -1, 1], [-1, 0, -1], [-1, 0, 0], [-1, 0, 1],
+                [-1, 1, -1], [-1, 1, 0], [-1, 1, 1], [0, -1, -1], [0, -1, 0], [0, -1, 1],
+                [0, 0, -1], [0, 0, 1],
+                [0, 1, -1], [0, 1, 0], [0, 1, 1], [1, -1, -1], [1, -1, 0], [1, -1, 1],
+                [1, 0, -1], [1, 0, 0], [1, 0, 1], [1, 1, -1], [1, 1, 0], [1, 1, 1]
+            ], dtype=np.int8)
+            wv = np.array([64.0/216.0,
+                          1.0/216.0, 4.0/216.0, 1.0/216.0, 4.0/216.0, 16.0/216.0, 4.0/216.0,
+                          1.0/216.0, 4.0/216.0, 1.0/216.0, 4.0/216.0, 16.0/216.0, 4.0/216.0,
+                          16.0/216.0, 16.0/216.0,
+                          4.0/216.0, 16.0/216.0, 4.0/216.0, 1.0/216.0, 4.0/216.0, 1.0/216.0,
+                          4.0/216.0, 16.0/216.0, 4.0/216.0, 1.0/216.0, 4.0/216.0, 1.0/216.0])
+            wgradients = 3.0 * wv  # Factor de escala para gradiente
+        else:
+            raise ValueError(f"Stencil '{stencil}' no soportado. Use 'd3q7', 'd3q19', o 'd3q27'")
+
+        # Peso del punto central es 0 para el gradiente
+        wgradients[0] = 0.0
+
+        # Calcular campo eléctrico usando el stencil de Ludwig
+        # E_a = -\nabla_a psi = -\sum_{p=1}^{npoints-1} wgradients[p] * cv[p][a] * psi(x + cv[p])
+
+        Ex = np.zeros_like(self.psi)
+        Ey = np.zeros_like(self.psi)
+        Ez = np.zeros_like(self.psi)
+
+        # Iterar sobre todos los puntos del stencil (excepto el central p=0)
+        for p in range(1, len(cv)):
+            cx, cy, cz = cv[p]
+            w = wgradients[p]
+
+            # Obtener psi en la posición desplazada
+            # Usar roll para condiciones de borde periódicas (como Ludwig)
+            psi_shifted = np.roll(self.psi, shift=(-cx, -cy, -cz), axis=(0, 1, 2))
+
+            # E_a = -\nabla_a psi
+            Ex -= w * cx * psi_shifted
+            Ey -= w * cy * psi_shifted
+            Ez -= w * cz * psi_shifted
 
         return Ex, Ey, Ez
 
@@ -339,32 +406,119 @@ class SymmetryAnalyzer:
 
     def check_radial_symmetry(self, num_radii=10, max_radius=15.0,
                              Ex_theory=None, Ey_theory=None, Ez_theory=None,
-                             psi_theory=None, shell_thickness=0.1):
+                             psi_theory=None, shell_thickness=0.1, min_radius=0.01,
+                             use_all_points=True, distance_bin_size=0.05):
         """
         Verifica la simetría radial del campo eléctrico y compara con teoría
 
         Args:
-            num_radii: Número de radios a analizar
+            num_radii: Número de radios a analizar (solo si use_all_points=False)
             max_radius: Radio máximo a analizar
             Ex_theory, Ey_theory, Ez_theory: Campos teóricos (opcional)
             psi_theory: Potencial teórico (opcional)
-            shell_thickness: Grosor de la cáscara esférica para muestreo (default: 0.1)
+            shell_thickness: Grosor de la cáscara esférica para muestreo (default: 0.1, solo si use_all_points=False)
+            min_radius: Radio mínimo para análisis radial (default: 0.01)
+            use_all_points: Si True, usa todos los puntos de la grilla agrupados por distancia (default: True)
+            distance_bin_size: Tamaño del bin para agrupar distancias cuando use_all_points=True (default: 0.05)
 
         Returns:
             dict: Diccionario con resultados del análisis
         """
         print("\n=== ANÁLISIS DE SIMETRÍA RADIAL ===")
-        print(f"Grosor de cáscaras esféricas: ±{shell_thickness/2:.3f} (grosor total: {shell_thickness:.3f})")
 
-        radii = np.linspace(1.0, max_radius, num_radii)
         px, py, pz = self.particle_pos
+        has_theory = (Ex_theory is not None and Ey_theory is not None and Ez_theory is not None)
 
-        # Verificar si hay campo teórico para comparar
-        has_theory = (Ex_theory is not None and Ey_theory is not None and
-                     Ez_theory is not None)
+        if use_all_points:
+            print("Modo: TODOS LOS PUNTOS agrupados por bins de distancia")
+            print(f"Tamaño de bin: {distance_bin_size}")
+        else:
+            print("Modo: CÁSCARAS ESFÉRICAS")
+            print(f"Grosor de cáscaras: ±{shell_thickness/2:.3f}")
+
+        # PASO 1: Calcular distancias y valores para TODOS los puntos de la grilla
+        print("\nCalculando distancias y campos para todos los puntos...")
+        all_distances = []
+        all_E_mag = []
+        all_Ex = []
+        all_Ey = []
+        all_Ez = []
+        all_psi = []
+        all_Ex_theory = []
+        all_Ey_theory = []
+        all_Ez_theory = []
+        all_E_mag_theory = []
+        all_psi_theory = []
+
+        for i, x in enumerate(self.x_coords):
+            for j, y in enumerate(self.y_coords):
+                for k, z in enumerate(self.z_coords):
+                    dist = np.sqrt((x - px)**2 + (y - py)**2 + (z - pz)**2)
+
+                    # Filtrar por rango de distancia
+                    if dist <= max_radius and dist >= min_radius:
+                        all_distances.append(dist)
+
+                        E_mag = np.sqrt(self.Ex[i, j, k]**2 + self.Ey[i, j, k]**2 + self.Ez[i, j, k]**2)
+                        all_E_mag.append(E_mag)
+                        all_Ex.append(self.Ex[i, j, k])
+                        all_Ey.append(self.Ey[i, j, k])
+                        all_Ez.append(self.Ez[i, j, k])
+                        all_psi.append(self.psi[i, j, k])
+
+                        if has_theory:
+                            E_th_mag = np.sqrt(Ex_theory[i, j, k]**2 + Ey_theory[i, j, k]**2 + Ez_theory[i, j, k]**2)
+                            all_E_mag_theory.append(E_th_mag)
+                            all_Ex_theory.append(Ex_theory[i, j, k])
+                            all_Ey_theory.append(Ey_theory[i, j, k])
+                            all_Ez_theory.append(Ez_theory[i, j, k])
+                            if psi_theory is not None:
+                                all_psi_theory.append(psi_theory[i, j, k])
+
+        all_distances = np.array(all_distances)
+        all_E_mag = np.array(all_E_mag)
+        all_Ex = np.array(all_Ex)
+        all_Ey = np.array(all_Ey)
+        all_Ez = np.array(all_Ez)
+        all_psi = np.array(all_psi)
+
+        if has_theory:
+            all_E_mag_theory = np.array(all_E_mag_theory)
+            all_Ex_theory = np.array(all_Ex_theory)
+            all_Ey_theory = np.array(all_Ey_theory)
+            all_Ez_theory = np.array(all_Ez_theory)
+            if psi_theory is not None:
+                all_psi_theory = np.array(all_psi_theory)
+
+        min_dist_in_grid = np.min(all_distances)
+        max_dist_in_grid = np.max(all_distances)
+
+        print(f"Distancia mínima en grilla: {min_dist_in_grid:.4f}")
+        print(f"Distancia máxima en grilla: {max_dist_in_grid:.4f}")
+        print(f"Puntos totales en rango: {len(all_distances)}")
+
+        # PASO 2: Determinar los radios según el modo
+        if use_all_points:
+            # Crear bins de distancia desde la distancia mínima real
+            num_bins = int(np.ceil((max_dist_in_grid - min_dist_in_grid) / distance_bin_size))
+            if num_bins == 0:
+                num_bins = 1
+
+            bins_edges = np.linspace(min_dist_in_grid, max_dist_in_grid, num_bins + 1)
+            radii = (bins_edges[:-1] + bins_edges[1:]) / 2  # Centros de los bins
+
+            print(f"\nNúmero de bins: {num_bins}")
+            print(f"Primer radio (centro de bin): {radii[0]:.4f}")
+            print(f"Último radio (centro de bin): {radii[-1]:.4f}")
+        else:
+            # Método original de cáscaras esféricas
+            radii = np.linspace(min_radius, max_radius, num_radii)
+            print(f"\nNúmero de radios: {len(radii)}")
+            print(f"Primer radio: {radii[0]:.4f}")
+            print(f"Último radio: {radii[-1]:.4f}")
 
         results = {
-            'radii': radii,
+            'radii': [],  # Ahora se llenará dinámicamente solo con bins que tengan datos
             'E_magnitude_mean': [],
             'E_magnitude_std': [],
             'Ex_mean': [],
@@ -388,51 +542,83 @@ class SymmetryAnalyzer:
             results['psi_theory_std'] = []
             results['relative_error'] = []
 
-        for r in radii:
-            # Buscar todos los puntos a distancia r de la partícula
-            E_mag_at_r = []
-            Ex_at_r = []
-            Ey_at_r = []
-            Ez_at_r = []
-            psi_at_r = []
-            E_theory_at_r = []
-            Ex_theory_at_r = []
-            Ey_theory_at_r = []
-            Ez_theory_at_r = []
-            psi_theory_at_r = []
+        # PASO 3: Agrupar puntos por bins de distancia
+        print("\nAgrupando puntos por distancia...")
 
-            for i, x in enumerate(self.x_coords):
-                for j, y in enumerate(self.y_coords):
-                    for k, z in enumerate(self.z_coords):
-                        # Calcular distancia al centro de la partícula
-                        dist = np.sqrt((x - px)**2 + (y - py)**2 + (z - pz)**2)
+        for idx, r in enumerate(radii):
+            if use_all_points:
+                # Modo: usar bins de distancia
+                # Encontrar puntos que caen en el bin correspondiente
+                bin_half_width = distance_bin_size / 2
+                mask = np.abs(all_distances - r) <= bin_half_width
 
-                        # Si está en el rango r ± shell_thickness/2
-                        if abs(dist - r) < shell_thickness / 2:
-                            E_mag = np.sqrt(self.Ex[i, j, k]**2 +
-                                          self.Ey[i, j, k]**2 +
-                                          self.Ez[i, j, k]**2)
-                            E_mag_at_r.append(E_mag)
-                            Ex_at_r.append(self.Ex[i, j, k])
-                            Ey_at_r.append(self.Ey[i, j, k])
-                            Ez_at_r.append(self.Ez[i, j, k])
-                            psi_at_r.append(self.psi[i, j, k])
+                E_mag_at_r = all_E_mag[mask]
+                Ex_at_r = all_Ex[mask]
+                Ey_at_r = all_Ey[mask]
+                Ez_at_r = all_Ez[mask]
+                psi_at_r = all_psi[mask]
 
-                            if has_theory:
-                                E_th_mag = np.sqrt(Ex_theory[i, j, k]**2 +
-                                                  Ey_theory[i, j, k]**2 +
-                                                  Ez_theory[i, j, k]**2)
-                                E_theory_at_r.append(E_th_mag)
-                                Ex_theory_at_r.append(Ex_theory[i, j, k])
-                                Ey_theory_at_r.append(Ey_theory[i, j, k])
-                                Ez_theory_at_r.append(Ez_theory[i, j, k])
-                                if psi_theory is not None:
-                                    psi_theory_at_r.append(psi_theory[i, j, k])
+                if has_theory:
+                    E_theory_at_r = all_E_mag_theory[mask]
+                    Ex_theory_at_r = all_Ex_theory[mask]
+                    Ey_theory_at_r = all_Ey_theory[mask]
+                    Ez_theory_at_r = all_Ez_theory[mask]
+                    if psi_theory is not None:
+                        psi_theory_at_r = all_psi_theory[mask]
+                    else:
+                        psi_theory_at_r = []
+                else:
+                    E_theory_at_r = []
+                    psi_theory_at_r = []
 
+            else:
+                # Modo: cáscaras esféricas (método original)
+                E_mag_at_r = []
+                Ex_at_r = []
+                Ey_at_r = []
+                Ez_at_r = []
+                psi_at_r = []
+                E_theory_at_r = []
+                Ex_theory_at_r = []
+                Ey_theory_at_r = []
+                Ez_theory_at_r = []
+                psi_theory_at_r = []
+
+                # Grosor adaptativo para cáscaras esféricas
+                if r < 1.0:
+                    effective_thickness = max(shell_thickness, r * 0.5, 0.2)
+                else:
+                    effective_thickness = max(shell_thickness, 0.1)
+
+                # Filtrar puntos del array completo que caen en la cáscara
+                mask = np.abs(all_distances - r) <= effective_thickness / 2
+
+                E_mag_at_r = all_E_mag[mask]
+                Ex_at_r = all_Ex[mask]
+                Ey_at_r = all_Ey[mask]
+                Ez_at_r = all_Ez[mask]
+                psi_at_r = all_psi[mask]
+
+                if has_theory:
+                    E_theory_at_r = all_E_mag_theory[mask]
+                    Ex_theory_at_r = all_Ex_theory[mask]
+                    Ey_theory_at_r = all_Ey_theory[mask]
+                    Ez_theory_at_r = all_Ez_theory[mask]
+                    if psi_theory is not None:
+                        psi_theory_at_r = all_psi_theory[mask]
+                    else:
+                        psi_theory_at_r = []
+                else:
+                    E_theory_at_r = []
+                    psi_theory_at_r = []
+
+            # Solo agregar resultados si hay puntos en este bin
+            # Saltar bins vacíos para evitar NaN que rompen las líneas en los gráficos
             if len(E_mag_at_r) > 0:
                 E_mean = np.mean(E_mag_at_r)
                 E_std = np.std(E_mag_at_r)
 
+                results['radii'].append(r)  # Solo agregar el radio si hay datos
                 results['E_magnitude_mean'].append(E_mean)
                 results['E_magnitude_std'].append(E_std)
                 results['Ex_mean'].append(np.mean(Ex_at_r))
@@ -476,29 +662,8 @@ class SymmetryAnalyzer:
                       f"|E| = {E_mean:.6e} ± {E_std:.6e} (CV={cv_E:.3f}) | "
                       f"ψ = {np.mean(psi_at_r):.6e} ± {np.std(psi_at_r):.6e} (CV={cv_psi:.3f}){theory_str}")
             else:
-                results['E_magnitude_mean'].append(np.nan)
-                results['E_magnitude_std'].append(np.nan)
-                results['Ex_mean'].append(np.nan)
-                results['Ex_std'].append(np.nan)
-                results['Ey_mean'].append(np.nan)
-                results['Ey_std'].append(np.nan)
-                results['Ez_mean'].append(np.nan)
-                results['Ez_std'].append(np.nan)
-                results['psi_mean'].append(np.nan)
-                results['psi_std'].append(np.nan)
-                results['num_points'].append(0)
-
-                if has_theory:
-                    results['E_theory_mean'].append(np.nan)
-                    results['E_theory_std'].append(np.nan)
-                    results['Ex_theory_mean'].append(np.nan)
-                    results['Ey_theory_mean'].append(np.nan)
-                    results['Ez_theory_mean'].append(np.nan)
-                    results['psi_theory_mean'].append(np.nan)
-                    results['psi_theory_std'].append(np.nan)
-                    results['relative_error'].append(np.nan)
-
-                print(f"Radio {r:.2f}: Sin puntos en este radio")
+                # Bin vacío - simplemente no lo agregamos
+                print(f"Radio {r:.2f}: 0 puntos (bin vacío, saltado)")
 
         return results
 
@@ -603,7 +768,7 @@ class SymmetryAnalyzer:
 
         return results
 
-    def plot_radial_symmetry(self, results, output=None, kappa=None, log_scale='none', psi_offset_factor=1.1, psi_theory_mean_offset=0.0, symlog_linthresh=1e-6, efield_only=False):
+    def plot_radial_symmetry(self, results, output=None, kappa=None, log_scale='none', psi_offset_factor=1.1, psi_theory_mean_offset=0.0, symlog_linthresh=1e-6, efield_only=False, charge_pos=None, grid_size=None, q=1.0, epsilon=1.0, kt=1.0, scale_factor=None, theory_start_distance=None):
         """Grafica los resultados del análisis de simetría radial con comparación teórica
 
         Args:
@@ -615,6 +780,12 @@ class SymmetryAnalyzer:
             psi_theory_mean_offset: Offset de media de teoría para recuperar valores absolutos en log
             symlog_linthresh: Umbral lineal para escala symlog (rango lineal: [-linthresh, +linthresh])
             efield_only: Si True, solo grafica campo eléctrico y su error (omite potencial)
+            charge_pos: Posición de la carga (para generar curva teórica continua)
+            grid_size: Tamaño de la grilla (para generar curva teórica continua)
+            q: Carga (para generar curva teórica continua)
+            epsilon: Permitividad (para generar curva teórica continua)
+            kt: Energía térmica (para generar curva teórica continua)
+            scale_factor: Factor de escala (para generar curva teórica continua)
         """
         # Verificar si hay datos teóricos
         has_theory = 'E_theory_mean' in results
@@ -644,16 +815,48 @@ class SymmetryAnalyzer:
         psi_std = results['psi_std']
 
         # Gráfico de magnitud del campo eléctrico
-        ax1.errorbar(radii, E_mean, yerr=E_std, fmt='o-', linewidth=2,
-                    markersize=8, capsize=5, label='Simulación |E| ± σ', color='blue')
+        ax1.errorbar(radii, E_mean, yerr=E_std, fmt='o-', linewidth=1,
+                    markersize=4, capsize=2.5, label='Simulación |E| ± σ', color='blue')
 
         # Agregar campo teórico si está disponible
         if has_theory:
-            E_theory = results['E_theory_mean']
-            E_theory_std = results['E_theory_std']
             model_name = 'Debye-Hückel' if (kappa is not None and kappa > 0) else 'Coulomb'
-            ax1.errorbar(radii, E_theory, yerr=E_theory_std, fmt='s--', linewidth=2,
-                        markersize=6, capsize=5, label=f'Teoría ({model_name}) ± σ', color='red')
+
+            # Generar curva teórica continua (sin marcadores)
+            if charge_pos is not None:
+                # Si scale_factor es None, usar el prefactor teórico
+                if scale_factor is None:
+                    prefactor = q / (4.0 * np.pi * epsilon * kt)
+                else:
+                    prefactor = scale_factor
+
+                # Determinar rango de radios para la curva continua
+                # Si el usuario especificó una distancia inicial, usarla; si no, usar el mínimo de los datos
+                if theory_start_distance is not None:
+                    r_min_theory = theory_start_distance
+                else:
+                    r_min_theory = min(radii)  # Usar distancia mínima de los datos de simulación
+                r_max_theory = max(radii)
+
+                # Crear array denso de radios para curva suave
+                radii_theory_dense = np.linspace(r_min_theory, r_max_theory, 500)
+
+                # Calcular campo teórico en función del radio (magnitud radial)
+                E_theory_dense = []
+                for r in radii_theory_dense:
+                    if kappa is not None and kappa > 0:
+                        # Debye-Hückel
+                        E_mag_theory = prefactor * np.exp(-kappa * r) * (kappa / r + 1.0 / r**2)
+                    else:
+                        # Coulomb
+                        E_mag_theory = prefactor / r**2
+                    E_theory_dense.append(E_mag_theory)
+
+                E_theory_dense = np.array(E_theory_dense)
+
+                # Graficar curva continua
+                ax1.plot(radii_theory_dense, E_theory_dense, '-', linewidth=1.25,
+                        label=f'Teoría ({model_name})', color='red')
 
         ax1.set_xlabel('Distancia desde la partícula', fontsize=14)
         ax1.set_ylabel('Magnitud del campo eléctrico |E|', fontsize=14)
@@ -772,15 +975,54 @@ class SymmetryAnalyzer:
                 else:
                     psi_theory_mean_plot = None
 
-            ax2.errorbar(radii, psi_mean_plot, yerr=psi_std, fmt='o-', linewidth=2,
-                        markersize=8, capsize=5, color='purple', label='Simulación ψ ± σ')
+            ax2.errorbar(radii, psi_mean_plot, yerr=psi_std, fmt='o-', linewidth=1,
+                        markersize=4, capsize=2.5, color='purple', label='Simulación ψ ± σ')
 
             # Agregar potencial teórico si está disponible
             if has_theory and psi_theory_mean_plot is not None:
-                psi_theory_std = results['psi_theory_std']
                 model_name = 'Debye-Hückel' if (kappa is not None and kappa > 0) else 'Coulomb'
-                ax2.errorbar(radii, psi_theory_mean_plot, yerr=psi_theory_std, fmt='s--', linewidth=2,
-                            markersize=6, capsize=5, label=f'Teoría ({model_name}) ± σ', color='orange')
+
+                # Generar curva teórica continua para el potencial (sin marcadores)
+                if charge_pos is not None:
+                    # Si scale_factor es None, usar el prefactor teórico
+                    if scale_factor is None:
+                        prefactor = q / (4.0 * np.pi * epsilon * kt)
+                    else:
+                        prefactor = scale_factor
+
+                    # Determinar rango de radios para la curva continua
+                    # Si el usuario especificó una distancia inicial, usarla; si no, usar el mínimo de los datos
+                    if theory_start_distance is not None:
+                        r_min_theory = theory_start_distance
+                    else:
+                        r_min_theory = min(radii)  # Usar distancia mínima de los datos de simulación
+                    r_max_theory = max(radii)
+
+                    # Crear array denso de radios para curva suave
+                    radii_theory_dense = np.linspace(r_min_theory, r_max_theory, 500)
+
+                    # Calcular potencial teórico en función del radio
+                    psi_theory_dense = []
+                    for r in radii_theory_dense:
+                        if kappa is not None and kappa > 0:
+                            # Debye-Hückel
+                            psi_val = prefactor * np.exp(-kappa * r) / r
+                        else:
+                            # Coulomb
+                            psi_val = prefactor / r
+                        psi_theory_dense.append(psi_val)
+
+                    psi_theory_dense = np.array(psi_theory_dense)
+
+                    # Aplicar el mismo offset que se usó para los puntos
+                    if log_scale in ['y', 'xy']:
+                        psi_theory_dense_plot = psi_theory_dense + psi_offset
+                    else:
+                        psi_theory_dense_plot = psi_theory_dense
+
+                    # Graficar curva continua
+                    ax2.plot(radii_theory_dense, psi_theory_dense_plot, '-', linewidth=1.25,
+                            label=f'Teoría ({model_name})', color='orange')
 
             ax2.set_xlabel('Distancia desde la partícula', fontsize=14)
             ylabel_psi = 'Potencial eléctrico ψ'
@@ -823,8 +1065,8 @@ class SymmetryAnalyzer:
         # Gráfico de error relativo del campo eléctrico (subplot inferior izquierdo o inferior si efield_only)
         if has_theory and ax3 is not None:
             rel_error_E = results['relative_error']
-            ax3.plot(radii, np.array(rel_error_E) * 100, 'o-', linewidth=2,
-                    markersize=8, color='green')
+            ax3.plot(radii, np.array(rel_error_E) * 100, 'o-', linewidth=1,
+                    markersize=4, color='green')
             ax3.set_xlabel('Distancia desde la partícula', fontsize=14)
             ax3.set_ylabel('Error Relativo (%)', fontsize=14)
             ax3.set_title('Error Relativo del Campo: |E_sim - E_theory| / E_theory', fontsize=14)
@@ -835,6 +1077,14 @@ class SymmetryAnalyzer:
             ax3.axhline(y=5, color='orange', linestyle=':', linewidth=1, alpha=0.5, label='±5%')
             ax3.axhline(y=10, color='red', linestyle=':', linewidth=1, alpha=0.5, label='±10%')
             ax3.legend(fontsize=10)
+
+            # Alinear límites y escala del eje X con ax1 (gráfico superior)
+            ax3.set_xlim(ax1.get_xlim())
+
+            # Aplicar la misma escala logarítmica en X que ax1
+            if log_scale in ['xy', 'symlog-xy']:
+                ax3.set_xscale('log')
+                ax3.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
 
         # Gráfico de error relativo del potencial (subplot inferior derecho, solo si no es efield_only)
         if has_theory and ax4 is not None:
@@ -848,8 +1098,8 @@ class SymmetryAnalyzer:
                 else:
                     rel_error_psi.append(np.nan)
 
-            ax4.plot(radii, np.array(rel_error_psi) * 100, 'o-', linewidth=2,
-                    markersize=8, color='purple')
+            ax4.plot(radii, np.array(rel_error_psi) * 100, 'o-', linewidth=1,
+                    markersize=4, color='purple')
             ax4.set_xlabel('Distancia desde la partícula', fontsize=14)
             ax4.set_ylabel('Error Relativo (%)', fontsize=14)
             ax4.set_title('Error Relativo del Potencial: |ψ_sim - ψ_theory| / |ψ_theory|', fontsize=14)
@@ -860,6 +1110,14 @@ class SymmetryAnalyzer:
             ax4.axhline(y=5, color='orange', linestyle=':', linewidth=1, alpha=0.5, label='±5%')
             ax4.axhline(y=10, color='red', linestyle=':', linewidth=1, alpha=0.5, label='±10%')
             ax4.legend(fontsize=10)
+
+            # Alinear límites y escala del eje X con ax2 (gráfico superior de potencial)
+            ax4.set_xlim(ax2.get_xlim())
+
+            # Aplicar la misma escala logarítmica en X que ax2
+            if log_scale in ['xy', 'symlog-xy']:
+                ax4.set_xscale('log')
+                ax4.set_xlabel('Distancia desde la partícula (escala log)', fontsize=14)
 
         plt.tight_layout()
 
@@ -886,12 +1144,12 @@ class SymmetryAnalyzer:
         Ez_std = results['Ez_std']
 
         # Componente Ex
-        ax1.errorbar(radii, Ex_mean, yerr=Ex_std, fmt='o-', linewidth=2,
-                    markersize=8, capsize=5, label='Simulación Ex ± σ', color='red')
+        ax1.errorbar(radii, Ex_mean, yerr=Ex_std, fmt='o-', linewidth=1,
+                    markersize=4, capsize=2.5, label='Simulación Ex ± σ', color='red')
         if has_theory:
             Ex_theory = results['Ex_theory_mean']
             model_name = 'Debye-Hückel' if (kappa is not None and kappa > 0) else 'Coulomb'
-            ax1.plot(radii, Ex_theory, 's--', linewidth=2, markersize=6,
+            ax1.plot(radii, Ex_theory, 's--', linewidth=1, markersize=3,
                     label=f'Teoría ({model_name})', color='darkred')
         ax1.set_xlabel('Distancia desde la partícula', fontsize=14)
         ax1.set_ylabel('Ex', fontsize=14)
@@ -901,11 +1159,11 @@ class SymmetryAnalyzer:
         ax1.axhline(y=0, color='k', linestyle='--', linewidth=0.5, alpha=0.5)
 
         # Componente Ey
-        ax2.errorbar(radii, Ey_mean, yerr=Ey_std, fmt='o-', linewidth=2,
-                    markersize=8, capsize=5, label='Simulación Ey ± σ', color='green')
+        ax2.errorbar(radii, Ey_mean, yerr=Ey_std, fmt='o-', linewidth=1,
+                    markersize=4, capsize=2.5, label='Simulación Ey ± σ', color='green')
         if has_theory:
             Ey_theory = results['Ey_theory_mean']
-            ax2.plot(radii, Ey_theory, 's--', linewidth=2, markersize=6,
+            ax2.plot(radii, Ey_theory, 's--', linewidth=1, markersize=3,
                     label=f'Teoría ({model_name})', color='darkgreen')
         ax2.set_xlabel('Distancia desde la partícula', fontsize=14)
         ax2.set_ylabel('Ey', fontsize=14)
@@ -915,11 +1173,11 @@ class SymmetryAnalyzer:
         ax2.axhline(y=0, color='k', linestyle='--', linewidth=0.5, alpha=0.5)
 
         # Componente Ez
-        ax3.errorbar(radii, Ez_mean, yerr=Ez_std, fmt='o-', linewidth=2,
-                    markersize=8, capsize=5, label='Simulación Ez ± σ', color='blue')
+        ax3.errorbar(radii, Ez_mean, yerr=Ez_std, fmt='o-', linewidth=1,
+                    markersize=4, capsize=2.5, label='Simulación Ez ± σ', color='blue')
         if has_theory:
             Ez_theory = results['Ez_theory_mean']
-            ax3.plot(radii, Ez_theory, 's--', linewidth=2, markersize=6,
+            ax3.plot(radii, Ez_theory, 's--', linewidth=1, markersize=3,
                     label=f'Teoría ({model_name})', color='darkblue')
         ax3.set_xlabel('Distancia desde la partícula', fontsize=14)
         ax3.set_ylabel('Ez', fontsize=14)
@@ -1040,7 +1298,7 @@ class SymmetryAnalyzer:
             distances = profile['distances']
             E_mag = profile['E_magnitude']
             label = f'{np.degrees(angle):.0f}°'
-            ax1.plot(distances, E_mag, '-', linewidth=2, label=label, alpha=0.7)
+            ax1.plot(distances, E_mag, '-', linewidth=1, label=label, alpha=0.7)
 
         ax1.set_xlabel('Distancia desde la partícula', fontsize=14)
         ax1.set_ylabel('Magnitud del campo |E|', fontsize=14)
@@ -1054,7 +1312,7 @@ class SymmetryAnalyzer:
             distances = profile['distances']
             psi = profile['psi']
             label = f'{np.degrees(angle):.0f}°'
-            ax2.plot(distances, psi, '-', linewidth=2, label=label, alpha=0.7)
+            ax2.plot(distances, psi, '-', linewidth=1, label=label, alpha=0.7)
 
         ax2.set_xlabel('Distancia desde la partícula', fontsize=14)
         ax2.set_ylabel('Potencial ψ', fontsize=14)
@@ -1159,9 +1417,9 @@ COMPARACIÓN CON MODELO TEÓRICO (POISSON-BOLTZMANN):
        --compare-theory --charge 1.0 --epsilon 1e4 --kt 0.0005 --kappa 0.0 -o simetria_
 
 OPCIONES AVANZADAS:
-7. Análisis con rango de radios personalizado:
+7. Análisis con rango de radios personalizado (incluyendo radio mínimo cerca de cero):
    ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
-       --max-radius 10 --num-radii 15
+       --min-radius 0.01 --max-radius 10 --num-radii 15
 
 8. Analizar solo planos específicos:
    ./verificar_simetria_psi.py -f psi-000005000.001-001 -c config.cds00005000.001-001 -s 32 32 32 \
@@ -1228,12 +1486,22 @@ NOTAS:
                        help='Posición de la partícula (x y z)')
 
     # Parámetros de análisis
+    parser.add_argument('--stencil', type=int, choices=[7, 19, 27], default=19,
+                       help='Tipo de stencil para calcular el gradiente: 7 (D3Q7), 19 (D3Q19), 27 (D3Q27). Default: 19')
+    parser.add_argument('--min-radius', type=float, default=0.01,
+                       help='Radio mínimo para análisis radial (default: 0.01 para evitar divergencia en r=0)')
     parser.add_argument('--max-radius', type=float, default=15.0,
                        help='Radio máximo para análisis radial (default: 15.0)')
     parser.add_argument('--num-radii', type=int, default=10,
                        help='Número de radios a analizar (default: 10)')
     parser.add_argument('--shell-thickness', type=float, default=0.1,
-                       help='Grosor de las cáscaras esféricas para muestreo radial (default: 0.1)')
+                       help='Grosor de las cáscaras esféricas para muestreo radial (default: 0.1, solo si --use-shells)')
+    parser.add_argument('--use-all-points', action='store_true', default=True,
+                       help='Usar TODOS los puntos de la grilla agrupados por bins de distancia (default: True, recomendado)')
+    parser.add_argument('--use-shells', action='store_true', dest='use_shells',
+                       help='Usar método de cáscaras esféricas en lugar de todos los puntos (menos preciso)')
+    parser.add_argument('--distance-bin-size', type=float, default=0.05,
+                       help='Tamaño del bin para agrupar distancias cuando se usan todos los puntos (default: 0.05)')
     parser.add_argument('--planes', nargs='+', choices=['xy', 'xz', 'yz'],
                        default=['xy', 'xz', 'yz'],
                        help='Planos a analizar (default: xy xz yz)')
@@ -1261,6 +1529,10 @@ NOTAS:
                        help='Energía térmica k_B*T (default: 1.0)')
     parser.add_argument('--kappa', type=float, default=0.0,
                        help='Parámetro de Debye κ = 1/λ_D. κ=0 usa Coulomb (vacío), κ>0 usa Debye-Hückel (electrolito). (default: 0.0)')
+    parser.add_argument('--no-fit-scale', action='store_true',
+                       help='No ajustar el factor de escala teórico a la simulación. Usa directamente q/(4πε*kt) para comparar magnitudes absolutas.')
+    parser.add_argument('--theory-start-distance', type=float, default=None,
+                       help='Distancia mínima desde donde graficar la curva teórica. Si no se especifica, usa la distancia mínima de los datos de simulación.')
 
     # Salida
     parser.add_argument('-o', '--output-prefix',
@@ -1296,8 +1568,9 @@ NOTAS:
     print(f"Archivo leído exitosamente. Malla: {args.size[0]}x{args.size[1]}x{args.size[2]}")
 
     # Calcular campo eléctrico
-    print("Calculando campo eléctrico E = -∇ψ...")
-    Ex, Ey, Ez = reader.compute_electric_field()
+    stencil_name = f'd3q{args.stencil}'
+    print(f"Calculando campo eléctrico E = -∇ψ usando stencil D3Q{args.stencil}...")
+    Ex, Ey, Ez = reader.compute_electric_field(stencil=stencil_name)
     print("Campo eléctrico calculado.")
 
     # Calcular campo teórico si se solicita
@@ -1313,15 +1586,21 @@ NOTAS:
         if args.kappa > 0:
             print(f"Longitud de Debye: λ_D = {1.0/args.kappa:.4f}")
 
-        # Ajustar factor de escala
-        print("\nAjustando factor de escala entre simulación y teoría...")
-        scale_factor = TheoreticalField.fit_scale_factor(
-            Ex, Ey, Ez, particle_pos, tuple(args.size),
-            q=args.charge, kappa=args.kappa, kt=args.kt
-        )
-        print(f"Factor de escala encontrado: {scale_factor:.6e}")
-        print(f"Factor teórico q/(4πε*kt): {args.charge / (4.0 * np.pi * args.epsilon * args.kt):.6e}")
-        print(f"Ratio simulado/teórico: {scale_factor / (args.charge / (4.0 * np.pi * args.epsilon * args.kt)):.4f}")
+        # Ajustar factor de escala (o usar teórico directo si --no-fit-scale)
+        if args.no_fit_scale:
+            print("\nUsando factor de escala teórico (sin ajuste a simulación)...")
+            scale_factor = None  # Esto hará que debye_huckel_field use q/(4πε*kt)
+            theoretical_prefactor = args.charge / (4.0 * np.pi * args.epsilon * args.kt)
+            print(f"Factor teórico q/(4πε*kt): {theoretical_prefactor:.6e}")
+        else:
+            print("\nAjustando factor de escala entre simulación y teoría...")
+            scale_factor = TheoreticalField.fit_scale_factor(
+                Ex, Ey, Ez, particle_pos, tuple(args.size),
+                q=args.charge, kappa=args.kappa, kt=args.kt
+            )
+            print(f"Factor de escala encontrado: {scale_factor:.6e}")
+            print(f"Factor teórico q/(4πε*kt): {args.charge / (4.0 * np.pi * args.epsilon * args.kt):.6e}")
+            print(f"Ratio simulado/teórico: {scale_factor / (args.charge / (4.0 * np.pi * args.epsilon * args.kt)):.4f}")
 
         # Calcular campo teórico
         print("\nCalculando campo teórico...")
@@ -1378,15 +1657,25 @@ NOTAS:
     analyzer = SymmetryAnalyzer(psi, Ex, Ey, Ez, tuple(args.size), particle_pos)
 
     # Análisis de simetría radial
-    print(f"\nAnalizando simetría radial (radio máximo: {args.max_radius}, {args.num_radii} radios)...")
+    # Determinar si usar todos los puntos o cáscaras esféricas
+    use_all_points = not args.use_shells if hasattr(args, 'use_shells') else True
+
+    if use_all_points:
+        print(f"\nAnalizando simetría radial usando TODOS los puntos (bin size: {args.distance_bin_size})...")
+    else:
+        print(f"\nAnalizando simetría radial con cáscaras esféricas (grosor: {args.shell_thickness})...")
+
     radial_results = analyzer.check_radial_symmetry(
         num_radii=args.num_radii,
         max_radius=args.max_radius,
+        min_radius=args.min_radius,
         Ex_theory=Ex_theory,
         Ey_theory=Ey_theory,
         Ez_theory=Ez_theory,
         psi_theory=psi_theory,
-        shell_thickness=args.shell_thickness
+        shell_thickness=args.shell_thickness,
+        use_all_points=use_all_points,
+        distance_bin_size=args.distance_bin_size
     )
 
     # Graficar simetría radial
@@ -1400,7 +1689,14 @@ NOTAS:
                                   psi_offset_factor=args.psi_offset_factor,
                                   psi_theory_mean_offset=psi_theory_mean_offset if args.compare_theory else 0.0,
                                   symlog_linthresh=args.symlog_linthresh,
-                                  efield_only=args.efield_only)
+                                  efield_only=args.efield_only,
+                                  charge_pos=particle_pos if args.compare_theory else None,
+                                  grid_size=tuple(args.size) if args.compare_theory else None,
+                                  q=args.charge if args.compare_theory else 1.0,
+                                  epsilon=args.epsilon if args.compare_theory else 1.0,
+                                  kt=args.kt if args.compare_theory else 1.0,
+                                  scale_factor=scale_factor if args.compare_theory else None,
+                                  theory_start_distance=args.theory_start_distance)
 
     # Si solo se pidió análisis radial, terminar aquí
     if args.radial_only:

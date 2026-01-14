@@ -105,6 +105,9 @@
 #include "psi_solver.h"
 #include "psi_colloid.h"
 #include "nernst_planck.h"
+/*CHANGE INIT - PETSc solver with subgrid */
+#include "psi_petsc.h"
+/*CHANGE END - PETSc solver with subgrid */
 
 /* Statistics */
 #include "stats_colloid.h"
@@ -418,20 +421,10 @@ static int ludwig_rt(ludwig_t* ludwig) {
 
   if (ntstep == 0 && ludwig->psi) {
     psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
-    /*CHANGE INIT - Subgrid charge */
-    distributed_charge_klein_t* charge = NULL;
-    double kappa;
-
-    subgrid_compute_kappa(ludwig->psi, &kappa);
-
-    subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
-    /*CHANGE END - Subgrid charge */
     pe_info(pe, "\nArranging initial charge neutrality.\n\n");
-    psi_electroneutral(ludwig->psi, ludwig->map);
     /*CHANGE INIT - Subgrid charge */
-    subgrid_charge_from_particles_substract(ludwig->collinfo, ludwig->psi, &charge);
-    subgrid_free_distributed_charge_t(&charge);
-    // subgrid_charge_from_particles_compenzate(ludwig->collinfo, ludwig->psi, &charge);
+    // psi_electroneutral(ludwig->psi, ludwig->map);
+    psi_electroneutral(ludwig->psi, ludwig->map, ludwig->collinfo);
     /*CHANGE END - Subgrid charge */
   }
 
@@ -544,12 +537,17 @@ void ludwig_run(const char* inputfile) {
 
   // CHANGE INIT -Subgrid charge debug data
   FILE* fp;
+  double kappa_aux;
+
+  if (ludwig->psi) subgrid_compute_kappa(ludwig->psi, &kappa_aux);
+  pe_info(ludwig->pe, "Kappa calculado: %.15f\n", kappa_aux);
+
   fp = fopen("./proceced_data/particle_Esub.csv", "r");
   if (fp == NULL) {
     fp = fopen("./proceced_data/particle_Esub.csv", "w");
     if (fp != NULL) {
       // fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;Eself_X;Eself_Y;Eself_Z\n");
-      fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z\n");
+      fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;EmodPB;EPB_X;EPB_Y;EPB_Z\n");
     }
   }
   else {
@@ -637,23 +635,41 @@ void ludwig_run(const char* inputfile) {
       /* Set charge distribution according to updated map */
       psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
 
-      /*CHANGE INIT - Subgrid charge */
+      /*CHANGE INIT - Subgrid charge - OLD METHOD (commented) */
       distributed_charge_klein_t* charge = NULL;
       subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
+      // pe_info(ludwig->pe, "Kappa calculado: %.15f\n", subgrid_get_kappa());
       /*CHANGE END - Subgrid charge */
-
-      /* Poisson solve */
-
+            /* Poisson solve */
       TIMER_start(TIMER_ELECTRO_POISSON);
 
+      // /*CHANGE INIT - Use PETSc solver with subgrid charges in RHS */
+      // /* Cast to PETSc solver type to call new method */
+      // psi_solver_petsc_t* petsc_solver = (psi_solver_petsc_t*)ludwig->poisson;
+      // psi_solver_petsc_solve_with_subgrid(petsc_solver, ludwig->collinfo, step);
+      // /*CHANGE END - Use PETSc solver with subgrid charges in RHS */
+
+      // OLD METHOD: 
       ludwig->poisson->impl->solve(ludwig->poisson, step);
 
       TIMER_stop(TIMER_ELECTRO_POISSON);
 
-      /*CHANGE INIT - Subgrid charge */ //If I put this here subgrid particles always goes to (0.5;0.5;0.5) position 
+      /*CHANGE INIT - Subgrid charge - OLD METHOD (commented) */
       subgrid_charge_from_particles_restore(ludwig->collinfo, ludwig->psi, &charge);
       subgrid_free_distributed_charge_t(&charge);
       /*CHANGE END - Subgrid charge */
+
+      // /*CHANGE INIT - Calculate force on particles BEFORE adding particle potential */
+      // /* Use rho(t) to calculate force on particles, before Nernst-Planck evolves it */
+      // /* This ensures force is calculated with fluid charge only, not influenced by particle potential */
+      // subgrid_force_poisson_boltzmann(ludwig->collinfo,
+      //                          ludwig->map,
+      //                          ludwig->phys,
+      //                          ludwig->psi,
+      //                          ludwig->hydro,
+      //                          step,
+      //                          fp);
+      // /*CHANGE END - Calculate force on particles */
 
       if (ludwig->hydro) {
         TIMER_start(TIMER_HALO_LATTICE);
@@ -696,6 +712,7 @@ void ludwig_run(const char* inputfile) {
               ludwig->collinfo);
           }
           TIMER_stop(TIMER_FORCE_CALCULATION);
+
         }
 
         TIMER_start(TIMER_ELECTRO_NPEQ);
@@ -721,6 +738,12 @@ void ludwig_run(const char* inputfile) {
 
     }
 
+    // /*CHANGE INIT - Resta velocidad media del sistema */
+    // if (ludwig->hydro) {
+    //   hydro_subtract_mean_velocity(ludwig->hydro);
+    // }
+    // /*CHANGE END - Resta velocidad media del sistema */
+
     /* order parameter dynamics (not if symmetric_lb) */
 
     if (ludwig->lb->ndist == 2) {
@@ -737,7 +760,8 @@ void ludwig_run(const char* inputfile) {
         subgrid_update_Esub(ludwig->collinfo,
                             ludwig->psi,
                             step,
-                            fp);
+                            fp,
+                            ludwig->pe);
 
         subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map, ludwig->phys, ludwig->psi, ludwig->hydro);
 
@@ -1061,6 +1085,11 @@ void ludwig_run(const char* inputfile) {
     /* Next time step */
   }
 
+  /* CHANGE INIT - Subgrid charge debug data */
+  if (fp != NULL) {
+    fclose(fp);
+  }
+  /* CHANGE END - Subgrid charge debug data*/
 
   /* End of time step loop. A barrier, before closing down. */
   MPI_Barrier(comm);
@@ -1967,7 +1996,10 @@ int free_energy_init_rt(ludwig_t* ludwig) {
       /* The following are supported */
       switch (method) {
       case FE_FORCE_METHOD_PHI_GRADMU_CORRECTION:
-        nhalo = 1;
+        // CHANGE INIT - Stencil 27 subgrid
+          // nhalo = 1;
+        nhalo = 2;
+        // CHANGE INIT - Stencil 27 subgrid
         psi_method = PSI_FORCE_GRADMU;
         break;
       case FE_FORCE_METHOD_STRESS_DIVERGENCE:

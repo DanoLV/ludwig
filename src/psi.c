@@ -22,6 +22,9 @@
 #include <limits.h>
 
 #include "psi.h"
+/*CHANGE INIT - 20251203 Electric field output */
+#include "psi_gradients.h"
+/*CHANGE END - 20251203 */
  /*CHANGE INIT - Subgrid charge */
 #include "util_sum.h"
 /*CHANGE END - Subgrid charge */
@@ -127,8 +130,14 @@ int psi_initialise(pe_t* pe, cs_t* cs, const psi_options_t* opts,
     /* Unfortunately, "rho" is not available for the charge density,
      * as it would conflict with the fluid density. */
     lees_edw_t* le = NULL;
+    /*CHANGE INIT - 20251203 Electric field output */
+    // field_options_t efield_opts = {.ndata = 3, .nhcomm = 1};
+    /*CHANGE END - 20251203 */
     field_create(pe, cs, le, "psi", &opts->psi, &psi->psi);
     field_create(pe, cs, le, "qsi", &opts->rho, &psi->rho);
+    // /*CHANGE INIT - 20251203 Electric field output */
+    // field_create(pe, cs, le, "efield", &efield_opts, &psi->efield);
+    // /*CHANGE END - 20251203 */
   }
 
   psi->nfreq_io = INT_MAX;
@@ -150,6 +159,9 @@ int psi_finalise(psi_t* psi) {
   assert(psi->psi);
 
   stencil_free(&psi->stencil);
+  /*CHANGE INIT - 20251203 Electric field output */
+  // field_free(psi->efield);
+  /*CHANGE END - 20251203 */
   field_free(psi->rho);
   field_free(psi->psi);
 
@@ -896,7 +908,9 @@ int psi_output_step(psi_t* psi, int its) {
  *
  *****************************************************************************/
 
-int psi_electroneutral(psi_t* psi, map_t* map) {
+ // CHANGE INIT - Subgrid charge
+ //  int psi_electroneutral(psi_t* psi, map_t* map) {
+int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
 
   int ic, jc, kc, index;
   int nlocal[3];
@@ -948,6 +962,33 @@ int psi_electroneutral(psi_t* psi, map_t* map) {
     }
   }
 
+  // CHANGE INIT - Subgrid charge
+  int ncell[3];
+  double qcoll = 0.0;
+  colloid_t* p_colloid = NULL;
+  colloids_info_ncell(cinfo, ncell);
+
+  /* Loop through all cells  */
+  for (ic = 1; ic <= ncell[X]; ic++) {
+    for (jc = 1; jc <= ncell[Y]; jc++) {
+      for (kc = 1; kc <= ncell[Z]; kc++) {
+
+        colloids_info_cell_list_head(cinfo, ic, jc, kc, &p_colloid);
+
+        for (; p_colloid; p_colloid = p_colloid->next) {
+
+          if (p_colloid->s.bc != COLLOID_BC_SUBGRID) continue;
+          qcoll += p_colloid->s.q0 - p_colloid->s.q1;
+
+        }
+      }
+    }
+  }
+
+  qloc += qcoll;
+  // CHANGE END - Subgrid charge
+
+
   MPI_Allreduce(&qloc, &qtot, 1, MPI_DOUBLE, MPI_SUM, comm);
 
   /* calculate and apply countercharge on fluid */
@@ -979,6 +1020,49 @@ int psi_electroneutral(psi_t* psi, map_t* map) {
   return 0;
 }
 
+/*CHANGE INIT - 20251203 Electric field output */
+/*****************************************************************************
+ *
+ *  psi_compute_electric_field
+ *
+ *  Compute electric field E = -grad(psi) at all lattice sites and store
+ *  in psi->efield. This allows output of the exact electric field values
+ *  that Ludwig uses internally.
+ *
+ *****************************************************************************/
+
+int psi_compute_electric_field(psi_t* psi) {
+
+  int nlocal[3] = {0};
+  double e[3] = {0};
+
+  assert(psi);
+  assert(psi->efield);
+
+  cs_nlocal(psi->cs, nlocal);
+
+  for (int ic = 1; ic <= nlocal[X]; ic++) {
+    for (int jc = 1; jc <= nlocal[Y]; jc++) {
+      for (int kc = 1; kc <= nlocal[Z]; kc++) {
+
+        int index = cs_index(psi->cs, ic, jc, kc);
+
+        /* Compute electric field at this point */
+        psi_electric_field(psi, index, e);
+
+        /* Store in efield (3 components) */
+        int addr = addr_rank1(psi->nsites, 3, index, 0);
+        psi->efield->data[addr + 0] = e[X];
+        psi->efield->data[addr + 1] = e[Y];
+        psi->efield->data[addr + 2] = e[Z];
+      }
+    }
+  }
+
+  return 0;
+}
+/*CHANGE END - 20251203 */
+
 /*****************************************************************************
  *
  *  psi_io_write
@@ -992,6 +1076,9 @@ int psi_io_write(psi_t* psi, int nstep) {
   int ifail = 0;
   io_event_t io1 = { 0 };
   io_event_t io2 = { 0 };
+  // /*CHANGE INIT - 20251203 Electric field output */
+  // io_event_t io3 = { 0 };
+  // /*CHANGE END - 20251203 */
   const char* extra = "electrokinetics";
   cJSON* json = NULL;
 
@@ -999,12 +1086,26 @@ int psi_io_write(psi_t* psi, int nstep) {
   if (ifail == 0) {
     io1.extra_name = extra;
     io2.extra_name = extra;
+    // /*CHANGE INIT - 20251203 Electric field output */
+    // io3.extra_name = extra;
+    // /*CHANGE END - 20251203 */
     io1.extra_json = json;
     io2.extra_json = json;
+    // /*CHANGE INIT - 20251203 Electric field output */
+    // io3.extra_json = json;
+    // /*CHANGE END - 20251203 */
   }
+
+  // /*CHANGE INIT - 20251203 Electric field output */
+  // /* Compute electric field before writing */
+  // ifail += psi_compute_electric_field(psi);
+  // /*CHANGE END - 20251203 */
 
   ifail += field_io_write(psi->psi, nstep, &io1);
   ifail += field_io_write(psi->rho, nstep, &io2);
+  // /*CHANGE INIT - 20251203 Electric field output */
+  // ifail += field_io_write(psi->efield, nstep, &io3);
+  // /*CHANGE END - 20251203 */
 
   cJSON_Delete(json);
 

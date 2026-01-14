@@ -37,5 +37,14 @@ int psi_solver_petsc_var_epsilon_create(psi_t * psi, var_epsilon_t epsilon,
 					psi_solver_petsc_t ** solver);
 int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t * solver, int nt);
 
+/*CHANGE INIT - Add subgrid particle charges to PETSc RHS */
+#include "colloids.h"
+int psi_solver_petsc_add_subgrid_charges(psi_solver_petsc_t * solver,
+                                          colloids_info_t * cinfo);
+int psi_solver_petsc_solve_with_subgrid(psi_solver_petsc_t * solver,
+                                         colloids_info_t * cinfo,
+                                         int ntimestep);
+/*CHANGE END - Add subgrid particle charges to PETSc RHS */
+
 #endif
 

@@ -21,6 +21,9 @@ do
     esac
 done
 
+theory_start_distance=1.0
+distance_bin_size=0.2
+
 # Check mandatory options
 if [[ -z "$epsilon" || -z "$kappa" || -z "$paso" ]]; then
         echo 'Missing mandatory input line parameters' >&2
@@ -89,8 +92,11 @@ for d in ./*/; do
                  --epsilon $epsilon \
                  --kt $kt \
                  --radial-only --efield-only \
-                 --shell-thickness $shell_thick \
+                 --theory-start-distance $theory_start_distance \
+                 --distance-bin-size $distance_bin_size \
                  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-
+                #  --shell-thickness $shell_thick \
+                #  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-
 
         ../../scripts/verificar_simetria_psi.py -f ./psi-$(printf "%09d" "$paso").001-001 \
                  -c ./config.cds$(printf "%08d" "$paso").001-001 \
@@ -99,8 +105,11 @@ for d in ./*/; do
                  --epsilon $epsilon \
                  --kt $kt \
                  --radial-only --efield-only \
+                 --theory-start-distance $theory_start_distance \
+                 --distance-bin-size $distance_bin_size \
                  --log-scale xy \
-                 --shell-thickness $shell_thick \
                  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-log-
+                #  --shell-thickness $shell_thick \
+                #  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-log-
     )
 done

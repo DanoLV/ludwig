@@ -817,6 +817,8 @@ int lb_1st_moment_equilib_set(lb_t * lb, int index, double rho, double u[3]) {
   assert(lb);
   assert(index >= 0 && index < lb->nsite);
 
+  /*CHANGE INIT - Kahan summation for equilibrium initialization */
+  /* Original code (without Kahan):
   for (p = 0; p < lb->model.nvel; p++) {
     double cs2 = lb->model.cs2;
     double rcs2 = 1.0/cs2;
@@ -833,6 +835,42 @@ int lb_1st_moment_equilib_set(lb_t * lb, int index, double rho, double u[3]) {
     lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, LB_RHO, p)]
       = rho*lb->model.wv[p]*(1.0 + rcs2*udotc + 0.5*rcs2*rcs2*sdotq);
   }
+  */
+
+  /* New code with Kahan compensated summation for udotc and sdotq */
+  for (p = 0; p < lb->model.nvel; p++) {
+    double cs2 = lb->model.cs2;
+    double rcs2 = 1.0/cs2;
+
+    /* Kahan summation for udotc */
+    volatile double udotc = 0.0;
+    volatile double udotc_c = 0.0;
+    for (ia = 0; ia < 3; ia++) {
+      volatile double val = u[ia]*lb->model.cv[p][ia];
+      volatile double y = val - udotc_c;
+      volatile double t = udotc + y;
+      udotc_c = (t - udotc) - y;
+      udotc = t;
+    }
+
+    /* Kahan summation for sdotq */
+    volatile double sdotq = 0.0;
+    volatile double sdotq_c = 0.0;
+    for (ia = 0; ia < 3; ia++) {
+      for (ib = 0; ib < 3; ib++) {
+	double dab = (ia == ib);
+	volatile double val = (lb->model.cv[p][ia]*lb->model.cv[p][ib] - cs2*dab)*u[ia]*u[ib];
+	volatile double y = val - sdotq_c;
+	volatile double t = sdotq + y;
+	sdotq_c = (t - sdotq) - y;
+	sdotq = t;
+      }
+    }
+
+    lb->f[LB_ADDR(lb->nsite, lb->ndist, lb->nvel, index, LB_RHO, p)]
+      = rho*lb->model.wv[p]*(1.0 + rcs2*udotc + 0.5*rcs2*rcs2*sdotq);
+  }
+  /*CHANGE END - Kahan summation for equilibrium initialization */
 
   return 0;
 }

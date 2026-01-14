@@ -19,6 +19,7 @@
 #include <stdlib.h>
 
 #include "lb_d3q27.h"
+#include "util_sum.h"  /* CHANGE INIT - For Kahan summation */
 
 static int lb_d3q27_matrix_ma(lb_model_t * model);
 
@@ -71,14 +72,16 @@ int lb_d3q27_create(lb_model_t * model) {
   lb_d3q27_matrix_ma(model);
 
   /* Normalisers: Compute weighted inner product ... */
+  /* CHANGE INIT - Use Kahan summation for normalisers like D3Q19 */
 
   for (int p = 0; p < model->nvel; p++) {
-    double sum = 0.0;
+    kahan_t sum = kahan_zero();
     for (int ia = 0; ia < model->nvel; ia++) {
-      sum += model->wv[ia]*model->ma[p][ia]*model->ma[p][ia];
+      kahan_add_double(&sum, model->wv[ia]*model->ma[p][ia]*model->ma[p][ia]);
     }
-    model->na[p] = 1.0/sum;
+    model->na[p] = 1.0/kahan_sum(&sum);
   }
+  /* CHANGE END */
 
   return 0;
 

@@ -36,6 +36,12 @@ __global__ void hydro_accumulate_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
                                           double fnet[3]);
 __global__ void hydro_correct_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
 				       double fnet[3]);
+/*CHANGE INIT - Resta velocidad media del sistema */
+__global__ void hydro_accumulate_u_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
+                                            double usum[3]);
+__global__ void hydro_subtract_u_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
+                                          double umean[3]);
+/*CHANGE END - Resta velocidad media del sistema */
 __global__ void hydro_rho0_kernel(int nsite, double rho0, double * rho);
 
 
@@ -746,6 +752,85 @@ __host__ int hydro_correct_momentum(hydro_t * hydro) {
 
 /*****************************************************************************
  *
+ *  hydro_subtract_mean_velocity
+ *
+ *  CHANGE INIT - Resta velocidad media del sistema
+ *  Calcula la velocidad media del sistema y la resta de todos los puntos.
+ *  Esto elimina cualquier movimiento neto del sistema.
+ *
+ *****************************************************************************/
+
+__host__ int hydro_subtract_mean_velocity(hydro_t * hydro) {
+
+  int nlocal[3];
+  int ic, jc, kc, index;
+  double rv;
+  double ltot[3];
+  MPI_Comm comm;
+
+  /* Kahan summation variables */
+  double usum[3] = {0.0, 0.0, 0.0};
+  double c[3] = {0.0, 0.0, 0.0};  /* Compensation for lost low-order bits */
+  double umean[3] = {0.0, 0.0, 0.0};
+
+  assert(hydro);
+  assert(hydro->u);
+
+  cs_nlocal(hydro->cs, nlocal);
+  cs_cart_comm(hydro->cs, &comm);
+  cs_ltot(hydro->cs, ltot);
+  rv = 1.0/(ltot[X]*ltot[Y]*ltot[Z]);
+
+  /* First loop: Sum all velocities using Kahan summation algorithm */
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(hydro->cs, ic, jc, kc);
+
+        for (int ia = 0; ia < 3; ia++) {
+          int haddr = addr_rank1(hydro->nsite, NHDIM, index, ia);
+          double u_val = hydro->u->data[haddr];
+
+          /* Kahan summation: compensated summation */
+          double y = u_val - c[ia];
+          double t = usum[ia] + y;
+          c[ia] = (t - usum[ia]) - y;
+          usum[ia] = t;
+        }
+      }
+    }
+  }
+
+  /* Global reduction: sum across all MPI processes */
+  MPI_Allreduce(MPI_IN_PLACE, usum, 3, MPI_DOUBLE, MPI_SUM, comm);
+
+  /* Calculate mean velocity */
+  umean[X] = usum[X] * rv;
+  umean[Y] = usum[Y] * rv;
+  umean[Z] = usum[Z] * rv;
+
+  /* Second loop: Subtract mean velocity from all points */
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(hydro->cs, ic, jc, kc);
+
+        for (int ia = 0; ia < 3; ia++) {
+          int haddr = addr_rank1(hydro->nsite, NHDIM, index, ia);
+          hydro->u->data[haddr] -= umean[ia];
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+/* CHANGE END - Resta velocidad media del sistema */
+
+/*****************************************************************************
+ *
  *  hydro_accumulate_kernel
  *
  *  Work out the net total body force in the system.
@@ -931,6 +1016,104 @@ __global__ void hydro_correct_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
 
 /*****************************************************************************
  *
+ *  hydro_accumulate_u_kernel_v
+ *
+ *  CHANGE INIT - Kernel para acumular velocidades
+ *  Acumula la suma total de velocidades en el sistema.
+ *
+ *****************************************************************************/
+
+__global__ void hydro_accumulate_u_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
+					     double usum[3]) {
+
+  int kindex = 0;
+  int tid = threadIdx.x;
+
+  __shared__ double ux[TARGET_PAD*TARGET_MAX_THREADS_PER_BLOCK];
+  __shared__ double uy[TARGET_PAD*TARGET_MAX_THREADS_PER_BLOCK];
+  __shared__ double uz[TARGET_PAD*TARGET_MAX_THREADS_PER_BLOCK];
+
+  assert(hydro);
+
+  ux[TARGET_PAD*tid] = 0.0;
+  uy[TARGET_PAD*tid] = 0.0;
+  uz[TARGET_PAD*tid] = 0.0;
+
+  for_simt_parallel(kindex, k3v.kiterations, NSIMDVL) {
+
+    double u[3] = {0};
+
+    int index = k3v.kindex0 + kindex;
+
+    for (int ia = 0; ia < 3; ia++) {
+      int iv = 0;
+      double utmp = 0.0;
+      for_simd_v_reduction(iv, NSIMDVL, +: utmp) {
+        utmp += hydro->u->data[addr_rank1(hydro->nsite,NHDIM,index+iv,ia)];
+      }
+      u[ia] = utmp;
+    }
+
+    ux[TARGET_PAD*tid] += u[X];
+    uy[TARGET_PAD*tid] += u[Y];
+    uz[TARGET_PAD*tid] += u[Z];
+  }
+
+  __syncthreads();
+
+  /* Reduction */
+
+  if (tid == 0) {
+    double uxb = 0.0;
+    double uyb = 0.0;
+    double uzb = 0.0;
+    for (int it = 0; it < blockDim.x; it++) {
+      uxb += ux[TARGET_PAD*it];
+      uyb += uy[TARGET_PAD*it];
+      uzb += uz[TARGET_PAD*it];
+    }
+    tdpAtomicAddDouble(usum + X, uxb);
+    tdpAtomicAddDouble(usum + Y, uyb);
+    tdpAtomicAddDouble(usum + Z, uzb);
+  }
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  hydro_subtract_u_kernel_v
+ *
+ *  Resta la velocidad media de cada punto del sistema.
+ *
+ *****************************************************************************/
+
+__global__ void hydro_subtract_u_kernel_v(kernel_3d_v_t k3v, hydro_t * hydro,
+					   double umean[3]) {
+
+  int kindex = 0;
+
+  assert(hydro);
+
+  for_simt_parallel(kindex, k3v.kiterations, NSIMDVL) {
+
+    int index = k3v.kindex0 +  kindex;
+
+    for (int ia = 0; ia < 3; ia++) {
+      int iv = 0;
+      for_simd_v(iv, NSIMDVL) {
+	int haddr = addr_rank1(hydro->nsite, NHDIM, index + iv, ia);
+	hydro->u->data[haddr] -= umean[ia];
+      }
+    }
+  }
+
+  return;
+}
+/* CHANGE END - Kernel para acumular velocidades */
+
+/*****************************************************************************
+ *
  *  hydro_io_write
  *
  *  This is intended for configuration output ("rho" and "vel"). If other
@@ -965,3 +1148,86 @@ int hydro_io_read(hydro_t * hydro, int timestep, io_event_t * event) {
 
   return 0;
 }
+
+/*CHANGE INIT - Predictor-corrector: copy and extrapolate velocity */
+/*****************************************************************************
+ *
+ *  hydro_copy_u
+ *
+ *  Copy velocity field from src to dest.
+ *  This function copies the velocity field u from src to dest.
+ *
+ *****************************************************************************/
+
+__host__ int hydro_copy_u(hydro_t * dest, hydro_t * src) {
+
+  int nlocal[3];
+  int ic, jc, kc, index;
+
+  assert(dest);
+  assert(src);
+  assert(dest->cs);
+  assert(src->cs);
+
+  cs_nlocal(src->cs, nlocal);
+
+  /* Copy velocity field */
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(src->cs, ic, jc, kc);
+
+        for (int ia = 0; ia < 3; ia++) {
+          int haddr = addr_rank1(src->nsite, NHDIM, index, ia);
+          dest->u->data[haddr] = src->u->data[haddr];
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  hydro_extrapolate_velocity
+ *
+ *  Extrapolate velocity using predictor-corrector scheme.
+ *  u_predicted(t+1) = u(t) + (u(t) - u(t-1))
+ *                   = 2*u(t) - u(t-1)
+ *
+ *****************************************************************************/
+
+__host__ int hydro_extrapolate_velocity(hydro_t * hydro, hydro_t * hydro_old,
+                                        hydro_t * u_predicted) {
+
+  int nlocal[3];
+  int ic, jc, kc, index;
+
+  assert(hydro);
+  assert(hydro_old);
+  assert(u_predicted);
+  assert(hydro->cs);
+
+  cs_nlocal(hydro->cs, nlocal);
+
+  /* Extrapolate: u_pred = 2*u(t) - u(t-1) */
+  for (ic = 1; ic <= nlocal[X]; ic++) {
+    for (jc = 1; jc <= nlocal[Y]; jc++) {
+      for (kc = 1; kc <= nlocal[Z]; kc++) {
+
+        index = cs_index(hydro->cs, ic, jc, kc);
+
+        for (int ia = 0; ia < 3; ia++) {
+          int haddr = addr_rank1(hydro->nsite, NHDIM, index, ia);
+          u_predicted->u->data[haddr] = 2.0 * hydro->u->data[haddr]
+                                      - hydro_old->u->data[haddr];
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+/*CHANGE END - Predictor-corrector: copy and extrapolate velocity */

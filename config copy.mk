@@ -13,8 +13,8 @@ TARGET  =
 # TARGET  = nvcc
 
 HAVE_PETSC = true
-PETSC_INC  = -I/usr/local/petsc-cuda/include #-I/home/bater/Sim/petsc/arch-linux-c-opt/include
-PETSC_LIB  = -L/usr/local/petsc/lib -lpetsc #-I/home/bater/Sim/petsc/arch-linux-c-opt/lib
+PETSC_INC  = -I/usr/local/petsc-cuda/include 
+PETSC_LIB  = -L/usr/local/petsc/lib -lpetsc
 
 CC      = mpicc -fopenmp
 # CFLAGS  = -O0 -g -Wall #-O2
