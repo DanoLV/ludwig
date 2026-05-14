@@ -253,14 +253,9 @@ int lb_run_time_prev(pe_t * pe, cs_t * cs, rt_t * rt, lb_t ** lb) {
  *
  *****************************************************************************/
 
-/*CHANGE INIT - Correct initial momentum to exactly zero */
-/* Original signature (commented out):
 int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb,
 			     physics_t * phys) {
-*/
-int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb,
-			     physics_t * phys, map_t * map, colloids_info_t * cinfo) {
-/*CHANGE END - Correct initial momentum to exactly zero */
+
 
   char key[BUFSIZ] = "";
   double rho0;
@@ -269,10 +264,7 @@ int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb,
   assert(rt);
   assert(lb);
   assert(phys);
-  /*CHANGE INIT - Correct initial momentum to exactly zero */
-  assert(map);
-  /* cinfo can be NULL */
-  /*CHANGE END - Correct initial momentum to exactly zero */
+
 
   physics_rho0(phys, &rho0);
 
@@ -345,13 +337,6 @@ int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb,
 	    u0[X], u0[Y], u0[Z]);
     pe_info(pe, "\n");
   }
-
-  /*CHANGE INIT - Correct initial momentum to exactly zero */
-  /* Correct initial momentum to remove roundoff errors */
-  /* DISABLED: Not needed as roundoff errors are negligible compared to physical forces */
-  /* lb_correct_initial_momentum(lb, map, cinfo); */
-  /* pe_info(pe, "Initial momentum corrected to exactly zero\n"); */
-  /*CHANGE END - Correct initial momentum to exactly zero */
 
   return 0;
 }

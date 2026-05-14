@@ -25,11 +25,6 @@ typedef struct colloids_info_s colloids_info_t;
 /*CHANGE END - Correct initial momentum to exactly zero */
 
 int lb_run_time(pe_t * pe, cs_t * cs, rt_t * rt, lb_t ** lb);
-/*CHANGE INIT - Correct initial momentum to exactly zero */
-/* Original signature (commented out):
-   int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb, physics_t * phys);
-*/
-int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb, physics_t * phys, map_t * map, colloids_info_t * cinfo);
-/*CHANGE END - Correct initial momentum to exactly zero */
+int lb_rt_initial_conditions(pe_t * pe, rt_t * rt, lb_t * lb, physics_t * phys);
 
 #endif

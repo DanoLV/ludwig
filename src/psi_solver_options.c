@@ -61,6 +61,14 @@ const char * psi_poisson_solver_to_string(psi_poisson_solver_enum_t mytype) {
   case PSI_POISSON_SOLVER_NONE:
     str = "none";
     break;
+  /*CHANGE INIT - 20260512 add FFT and EWALD solver ids */
+  case PSI_POISSON_SOLVER_FFT:
+    str = "fft";
+    break;
+  case PSI_POISSON_SOLVER_EWALD:
+    str = "ewald";
+    break;
+  /*CHANGE END - 20260512 */
   default:
     str = "invalid";
   }
@@ -85,6 +93,10 @@ psi_poisson_solver_enum_t psi_poisson_solver_from_string(const char * str) {
   if (strcmp(value, "sor")   == 0) mytype = PSI_POISSON_SOLVER_SOR;
   if (strcmp(value, "petsc") == 0) mytype = PSI_POISSON_SOLVER_PETSC;
   if (strcmp(value, "none")  == 0) mytype = PSI_POISSON_SOLVER_NONE;
+  /*CHANGE INIT - 20260512 add FFT and EWALD solver ids */
+  if (strcmp(value, "fft")   == 0) mytype = PSI_POISSON_SOLVER_FFT;
+  if (strcmp(value, "ewald") == 0) mytype = PSI_POISSON_SOLVER_EWALD;
+  /*CHANGE END - 20260512 */
 
   return mytype;
 }

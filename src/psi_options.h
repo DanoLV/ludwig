@@ -27,6 +27,12 @@ typedef enum psi_force_method_enum_s {
   PSI_FORCE_NONE = 0,
   PSI_FORCE_DIVERGENCE,
   PSI_FORCE_GRADMU,
+  /*CHANGE - Ewald sumation*/
+  PSI_FORCE_EWALD,
+  /*CHANGE END - Ewald sumation */
+  /*CHANGE INIT - Gaussian_Ewald*/
+  PSI_FORCE_EWALD_GAUSSIAN,
+  /*CHANGE END - Gaussian_Ewald*/
   PSI_FORCE_NTYPES
 } psi_force_method_enum_t;
 

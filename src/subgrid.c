@@ -85,6 +85,18 @@ static double kappa_pb_ = 0.0;  /* Stored kappa value, computed once */
 static int kappa_initialized_ = 0;  /* Flag to check if kappa has been computed */
 /*CHANGE END - Poisson-Boltzmann kappa */
 
+/*CHANGE INIT - 20260424 Kaiser-Bessel globals */
+static double subgrid_kb4_beta_ = 6.0;
+static double subgrid_kb4_norm_fluid_ = 1.0;
+static double i0_series(double x);
+/*CHANGE END - 20260424 Kaiser-Bessel globals */
+
+/*CHANGE INIT - 20260425 forward declare for interlacing offset variant */
+int subgrid_charge_from_grid_offset(colloids_info_t* cinfo, psi_t* obj,
+									 distributed_charge_klein_t** charge,
+									 subgrid_kernel_t kernel, double mesh_offset);
+/*CHANGE END - 20260425 */
+
 /*CHANGE INIT - 20260117 Short-range corrections infrastructure (Level 0)
  * See docs/SHORT_RANGE_CORRECTIONS_ANALYSIS.md for full documentation.
  * This implements P3M-style short-range corrections for electric interactions
@@ -410,7 +422,9 @@ void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_index,
  *  lattice nodes. Only nodes in the local domain are involved.
  *
  *****************************************************************************/
-int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge)
+ /*CHANGE INIT - 20260422 kernel parameter for subgrid_charge_from_particles */
+int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge,
+								   subgrid_kernel_t kernel)
 {
 	int ic, jc, kc;
 	int i, j, k, i_min, i_max, j_min, j_max, k_min, k_max;
@@ -426,6 +440,9 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 	assert(charge);
 
 	if (cinfo->nsubgrid == 0) return 0;
+
+	// range for used kernel, e.g. 2 for B-spline4, 3 for B-spline6, 2 for Peskin4
+	int krange = subgrid_get_range(kernel);
 
 	cs_nlocal(cinfo->cs, nlocal);
 	cs_nlocal_offset(cinfo->cs, offset);
@@ -446,21 +463,22 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 					r0[Y] = p_colloid->s.r[Y] - 1.0 * offset[Y];
 					r0[Z] = p_colloid->s.r[Z] - 1.0 * offset[Z];
 
-					// Peskin - 2 neigbours
-					i_min = imax(0, (int)floor(r0[X] - drange_));
-					i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + drange_));
-					j_min = imax(0, (int)floor(r0[Y] - drange_));
-					j_max = imin(nlocal[Y] + 1, (int)ceil(r0[Y] + drange_));
-					k_min = imax(0, (int)floor(r0[Z] - drange_));
-					k_max = imin(nlocal[Z] + 1, (int)ceil(r0[Z] + drange_));
+					subgrid_get_lattice_index_range(r0, krange, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
 
-					// // first neigbours
-					// i_min = imax(0, (int)floor(r0[X]));
-					// i_max = imin(nlocal[X] + 1, (int)ceil(r0[X]));
-					// j_min = imax(0, (int)floor(r0[Y]));
-					// j_max = imin(nlocal[Y] + 1, (int)ceil(r0[Y]));
-					// k_min = imax(0, (int)floor(r0[Z]));
-					// k_max = imin(nlocal[Z] + 1, (int)ceil(r0[Z]));
+					double kb_w[4][4][4] = { {{0}} };
+					double kb_w_sum = 1.0;
+					if (kernel == SUBGRID_KERNEL_KB4) {
+						kb_w_sum = 0.0;
+						for (i = i_min; i <= i_max; i++)
+							for (j = j_min; j <= j_max; j++)
+								for (k = k_min; k <= k_max; k++) {
+									double wx = d_kb4(r0[X] - i);
+									double wy = d_kb4(r0[Y] - j);
+									double wz = d_kb4(r0[Z] - k);
+									kb_w[i - i_min][j - j_min][k - k_min] = wx * wy * wz;
+									kb_w_sum += wx * wy * wz;
+								}
+					}
 
 					for (i = i_min; i <= i_max; i++) {
 						for (j = j_min; j <= j_max; j++) {
@@ -472,13 +490,21 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 								r[Y] = r0[Y] - 1.0 * j;
 								r[Z] = r0[Z] - 1.0 * k;
 
-								/*CHANGE INIT - Use Poisson-Boltzmann weight instead of Peskin */
-								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-								// dr = d_idw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
-								// dr = d_isdw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
-								// dr = d_trilinear(r[X]) * d_trilinear(r[Y]) * d_trilinear(r[Z]);
-								// dr = d_pb(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max, subgrid_get_kappa());
-								/*CHANGE END - Use Poisson-Boltzmann weight instead of Peskin */
+								if (kernel == SUBGRID_KERNEL_BSPLINE6) {
+									dr = d_bspline6(r[X]) * d_bspline6(r[Y]) * d_bspline6(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_BSPLINE4) {
+									dr = d_bspline4(r[X]) * d_bspline4(r[Y]) * d_bspline4(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN4) {
+									dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_KB4) {
+									dr = kb_w[i - i_min][j - j_min][k - k_min] / kb_w_sum;
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
+									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
+								}
 
 								q0_dr = p_colloid->s.q0 * dr;
 								q1_dr = p_colloid->s.q1 * dr;
@@ -506,6 +532,7 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 
 	return 0;
 }
+/*CHANGE END - 20260422 kernel parameter for subgrid_charge_from_particles */
 
 /*****************************************************************************
  *
@@ -610,9 +637,141 @@ int subgrid_charge_from_particles_compenzate(colloids_info_t* cinfo, psi_t* obj,
  *  subgrid_charge_from_particles_restore() can recover them.
  *
  *****************************************************************************/
-/*CHANGE INIT - subgrid_charge_from_grid */
+ /*CHANGE INIT - subgrid_charge_from_grid */
+ /*CHANGE INIT - 20260422 kernel parameter for subgrid_charge_from_grid */
 int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj,
-                              distributed_charge_klein_t** charge)
+							  distributed_charge_klein_t** charge,
+							  subgrid_kernel_t kernel)
+{
+	return subgrid_charge_from_grid_offset(cinfo, obj, charge, kernel, 0.0);
+}
+
+/*CHANGE INIT - 20260427 subgrid_scatter_fluid_offset: scatter fluid rho into auxiliary buffer */
+/*****************************************************************************
+ *
+ *  subgrid_scatter_fluid_offset
+ *
+ *  Scatters fluid charge from psi->rho into rho_buf using the kernel with
+ *  mesh_offset applied to the X axis. Writes directly to rho_buf (no
+ *  add_charge_to_array), preserving charge exactly via periodic wrap.
+ *
+ *  On entry:  psi->rho contains the fluid-only charge (rho_saved state).
+ *             rho_buf is zeroed by caller, size = nsites * nk.
+ *  On exit:   rho_buf contains the offset-smoothed fluid charge.
+ *             psi->rho is unchanged.
+ *
+ *****************************************************************************/
+int subgrid_scatter_fluid_offset(colloids_info_t* cinfo, psi_t* obj,
+								  subgrid_kernel_t kernel, double mesh_offset,
+								  double* rho_buf, int ndata)
+{
+	int i, j, k, i2, j2, k2;
+	int i_min, i_max, j_min, j_max, k_min, k_max;
+	int nlocal[3];
+
+	assert(cinfo); assert(obj); assert(rho_buf);
+	cs_nlocal(cinfo->cs, nlocal);
+	int krange = subgrid_get_range(kernel);
+
+	/* Fractional part of offset determines if border treatment is needed */
+	double frac_x = mesh_offset - floor(mesh_offset);
+
+	/* Build X source list: interior only, unless frac_x != 0 */
+	int ix_excl_lo = 0, ix_excl_hi = -1;
+	int ix_halo_lo = 1, ix_halo_hi = 0;
+	if (frac_x > 0.0) {
+		ix_excl_lo = nlocal[X] - krange + 1; ix_excl_hi = nlocal[X];
+		ix_halo_lo = 1 - krange;             ix_halo_hi = 0;
+	}
+	else if (frac_x < 0.0) {
+		ix_excl_lo = 1;               ix_excl_hi = krange;
+		ix_halo_lo = nlocal[X] + 1;  ix_halo_hi = nlocal[X] + krange;
+	}
+
+	int list_cap = nlocal[X] + 2 * krange + 4;
+	int* i_list = (int*)malloc(list_cap * sizeof(int)); int i_list_n = 0;
+	for (i = 1; i <= nlocal[X]; i++) { if (i < ix_excl_lo || i > ix_excl_hi) i_list[i_list_n++] = i; }
+	for (i = ix_halo_lo; i <= ix_halo_hi; i++) i_list[i_list_n++] = i;
+
+	for (int ii = 0; ii < i_list_n; ii++) {
+		i = i_list[ii];
+		int iw = i; if (iw < 1) iw += nlocal[X]; else if (iw > nlocal[X]) iw -= nlocal[X];
+		for (j = 1; j <= nlocal[Y]; j++) {
+			for (k = 1; k <= nlocal[Z]; k++) {
+
+				int index_src = cs_index(cinfo->cs, iw, j, k);
+				double rho0, rho1;
+				psi_rho(obj, index_src, 0, &rho0);
+				psi_rho(obj, index_src, 1, &rho1);
+				if (rho0 == 0.0 && rho1 == 0.0) continue;
+
+				double r0[3] = { (double)i + mesh_offset, (double)j, (double)k };
+				subgrid_get_lattice_index_range_halo(r0, krange, nlocal,
+													 &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+				for (i2 = i_min; i2 <= i_max; i2++) {
+					for (j2 = j_min; j2 <= j_max; j2++) {
+						for (k2 = k_min; k2 <= k_max; k2++) {
+
+							double dx = r0[X] - (double)i2;
+							double dy = r0[Y] - (double)j2;
+							double dz = r0[Z] - (double)k2;
+							double dr;
+							if (kernel == SUBGRID_KERNEL_BSPLINE6) dr = d_bspline6(dx) * d_bspline6(dy) * d_bspline6(dz);
+							else if (kernel == SUBGRID_KERNEL_BSPLINE4) dr = d_bspline4(dx) * d_bspline4(dy) * d_bspline4(dz);
+							else if (kernel == SUBGRID_KERNEL_PESKIN4)  dr = d_peskin(dx) * d_peskin(dy) * d_peskin(dz);
+							else if (kernel == SUBGRID_KERNEL_KB4)      dr = d_kb4(dx) * d_kb4(dy) * d_kb4(dz) / subgrid_kb4_norm_fluid();
+							else if (kernel == SUBGRID_KERNEL_PESKIN6)  dr = d_peskin6(dx) * d_peskin6(dy) * d_peskin6(dz);
+							else dr = 0.0;
+							if (dr == 0.0) continue;
+
+							/* Periodic wrap for destination */
+							int idw = i2, jdw = j2, kdw = k2;
+							if (idw < 1) idw += nlocal[X]; else if (idw > nlocal[X]) idw -= nlocal[X];
+							if (jdw < 1) jdw += nlocal[Y]; else if (jdw > nlocal[Y]) jdw -= nlocal[Y];
+							if (kdw < 1) kdw += nlocal[Z]; else if (kdw > nlocal[Z]) kdw -= nlocal[Z];
+							int index_dst = cs_index(cinfo->cs, idw, jdw, kdw);
+
+							rho_buf[addr_rank1(obj->nsites, obj->nk, index_dst, 0)] += rho0 * dr;
+							rho_buf[addr_rank1(obj->nsites, obj->nk, index_dst, 1)] += rho1 * dr;
+						}
+					}
+				}
+			}
+		}
+	}
+	free(i_list);
+
+	/* DIAG: print net charge in rho_buf per X column (first call only) */
+	{
+		static int sfo_diag = 0; sfo_diag++;
+		if (sfo_diag <= 1) {
+			double q_tot = 0.0;
+			for (int ix = 1; ix <= nlocal[X]; ix++) {
+				double q_ix = 0.0;
+				for (int jx = 1; jx <= nlocal[Y]; jx++)
+					for (int kx = 1; kx <= nlocal[Z]; kx++) {
+						int idx = cs_index(obj->cs, ix, jx, kx);
+						double r0v = rho_buf[addr_rank1(obj->nsites, obj->nk, idx, 0)];
+						double r1v = rho_buf[addr_rank1(obj->nsites, obj->nk, idx, 1)];
+						q_ix += r0v - r1v;
+					}
+				printf("[sfo_col] call=%d offset=%.3f ix=%d Q_net=%.6e\n", sfo_diag, mesh_offset, ix, q_ix);
+				q_tot += q_ix;
+			}
+			printf("[sfo_col] call=%d offset=%.3f total_Q_net=%.6e\n", sfo_diag, mesh_offset, q_tot);
+
+		}
+	}
+
+	return 0;
+}
+/*CHANGE END - 20260427 subgrid_scatter_fluid_offset */
+
+/*CHANGE INIT - 20260425 subgrid_charge_from_grid_offset for interlacing */
+int subgrid_charge_from_grid_offset(colloids_info_t* cinfo, psi_t* obj,
+							  distributed_charge_klein_t** charge,
+							  subgrid_kernel_t kernel, double mesh_offset)
 {
 	int i, j, k;
 	int i2, j2, k2;
@@ -620,7 +779,6 @@ int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj,
 	int index, index2;
 	int nlocal[3];
 	double rho0, rho1, dr;
-	int drange_i = (int)ceil(drange_);
 
 	/* Temporary list of charged source nodes with their coordinates */
 	typedef struct { int idx, si, sj, sk; double rho0, rho1; } src_t;
@@ -634,81 +792,231 @@ int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj,
 
 	cs_nlocal(cinfo->cs, nlocal);
 
-	/* Pass 1: collect charged nodes, save originals via charge, zero psi */
-	for (i = 1; i <= nlocal[X]; i++) {
+	/* Integer half-support radius matching the chosen kernel */
+	// range for used kernel, e.g. 2 for B-spline4, 3 for B-spline6, 2 for Peskin4
+	int krange = subgrid_get_range(kernel);
+
+	/* Pass 1: collect source nodes. With mesh_offset != 0, the kernel support
+	 * shifts so that border interior nodes scatter charge outside the domain.
+	 * To handle periodic BC correctly, we replace those border interior nodes
+	 * with the corresponding halo nodes (which hold the same charge values
+	 * after psi_halo_rho). This ensures charge is redistributed correctly
+	 * across the periodic boundary without double-counting.
+	 *
+	 * Convention: offset > 0 shifts the source to the right (+X), so:
+	 *   - exclude interior nodes i = nlocal-krange+1..nlocal (right border)
+	 *   - include halo nodes     i = 1-krange..0             (left halo)
+	 *   (halo nodes hold the same charge as the right-border interior nodes
+	 *    but scattering from their actual halo position gives correct wrapping)
+	 * For offset < 0, the exclusion/inclusion is mirrored.
+	 * For offset == 0, use standard interior range (no change). */
+
+	 /* Build source index lists for each axis. With a non-integer offset the
+	  * kernel support from border nodes crosses the periodic boundary
+	  * asymmetrically. Replace those border nodes with the corresponding halo
+	  * nodes so the scatter lands correctly without double-counting.
+	  * With an integer offset (frac == 0) no replacement is needed. */
+	  /* Exclusion/inclusion only on X axis (offset applied only in X).
+	   * With a non-integer offset the kernel support from X-border nodes
+	   * crosses the periodic boundary: replace those nodes with halo nodes. */
+	double frac_x = mesh_offset - floor(mesh_offset);
+	int ix_excl_lo = 0, ix_excl_hi = -1; /* empty by default */
+	int ix_halo_lo = 1, ix_halo_hi = 0;
+	if (frac_x > 0.0) {
+		ix_excl_lo = nlocal[X] - krange + 1; ix_excl_hi = nlocal[X];
+		ix_halo_lo = 1 - krange;             ix_halo_hi = 0;
+	}
+	else if (frac_x < 0.0) {
+		ix_excl_lo = 1;               ix_excl_hi = krange;
+		ix_halo_lo = nlocal[X] + 1;  ix_halo_hi = nlocal[X] + krange;
+	}
+
+	int list_cap = nlocal[X] + 2 * krange + 4;
+	int* i_list = (int*)malloc(list_cap * sizeof(int)); int i_list_n = 0;
+
+	for (i = 1; i <= nlocal[X]; i++) { if (i < ix_excl_lo || i > ix_excl_hi) i_list[i_list_n++] = i; }
+	for (i = ix_halo_lo; i <= ix_halo_hi; i++) i_list[i_list_n++] = i;
+
+	for (int ii = 0; ii < i_list_n; ii++) {
+		i = i_list[ii];
+		int iw = i; if (iw < 1) iw += nlocal[X]; else if (iw > nlocal[X]) iw -= nlocal[X];
 		for (j = 1; j <= nlocal[Y]; j++) {
 			for (k = 1; k <= nlocal[Z]; k++) {
 
-				index = cs_index(cinfo->cs, i, j, k);
+				index = cs_index(cinfo->cs, iw, j, k);
 
 				psi_rho(obj, index, 0, &rho0);
 				psi_rho(obj, index, 1, &rho1);
 
 				if (rho0 == 0.0 && rho1 == 0.0) continue;
 
-				add_charge_to_array(charge, index, 0.0, 0.0, obj);
-
-				psi_rho_set(obj, index, 0, 0.0);
-				psi_rho_set(obj, index, 1, 0.0);
+				/* Zero the interior node (halo i nodes are read-only) */
+				if (iw >= 1 && iw <= nlocal[X]) {
+					add_charge_to_array(charge, index, 0.0, 0.0, obj);
+					psi_rho_set(obj, index, 0, 0.0);
+					psi_rho_set(obj, index, 1, 0.0);
+				}
 
 				if (src_n >= src_cap) {
 					src_cap *= 2;
 					srcs = (src_t*)realloc(srcs, src_cap * sizeof(src_t));
 				}
-				srcs[src_n].idx  = index;
-				srcs[src_n].si   = i;
-				srcs[src_n].sj   = j;
-				srcs[src_n].sk   = k;
+				srcs[src_n].idx = index;
+				srcs[src_n].si = i;  /* unwarped: carries offset info */
+				srcs[src_n].sj = j;
+				srcs[src_n].sk = k;
 				srcs[src_n].rho0 = rho0;
 				srcs[src_n].rho1 = rho1;
 				src_n++;
-			}
+			}  /* k */
+		}  /* j */
+	}  /* ii */
+	free(i_list);
+
+	/* Diagnostic: total charge collected in Pass 1 */
+	{
+		static int p1_call = 0; p1_call++;
+		if (p1_call <= 2) {
+			double q0_p1 = 0.0, q1_p1 = 0.0;
+			for (int e = 0; e < src_n; e++) { q0_p1 += srcs[e].rho0; q1_p1 += srcs[e].rho1; }
+			printf("[scatter_p1] call=%d offset=%.3f src_n=%d Q0=%.6e Q1=%.6e\n",
+				   p1_call, mesh_offset, src_n, q0_p1, q1_p1);
 		}
 	}
 
-	/* Pass 2: Peskin-spread each source node's charge to neighbours */
+	/* Pass 2: spread each source node's charge to neighbours */
+
+	static int p2_call = 0; p2_call++;
+	double p2_q0_deposited = 0.0, p2_q1_deposited = 0.0;
+	double p2_dr_min = 1e10;
+	int p2_bad_si = -1, p2_bad_sj = -1, p2_bad_sk = -1;
+	double p2_bad_sum = 0.0;
+
 	for (int e = 0; e < src_n; e++) {
 
 		int si = srcs[e].si, sj = srcs[e].sj, sk = srcs[e].sk;
+		/* Apply mesh_offset: source node appears shifted by -mesh_offset on Grid B */
+		double r0[3] = { (double)si + mesh_offset, (double)sj, (double)sk };
 		rho0 = srcs[e].rho0;
 		rho1 = srcs[e].rho1;
 
-		i_min = imax(1, si - drange_i);
-		i_max = imin(nlocal[X], si + drange_i);
-		j_min = imax(1, sj - drange_i);
-		j_max = imin(nlocal[Y], sj + drange_i);
-		k_min = imax(1, sk - drange_i);
-		k_max = imin(nlocal[Z], sk + drange_i);
+		subgrid_get_lattice_index_range_halo(r0, krange, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+		/* Track kernel weight sum for this source */
+		double dr_sum = 0.0;
 
 		for (i2 = i_min; i2 <= i_max; i2++) {
 			for (j2 = j_min; j2 <= j_max; j2++) {
 				for (k2 = k_min; k2 <= k_max; k2++) {
 
-					dr = d_peskin((double)(si - i2))
-					   * d_peskin((double)(sj - j2))
-					   * d_peskin((double)(sk - k2));
+					double dx = r0[X] - (double)i2;
+					double dy = r0[Y] - (double)j2;
+					double dz = r0[Z] - (double)k2;
+
+					if (kernel == SUBGRID_KERNEL_BSPLINE6) {
+						dr = d_bspline6(dx) * d_bspline6(dy) * d_bspline6(dz);
+					}
+					else if (kernel == SUBGRID_KERNEL_BSPLINE4) {
+						dr = d_bspline4(dx) * d_bspline4(dy) * d_bspline4(dz);
+					}
+					else if (kernel == SUBGRID_KERNEL_PESKIN4) {
+						dr = d_peskin(dx) * d_peskin(dy) * d_peskin(dz);
+					}
+					else if (kernel == SUBGRID_KERNEL_KB4) {
+						dr = d_kb4(dx) * d_kb4(dy) * d_kb4(dz)
+							/ subgrid_kb4_norm_fluid_;
+					}
+					else if (kernel == SUBGRID_KERNEL_PESKIN6) {
+						dr = d_peskin6(dx) * d_peskin6(dy) * d_peskin6(dz);
+					}
+					// if (kernel == SUBGRID_KERNEL_BSPLINE6) {
+					// 	dr = d_bspline6(r0[X] - (double)i2) 
+					// 		* d_bspline6(r0[Y] - (double)j2)
+					// 		* d_bspline6(r0[Z] - (double)k2);
+					// }
+					// else if (kernel == SUBGRID_KERNEL_BSPLINE4) {
+					// 	dr = d_bspline4(r0[X] - (double)i2)
+					// 		* d_bspline4(r0[Y] - (double)j2)
+					// 		* d_bspline4(r0[Z] - (double)k2);
+					// }
+					// else if (kernel == SUBGRID_KERNEL_PESKIN4) {
+					// 	dr = d_peskin(r0[X] - (double)i2)
+					// 		* d_peskin(r0[Y] - (double)j2)
+					// 		* d_peskin(r0[Z] - (double)k2);
+					// }
 					if (dr == 0.0) continue;
 
-					index2 = cs_index(cinfo->cs, i2, j2, k2);
+					/* Wrap halo indices to interior for periodic BC:
+					 * with mesh_offset != 0, kernel support can reach halo nodes
+					 * which get overwritten by psi_halo_rho — map them to interior. */
+					int iw = i2, jw = j2, kw = k2;
+					if (iw < 1) iw += nlocal[X]; else if (iw > nlocal[X]) iw -= nlocal[X];
+					if (jw < 1) jw += nlocal[Y]; else if (jw > nlocal[Y]) jw -= nlocal[Y];
+					if (kw < 1) kw += nlocal[Z]; else if (kw > nlocal[Z]) kw -= nlocal[Z];
+					index2 = cs_index(cinfo->cs, iw, jw, kw);
 					add_charge_to_array(charge, index2, rho0 * dr, rho1 * dr, obj);
+					dr_sum += dr;
 				}
 			}
 		}
+		/* Track worst (furthest from 1) kernel sum */
+		double diff = fabs(dr_sum - 1.0);
+		if (diff > fabs(p2_dr_min - 1.0)) {
+			p2_dr_min = dr_sum;
+			p2_bad_si = si; p2_bad_sj = sj; p2_bad_sk = sk;
+			p2_bad_sum = dr_sum;
+		}
 	}
+
+	if (p2_call <= 2)
+		printf("[scatter_p2] call=%d offset=%.3f worst_sum=%.8f at si=(%d,%d,%d)\n",
+			   p2_call, mesh_offset, p2_bad_sum, p2_bad_si, p2_bad_sj, p2_bad_sk);
 
 	free(srcs);
 
 	if (*charge == NULL) return 0;
 
-	/* Pass 3: write Peskin-smoothed charges into psi */
+	/* Pass 3: write smoothed charges into psi */
+	double q0_total = 0.0, q1_total = 0.0;
+	int halo_count = 0;
+	/* Accumulate per-ix charge for diagnostics */
+	double* q0_per_ix = (double*)calloc(nlocal[X] + 2, sizeof(double));
+	double* q1_per_ix = (double*)calloc(nlocal[X] + 2, sizeof(double));
 	for (int e = 0; e < (*charge)->count; e++) {
 		distributed_charge_klein_entry_t* entry = (*charge)->entries[e];
-		psi_rho_set(obj, entry->cs_index, 0, klein_sum(entry->rho0_sum));
-		psi_rho_set(obj, entry->cs_index, 1, klein_sum(entry->rho1_sum));
+		double v0 = klein_sum(entry->rho0_sum);
+		double v1 = klein_sum(entry->rho1_sum);
+		q0_total += v0;
+		q1_total += v1;
+		int ijk[3];
+		cs_index_to_ijk(obj->cs, entry->cs_index, ijk);
+		if (ijk[X] < 1 || ijk[X] > nlocal[X] ||
+			ijk[Y] < 1 || ijk[Y] > nlocal[Y] ||
+			ijk[Z] < 1 || ijk[Z] > nlocal[Z]) halo_count++;
+		else {
+			q0_per_ix[ijk[X]] += v0;
+			q1_per_ix[ijk[X]] += v1;
+		}
+		psi_rho_set(obj, entry->cs_index, 0, v0);
+		psi_rho_set(obj, entry->cs_index, 1, v1);
 	}
+	/* Always print first call, then only if anomalies */
+	static int scatter_call_count = 0;
+	scatter_call_count++;
+	if (scatter_call_count <= 2) {
+		printf("[scatter_fluid] call=%d offset=%.3f src=%d dst=%d halo_dst=%d Q0=%.6e Q1=%.6e\n",
+			   scatter_call_count, mesh_offset, src_n, (*charge)->count, halo_count, q0_total, q1_total);
+		for (int ix = 1; ix <= nlocal[X]; ix++) {
+			if (q0_per_ix[ix] != 0.0 || q1_per_ix[ix] != 0.0)
+				printf("[scatter_fluid]   ix=%d Q0=%.6e Q1=%.6e\n", ix, q0_per_ix[ix], q1_per_ix[ix]);
+		}
+	}
+	free(q0_per_ix);
+	free(q1_per_ix);
 
 	return 0;
 }
+/*CHANGE END - 20260422 kernel parameter for subgrid_charge_from_grid */
 /*CHANGE END - subgrid_charge_from_grid */
 
 /*****************************************************************************
@@ -1021,11 +1329,13 @@ void subgrid_free_distributed_force_t(distributed_force_klein_t** force)
  *  Sum goes to fex as this force is calculated ouside of ludwig_colloids_update
  *  in order to apply the force in the same step as the applied field
  *****************************************************************************/
+ /*CHANGE INIT - 20260422 kernel parameter for subgrid_update_forces_electrokinetics */
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 										  map_t* map,
 										  physics_t* phys,
 										  psi_t* psi,
-										  hydro_t* hydro) {
+										  hydro_t* hydro,
+										  subgrid_kernel_t kernel) {
 
 	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
 	int ncell[3];
@@ -1067,7 +1377,7 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	assert(hydro);
 	hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
 
-    // // INIT VERSION - Ewald											
+	// // INIT VERSION - Ewald											
 	// /* Calculate electric forces on particles and accumulate total force */
 	// for (ic = 0; ic <= ncell[X] + 1; ic++) {
 	// 	for (jc = 0; jc <= ncell[Y] + 1; jc++) {
@@ -1130,8 +1440,15 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	// }
 	// // // END VERSION - Ewald
 
-	// INIT VERSION - Peskin 
-	/* Calculate electric forces on particles and accumulate total force */
+	/* Half-support radius matching the chosen kernel */
+	// double krange;
+	// if (kernel == SUBGRID_KERNEL_BSPLINE6) 	krange = 2.0;
+	// else if (kernel == SUBGRID_KERNEL_BSPLINE4) 	krange = 1.0;
+	// else if (kernel == SUBGRID_KERNEL_PESKIN4)  	krange = 1.0;
+	// else                                        	krange = drange_;
+	int krange = subgrid_get_range(kernel);
+
+	/* Scatter electric force from particles onto fluid nodes */
 	for (ic = 0; ic <= ncell[X] + 1; ic++) {
 		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
 			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
@@ -1140,49 +1457,66 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 				for (; pc; pc = pc->next) {
 
-
 					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-					// Force goes to fex as this force is calculated ouside of ludwig_colloids_update
 					force[X] = kt * reunit * pc->Esub[X] * (pc->s.q0 - pc->s.q1);
 					force[Y] = kt * reunit * pc->Esub[Y] * (pc->s.q0 - pc->s.q1);
 					force[Z] = kt * reunit * pc->Esub[Z] * (pc->s.q0 - pc->s.q1);
-					// pc->fex[X] = kt * reunit * pc->Esub[X] * (pc->s.q0 - pc->s.q1);
-					// pc->fex[Y] = kt * reunit * pc->Esub[Y] * (pc->s.q0 - pc->s.q1);
-					// pc->fex[Z] = kt * reunit * pc->Esub[Z] * (pc->s.q0 - pc->s.q1);
 
-
-					/* Translate colloid position to local coordinates */
 					r0[X] = pc->s.r[X] - 1.0 * offset[X];
 					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
 					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
 
-					/* Work out which local lattice sites are involved */
-					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+					subgrid_get_lattice_index_range(r0, krange, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+					double kb_w[4][4][4] = { {{0}} };
+					double kb_w_sum = 1.0;
+					if (kernel == SUBGRID_KERNEL_KB4) {
+						kb_w_sum = 0.0;
+						for (i = i_min; i <= i_max; i++)
+							for (j = j_min; j <= j_max; j++)
+								for (k = k_min; k <= k_max; k++) {
+									double wx = d_kb4(r0[X] - i);
+									double wy = d_kb4(r0[Y] - j);
+									double wz = d_kb4(r0[Z] - k);
+									kb_w[i - i_min][j - j_min][k - k_min] = wx * wy * wz;
+									kb_w_sum += wx * wy * wz;
+								}
+					}
 
 					for (i = i_min; i <= i_max; i++) {
 						for (j = j_min; j <= j_max; j++) {
 							for (k = k_min; k <= k_max; k++) {
 
-								double force_aux[3] = { 0.0, 0.0, 0.0 };  /* force on particle from this lattice site */
+								double force_aux[3] = { 0.0, 0.0, 0.0 };
 
 								index = cs_index(cinfo->cs, i, j, k);
 
-								/* Separation between r0 and the lattice site */
 								r[X] = r0[X] - 1.0 * i;
 								r[Y] = r0[Y] - 1.0 * j;
 								r[Z] = r0[Z] - 1.0 * k;
 
-								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								if (kernel == SUBGRID_KERNEL_BSPLINE6) {
+									dr = d_bspline6(r[X]) * d_bspline6(r[Y]) * d_bspline6(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_BSPLINE4) {
+									dr = d_bspline4(r[X]) * d_bspline4(r[Y]) * d_bspline4(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN4) {
+									dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_KB4) {
+									dr = kb_w[i - i_min][j - j_min][k - k_min] / kb_w_sum;
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
+									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
+								}
 
-								/* Force on particle from electric field at this site index*/
 								force_aux[X] = force[X] * dr;
 								force_aux[Y] = force[Y] * dr;
 								force_aux[Z] = force[Z] * dr;
 
-								/* Add to Klein sum array with binary search */
 								add_force_to_array(&force_k_indexed, index, force_aux);
-
 							}
 						}
 					}
@@ -1190,13 +1524,12 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 					pc->fex[X] += force[X];
 					pc->fex[Y] += force[Y];
 					pc->fex[Z] += force[Z];
-
 				}
 			}
 		}
 	}
-	// END VERSION - Peskin
-	
+	/*CHANGE END - 20260422 kernel parameter for subgrid_update_forces_electrokinetics */
+
 	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
 
 	/* Now apply all accumulated external electric forces to hydro by index */
@@ -1225,6 +1558,123 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 }
 
+/*****************************************************************************
+ *
+ *  subgrid_update_forces_electrokinetics_ewald
+ *
+ *  Accumulate single particle force contributions from electric fields.
+ *  Sum goes to fex as this force is calculated ouside of ludwig_colloids_update
+ *  in order to apply the force in the same step as the applied field
+ *****************************************************************************/
+int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo,
+												map_t* map,
+												physics_t* phys,
+												psi_t* psi,
+										  hydro_t* hydro) {
+
+	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
+	int ncell[3];
+	int index;
+	int nlocal[3], offset[3];
+	int nsfluid;
+	double kt, eunit, reunit, dr;
+	double r[3], r0[3];
+	double e[3];           /* electric field */
+	// double E_field[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+	double force[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+	double flocal[4] = { 0.0, 0.0, 0.0, 0.0 }; /* cumulative forces and fluid node count */
+	double fsum[4] = { 0.0, 0.0, 0.0, 0.0 }; /* global sum of forces and fluid node count */
+	klein_t flocal_k[3];
+	flocal_k[X] = klein_zero();
+	flocal_k[Y] = klein_zero();
+	flocal_k[Z] = klein_zero();
+	distributed_force_klein_t* force_k_indexed = NULL;
+
+	colloid_t* pc;
+	MPI_Comm comm;
+
+	assert(cinfo);
+	assert(map);
+	assert(psi);
+
+	if (cinfo->nsubgrid == 0) return 0;
+
+	cs_nlocal(cinfo->cs, nlocal);
+	cs_nlocal_offset(cinfo->cs, offset);
+	cs_cart_comm(cinfo->cs, &comm);
+	colloids_info_ncell(cinfo, ncell);
+	physics_kt(phys, &kt);
+	psi_unit_charge(psi, &eunit);
+	reunit = 1.0 / eunit;
+
+	/* While there is no device implementation, must copy back-and forth
+	 * the force. */
+	assert(hydro);
+	hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+
+	// INIT VERSION - Ewald											
+	/* Calculate electric forces on particles and accumulate total force */
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					klein_t force_k[3];
+					force_k[X] = klein_zero();
+					force_k[Y] = klein_zero();
+					force_k[Z] = klein_zero();
+
+					// Si uso Ewald	se asigna directamente la fuerza calculada en Ewald, que ya incluye el término de carga
+					force[X] = pc->fex[X];
+					force[Y] = pc->fex[Y];
+					force[Z] = pc->fex[Z];
+
+					/* Translate colloid position to local coordinates */
+					r0[X] = pc->s.r[X] - 1.0 * offset[X];
+					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+					/* Work out which local lattice sites are involved */
+					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+					for (i = i_min; i <= i_max; i++) {
+						for (j = j_min; j <= j_max; j++) {
+							for (k = k_min; k <= k_max; k++) {
+
+								double force_aux[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+
+								index = cs_index(cinfo->cs, i, j, k);
+
+								/* Separation between r0 and the lattice site */
+								r[X] = r0[X] - 1.0 * i;
+								r[Y] = r0[Y] - 1.0 * j;
+								r[Z] = r0[Z] - 1.0 * k;
+
+								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+								/* Force on particle from electric field at this site index*/
+								force_aux[X] = force[X] * dr;
+								force_aux[Y] = force[Y] * dr;
+								force_aux[Z] = force[Z] * dr;
+
+								/* Add to Klein sum array with binary search */
+								add_force_to_array(&force_k_indexed, index, force_aux);
+
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	// // END VERSION - Ewald
+}
 /*****************************************************************************
  *
  *  subgrid_update_forces_electrokinetics_theory
@@ -1469,11 +1919,13 @@ int subgrid_update_forces_electrokinetics_theory(colloids_info_t* cinfo,
  *
  *  Calculate electric field on subgrid particles
  *****************************************************************************/
+ /*CHANGE INIT - 20260422 kernel parameter for subgrid_update_Esub */
 int subgrid_update_Esub(colloids_info_t* cinfo,
 						psi_t* psi,
 						int step,
 						FILE* fp,
-						pe_t* pe) {
+						pe_t* pe,
+						subgrid_kernel_t kernel) {
 
 	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
 	int ncell[3];
@@ -1708,83 +2160,131 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 	// 	}
 	// }
 
-	// INIT VERSION - Peskin all
-	{
-		/* Second pass: Calculate electric field on particles from Phi on nodes*/
-		for (ic = 0; ic <= ncell[X] + 1; ic++) {
-			for (jc = 0; jc <= ncell[Y] + 1; jc++) {
-				for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+	/* Half-support radius for gather loop, matching the kernel used for scatter */
+	// double krange;
+	// if (kernel == SUBGRID_KERNEL_BSPLINE6) krange = 2.0;
+	// else if (kernel == SUBGRID_KERNEL_BSPLINE4) krange = 1.0;
+	// else if (kernel == SUBGRID_KERNEL_PESKIN4)  krange = 1.0;
+	// else                                         krange = drange_;
+	int krange = subgrid_get_range(kernel);
 
-					colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+	/* Gather electric field onto particles using the chosen interpolation kernel */
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
 
-					for (; pc; pc = pc->next) {
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
 
-						if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+				for (; pc; pc = pc->next) {
 
-						/* METHOD 1: Current method using Peskin weights on local nodes */
-						klein_t E_field_k[3];
-						E_field_k[X] = klein_zero();
-						E_field_k[Y] = klein_zero();
-						E_field_k[Z] = klein_zero();
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-						/* Translate colloid position to local coordinates */
-						r0[X] = pc->s.r[X] - 1.0 * offset[X];
-						r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
-						r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+					klein_t E_field_k[3];
+					E_field_k[X] = klein_zero();
+					E_field_k[Y] = klein_zero();
+					E_field_k[Z] = klein_zero();
 
-						/* Work out which local lattice sites are involved */
-						subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+					r0[X] = pc->s.r[X] - 1.0 * offset[X];
+					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
 
-						for (i = i_min; i <= i_max; i++) {
-							for (j = j_min; j <= j_max; j++) {
+					subgrid_get_lattice_index_range(r0, krange, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+					double kb_w[4][4][4] = { {{0}} };
+					double kb_w_sum = 1.0;
+					if (kernel == SUBGRID_KERNEL_KB4) {
+						kb_w_sum = 0.0;
+						for (i = i_min; i <= i_max; i++)
+							for (j = j_min; j <= j_max; j++)
 								for (k = k_min; k <= k_max; k++) {
-
-									index = cs_index(cinfo->cs, i, j, k);
-
-									/* Separation between r0 and the lattice site */
-									r[X] = r0[X] - 1.0 * i;
-									r[Y] = r0[Y] - 1.0 * j;
-									r[Z] = r0[Z] - 1.0 * k;
-
-									dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-
-									/* Electric field at this lattice site */
-									psi_psi(psi, index, &phi_node);
-
-									// pe_info(pe, "campo en el indice %d : Ex=%.20f   Ey=%.20f   Ez=%.20f\n", index, e[X], e[Y], e[Z]);
-
-									/* Electric field at this lattice site */
-									psi_electric_field(psi, index, e);
-
-									// pe_info(pe, "campo en el indice %d : Ex=%.20f   Ey=%.20f   Ez=%.20f\n", index, e[X], e[Y], e[Z]);
-
-									/* Field on particle from electric field at this site */
-									E_field[X] = e[X] * dr;
-									E_field[Y] = e[Y] * dr;
-									E_field[Z] = e[Z] * dr;
-									// E_field[X] = phi_node * d_peskin_derivative(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-									// E_field[Y] = phi_node * d_peskin(r[X]) * d_peskin_derivative(r[Y]) * d_peskin(r[Z]);
-									// E_field[Z] = phi_node * d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin_derivative(r[Z]);
-									
-									/* Add to particle field */
-									klein_add_double(&E_field_k[X], E_field[X]);
-									klein_add_double(&E_field_k[Y], E_field[Y]);
-									klein_add_double(&E_field_k[Z], E_field[Z]);
-
+									double wx = d_kb4(r0[X] - i);
+									double wy = d_kb4(r0[Y] - j);
+									double wz = d_kb4(r0[Z] - k);
+									kb_w[i - i_min][j - j_min][k - k_min] = wx * wy * wz;
+									kb_w_sum += wx * wy * wz;
 								}
+					}
+
+					for (i = i_min; i <= i_max; i++) {
+						for (j = j_min; j <= j_max; j++) {
+							for (k = k_min; k <= k_max; k++) {
+
+								index = cs_index(cinfo->cs, i, j, k);
+
+								r[X] = r0[X] - 1.0 * i;
+								r[Y] = r0[Y] - 1.0 * j;
+								r[Z] = r0[Z] - 1.0 * k;
+
+								if (kernel == SUBGRID_KERNEL_BSPLINE6) {
+									dr = d_bspline6(r[X]) * d_bspline6(r[Y]) * d_bspline6(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_BSPLINE4) {
+									dr = d_bspline4(r[X]) * d_bspline4(r[Y]) * d_bspline4(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN4) {
+									dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_KB4) {
+									dr = kb_w[i - i_min][j - j_min][k - k_min] / kb_w_sum;
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
+									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
+								}
+
+
+								psi_electric_field(psi, index, e);
+
+								E_field[X] = e[X] * dr;
+								E_field[Y] = e[Y] * dr;
+								E_field[Z] = e[Z] * dr;
+
+								// double psi_val = 0.0;
+								// psi_psi(psi, index, &psi_val);
+								// E_field[X] = - psi_val *d_peskin_derivative(r[X])* d_peskin(r[Y])* d_peskin(r[Z]);
+								// E_field[Y] = - psi_val *d_peskin_derivative(r[Y])* d_peskin(r[X])* d_peskin(r[Z]);
+								// E_field[Z] = - psi_val *d_peskin_derivative(r[Z])* d_peskin(r[X])* d_peskin(r[Y]);
+
+
+								klein_add_double(&E_field_k[X], E_field[X]);
+								klein_add_double(&E_field_k[Y], E_field[Y]);
+								klein_add_double(&E_field_k[Z], E_field[Z]);
 							}
 						}
-
-						pc->Esub[X] = klein_sum(&E_field_k[X]);
-						pc->Esub[Y] = klein_sum(&E_field_k[Y]);
-						pc->Esub[Z] = klein_sum(&E_field_k[Z]);
-
 					}
+
+					pc->Esub[X] = klein_sum(&E_field_k[X]);
+					pc->Esub[Y] = klein_sum(&E_field_k[Y]);
+					pc->Esub[Z] = klein_sum(&E_field_k[Z]);
+
+					// /* DIAG: print particle position, gathered E-field, and psi at nodes */
+					// {
+					// 	static int esub_diag = 0; esub_diag++;
+					// 	if (esub_diag <= 4) {
+					// 		printf("[Esub_DIAG] call=%d r=(%.4f,%.4f,%.4f) r0=(%.4f,%.4f,%.4f) "
+					// 			   "Esub=(%+.6e,%+.6e,%+.6e) range=[%d..%d]\n",
+					// 			   esub_diag, pc->s.r[X], pc->s.r[Y], pc->s.r[Z],
+					// 			   r0[X], r0[Y], r0[Z],
+					// 			   pc->Esub[X], pc->Esub[Y], pc->Esub[Z],
+					// 			   i_min, i_max);
+					// 		int jm = (int)round(r0[Y]), km = (int)round(r0[Z]);
+					// 		if (jm < 1) jm = 1; if (jm > nlocal[Y]) jm = nlocal[Y];
+					// 		if (km < 1) km = 1; if (km > nlocal[Z]) km = nlocal[Z];
+					// 		for (int ii_d = i_min; ii_d <= i_max; ii_d++) {
+					// 			int id = cs_index(cinfo->cs, ii_d, jm, km);
+					// 			double e_d[3]; psi_electric_field(psi, id, e_d);
+					// 			double dr_d = d_peskin(r0[X] - ii_d);
+					// 			printf("[Esub_DIAG]   i=%d psi_psi=%.6e Ex=%.6e dr=%.6e\n",
+					// 				   ii_d,
+					// 				   psi->psi->data[addr_rank0(psi->nsites, id)],
+					// 				   e_d[X], dr_d);
+					// 		}
+					// 	}
+					// }
 				}
 			}
 		}
 	}
-	// END VERSION - Peskin all
+	/*CHANGE END - 20260422 kernel parameter for subgrid_update_Esub */
 
 	colloid_sums_halo(cinfo, COLLOID_SUM_ELECTRIC_FIELD);
 
@@ -2318,7 +2818,61 @@ int subgrid_compute_self_field_single_particle(colloid_t* pc,
 
 	return 0;
 }
+/*****************************************************************************
+ *
+ *  subgrid_get_lattice_index
+ *
+ *  Get indexes for neigbour lattice sites
+ *
+ *****************************************************************************/
+int subgrid_get_range(subgrid_kernel_t kernel)
+{
+	double krange;
+	if (kernel == SUBGRID_KERNEL_BSPLINE6) 		return 2;
+	else if (kernel == SUBGRID_KERNEL_BSPLINE4) return 1;
+	else if (kernel == SUBGRID_KERNEL_PESKIN4)  return 1;
+	else if (kernel == SUBGRID_KERNEL_KB4)      return 1;
+	else if (kernel == SUBGRID_KERNEL_PESKIN6)  return 2;
+	else                                        return drange_;
 
+}
+/*****************************************************************************
+ *
+ *  subgrid_get_lattice_index
+ *
+ *  Get indexes for neigbour lattice sites
+ *
+ *****************************************************************************/
+void subgrid_get_lattice_index_range(double r0[3], int range, int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max)
+{
+	*i_min = imax(1, (int)floor(r0[X] - range));
+	*i_max = imin(nlocal[X], (int)ceil(r0[X] + range));
+	*j_min = imax(1, (int)floor(r0[Y] - range));
+	*j_max = imin(nlocal[Y], (int)ceil(r0[Y] + range));
+	*k_min = imax(1, (int)floor(r0[Z] - range));
+	*k_max = imin(nlocal[Z], (int)ceil(r0[Z] + range));
+
+}
+/*****************************************************************************
+ *
+ *  subgrid_get_lattice_index
+ *
+ *  Get indexes for neigbour lattice sites
+ *
+ *****************************************************************************/
+void subgrid_get_lattice_index_range_halo(double r0[3], int range, int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max)
+{
+	/* Allow sources in either halo ([-range, 0] or [nlocal+1, nlocal+range])
+	 * to reach all their kernel neighbours. Destinations outside [1,nlocal]
+	 * are wrapped by the caller. */
+	*i_min = imax(1 - 2 * range, (int)floor(r0[X] - range));
+	*i_max = imin(nlocal[X] + 2 * range, (int)ceil(r0[X] + range));
+	*j_min = imax(1 - 2 * range, (int)floor(r0[Y] - range));
+	*j_max = imin(nlocal[Y] + 2 * range, (int)ceil(r0[Y] + range));
+	*k_min = imax(1 - 2 * range, (int)floor(r0[Z] - range));
+	*k_max = imin(nlocal[Z] + 2 * range, (int)ceil(r0[Z] + range));
+
+}
 /*****************************************************************************
  *
  *  subgrid_get_lattice_index
@@ -2924,9 +3478,9 @@ double d_peskin(double r) {
 	/*CHANGE INIT - 20260418 Scale Peskin kernel with drange_ to support variable stencil width.
 	 * drange_=1 (original, support=2): s=1, no scaling, identical to original.
 	 * drange_=2 (support=4): r mapped to r/2, result divided by 2 to preserve partition-of-unity. */
-	// rmod = fabs(r);
-	double s = (drange_+1.0)/2.0;  /* Scale factor for mapping r to r/s */
-	rmod = fabs(r / s);
+	rmod = fabs(r);
+	// double s = (drange_ + 1.0) / 2.0;  /* Scale factor for mapping r to r/s */
+	// rmod = fabs(r / s);
 	/*CHANGE END - 20260418 Scale Peskin kernel with drange_ */
 
 	if (rmod <= 1.0) {
@@ -2937,8 +3491,8 @@ double d_peskin(double r) {
 	}
 
 	/*CHANGE INIT - 20260418 Scale Peskin kernel with drange_ */
-	// return delta;
-	return delta / s;
+	return delta;
+	// return delta / s;
 	/*CHANGE END - 20260418 Scale Peskin kernel with drange_ */
 }
 
@@ -2954,7 +3508,7 @@ double d_peskin(double r) {
  *****************************************************************************/
 double d_peskin_derivative(double x) {
 
-	double r = fabs(x/drange_);
+	double r = fabs(x / drange_);
 	double sign;
 	double val = 0.0;
 
@@ -2973,6 +3527,189 @@ double d_peskin_derivative(double x) {
 
 	return val * sign;
 }
+
+/*CHANGE INIT - 20260422 B-spline order-4 kernel */
+/*****************************************************************************
+ *
+ *  d_bspline4
+ *
+ *  Cubic B-spline (order 4, degree 3) delta approximation.
+ *  Support: [-2, 2] — same as Peskin with drange_=1.
+ *
+ *  Standard cubic B-spline (uniform knots, sum=1 on integer grid):
+ *    |t| in [0,1): 2/3 - t^2 + t^3/2
+ *    |t| in [1,2): (2 - |t|)^3 / 6
+ *    |t| >= 2   : 0
+ *
+ *****************************************************************************/
+double d_bspline4(double r) {
+
+	double t = fabs(r);
+	double val = 0.0;
+
+	if (t < 1.0) {
+		val = 2.0 / 3.0 - t * t + 0.5 * t * t * t;
+	}
+	else if (t < 2.0) {
+		double u = 2.0 - t;
+		val = u * u * u / 6.0;
+	}
+
+	return val;
+}
+/*CHANGE END - 20260422 B-spline order-4 kernel */
+
+/*CHANGE INIT - 20260422 B-spline order-6 kernel */
+/*****************************************************************************
+ *
+ *  d_bspline6
+ *
+ *  Quintic B-spline (order 6, degree 5) delta approximation.
+ *  Support: [-3, 3] — 6-point stencil per dimension.
+ *
+ *  Derived from the standard de Boor recurrence; satisfies partition of
+ *  unity on any integer-spaced grid. Coefficients verified numerically.
+ *
+ *  Let t = |r|:
+ *    t in [0,1): 11/20 - t^2/2 + t^4/4 - t^5/12
+ *    t in [1,2): Horner in u = t-1:
+ *                13/60 + u*(-5/12 + u*(1/6 + u*(1/6 + u*(-1/6 + u*(1/24)))))
+ *    t in [2,3): (3-t)^5 / 120
+ *    t >= 3   : 0
+ *
+ *****************************************************************************/
+double d_bspline6(double r) {
+
+	double t = fabs(r);
+	double val = 0.0;
+
+	if (t < 1.0) {
+		double t2 = t * t;
+		val = 11.0 / 20.0 - t2 / 2.0 + t2 * t2 / 4.0 - t2 * t2 * t / 12.0;
+	}
+	else if (t < 2.0) {
+		double u = t - 1.0;
+		val = 13.0 / 60.0 + u * (-5.0 / 12.0 + u * (1.0 / 6.0 + u * (1.0 / 6.0 + u * (-1.0 / 6.0 + u * (1.0 / 24.0)))));
+	}
+	else if (t < 3.0) {
+		double u = 3.0 - t;
+		double u2 = u * u;
+		val = u2 * u2 * u / 120.0;
+	}
+
+	return val;
+}
+/*CHANGE END - 20260422 B-spline order-6 kernel */
+
+/*CHANGE INIT - 20260424 Peskin 6-point kernel (Bao et al. 2016) */
+/*****************************************************************************
+ *
+ *  d_peskin6
+ *
+ *  New 6-point C^3 immersed-boundary kernel (Bao et al. 2016, Eq. 2.16-2.23).
+ *  Support: [-3, 3].  Satisfies partition of unity on integer grid.
+ *
+ *  K = 59/60 - sqrt(29)/20 ≈ 0.7141.
+ *  For r in [0,1): beta(r), gamma(r) defined, then phi computed at 6 nodes.
+ *  Argument s = x_node - x_particle (signed distance).
+ *
+ *****************************************************************************/
+double d_peskin6(double s) {
+	if (fabs(s) >= 3.0) return 0.0;
+
+	/* K = 59/60 - sqrt(29)/20 from Bao et al. 2016 Eq. (2.15); sqrt(29) ≈ 5.38516 */
+	static const double K = 0.71407520893979593; /* 59/60 - sqrt(29)/20 */
+
+	/* Determine fractional offset r in [0,1) and which phi formula to use.
+	 * Particle at x_p = floor(x_p) + r; nodes at floor(x_p) + {-2,-1,0,1,2,3}.
+	 * Signed distances: s in (-3,-2] -> r=-2-s; (-2,-1] -> r=-1-s; (-1,0] -> r=-s;
+	 *                       (0,1]  -> r=1-s;    (1,2]  -> r=2-s;   (2,3)  -> r=3-s. */
+	double r;
+	int segment; /* which of the 6 phi formulas: 0=phi(r-3), 1=phi(r-2), ..., 5=phi(r+2) */
+	if (s > -3.0 && s <= -2.0) { r = -2.0 - s; segment = 0; }
+	else if (s > -2.0 && s <= -1.0) { r = -1.0 - s; segment = 1; }
+	else if (s > -1.0 && s <= 0.0) { r = -s;        segment = 2; }
+	else if (s > 0.0 && s <= 1.0) { r = 1.0 - s;   segment = 3; }
+	else if (s > 1.0 && s <= 2.0) { r = 2.0 - s;   segment = 4; }
+	else { r = 3.0 - s;   segment = 5; }
+
+	/* beta(r) Eq. (2.16) */
+	double beta = 9.0 / 4.0 - 1.5 * (K + r * r) + (22.0 / 3.0 - 7.0 * K) * r - (7.0 / 3.0) * r * r * r;
+	/* gamma_r(r) Eq. (2.17) */
+	double t1 = (3.0 * K - 1.0) * r + r * r * r;
+	double t2 = (4.0 - 3.0 * K) * r - r * r * r;
+	double gamma_r = -11.0 / 32.0 * r * r + 3.0 / 32.0 * (2.0 * K + r * r) * r * r
+		+ t1 * t1 / 72.0 + t2 * t2 / 18.0;
+	/* sgn(3/2 - K): K ≈ 0.7141 < 3/2, so sgn = +1 */
+	double phi_m3 = (-beta + sqrt(beta * beta - 112.0 * gamma_r)) / 56.0; /* Eq. (2.18) */
+
+	switch (segment) {
+	case 0: return phi_m3;                                                              /* phi(r-3) */
+	case 1: return -3.0 * phi_m3 - 1.0 / 16.0 + (K + r * r) / 8.0
+		+ (3.0 * K - 1.0) * r / 12.0 + r * r * r / 12.0;                               /* phi(r-2) */
+	case 2: return  2.0 * phi_m3 + 1.0 / 4.0 + (4.0 - 3.0 * K) * r / 6.0 - r * r * r / 6.0;         /* phi(r-1) */
+	case 3: return  2.0 * phi_m3 + 5.0 / 8.0 - (K + r * r) / 4.0;                             /* phi(r)   */
+	case 4: return -3.0 * phi_m3 + 1.0 / 4.0 - (4.0 - 3.0 * K) * r / 6.0 + r * r * r / 6.0;         /* phi(r+1) */
+	case 5: return  phi_m3 - 1.0 / 16.0 + (K + r * r) / 8.0
+		- (3.0 * K - 1.0) * r / 12.0 - r * r * r / 12.0;                               /* phi(r+2) */
+	default: return 0.0;
+	}
+}
+/*CHANGE END - 20260424 Peskin 6-point kernel */
+
+/*CHANGE INIT - 20260424 Kaiser-Bessel order-4 kernel */
+/*****************************************************************************
+ *
+ *  Kaiser-Bessel window kernel, support W=4 ([-2,2] per dimension).
+ *
+ *  phi(r) = I0(beta * sqrt(1 - (r/2)^2)) / (2 * I0(beta))   for |r| < 2
+ *           0                                                  otherwise
+ *
+ *  I0 computed via Cephes polynomial approximation (Numerical Recipes).
+ *  Two-region Chebyshev fit, error < 1e-7 for all x.
+ *
+ *****************************************************************************/
+void  subgrid_set_kb4_beta(double beta) {
+	subgrid_kb4_beta_ = beta;
+	double i0b = i0_series(beta);
+	double s = 0.0;
+	for (int m = -2; m <= 2; m++) {
+		double t = fabs((double)m);
+		if (t < 2.0) s += i0_series(beta * sqrt(1.0 - (m / 2.0) * (m / 2.0))) / (2.0 * i0b);
+	}
+	subgrid_kb4_norm_fluid_ = s * s * s;
+}
+
+double subgrid_kb4_norm_fluid(void) {
+	return subgrid_kb4_norm_fluid_;
+}
+
+static double i0_series(double x) {
+	double ax = fabs(x);
+	double y, ans;
+	if (ax < 3.75) {
+		y = x / 3.75;
+		y *= y;
+		ans = 1.0 + y * (3.5156229 + y * (3.0899424 + y * (1.2067492
+			+ y * (0.2659732 + y * (0.0360768 + y * 0.0045813)))));
+	}
+	else {
+		y = 3.75 / ax;
+		ans = (exp(ax) / sqrt(ax)) * (0.39894228 + y * (0.01328592
+			+ y * (0.00225319 + y * (-0.00157565 + y * (0.00916281
+				+ y * (-0.02057706 + y * (0.02635537 + y * (-0.01647633
+					+ y * 0.00392377))))))));
+	}
+	return ans;
+}
+
+double d_kb4(double r) {
+	double t = fabs(r);
+	if (t >= 2.0) return 0.0;
+	double arg = sqrt(1.0 - (r / 2.0) * (r / 2.0));
+	return i0_series(subgrid_kb4_beta_ * arg) / (2.0 * i0_series(subgrid_kb4_beta_));
+}
+/*CHANGE END - 20260424 Kaiser-Bessel order-4 kernel */
 
 /*****************************************************************************
  *
@@ -3513,6 +4250,12 @@ double subgrid_get_kappa(void) {
 	return kappa_pb_;
 }
 
+/*CHANGE INIT - 20260422 subgrid_get_drange */
+double subgrid_get_drange(void) {
+	return drange_;
+}
+/*CHANGE END - 20260422 subgrid_get_drange */
+
 /*****************************************************************************
  *
  *  subgrid_set_kappa()
@@ -3659,10 +4402,10 @@ __global__ void peskin_scatter_particles_kernel(
  *  On exit:   rho_smooth contains the Peskin-smoothed charge densities.
  *
  *****************************************************************************/
-/*CHANGE INIT - subgrid_peskin_scatter_rho_buf */
+ /*CHANGE INIT - subgrid_peskin_scatter_rho_buf */
 int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
-                                    psi_t* psi_src,
-                                    double* rho_smooth, int ndata)
+									psi_t* psi_src,
+									double* rho_smooth, int ndata)
 {
 	assert(cinfo);
 	assert(psi_src);
@@ -3685,7 +4428,7 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 	size_t data_offset = offsetof(field_t, data);
 	double* rho_src_d = NULL;
 	cudaMemcpy(&rho_src_d, (char*)(psi_src->rho->target) + data_offset,
-	           sizeof(double*), cudaMemcpyDeviceToHost);
+			   sizeof(double*), cudaMemcpyDeviceToHost);
 
 	/* Allocate zeroed destination buffer on GPU */
 	double* rho_dst_d = NULL;
@@ -3696,12 +4439,14 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 
 	/* Kernel 1: scatter LB-node charges */
 	int n_interior = nx * ny * nz;
-	peskin_scatter_nodes_kernel<<<(n_interior + threads - 1) / threads, threads>>>(
+	peskin_scatter_nodes_kernel << <(n_interior + threads - 1) / threads, threads >> > (
 		rho_src_d, rho_dst_d, nx, ny, nz, nhalo, nsites);
 
 	/* Build flat particle array and scatter on GPU */
 	int ncell[3];
 	colloids_info_ncell(cinfo, ncell);
+
+	cudaDeviceSynchronize();
 
 	int npart = 0;
 	for (int ic = 0; ic <= ncell[X] + 1; ic++)
@@ -3736,10 +4481,10 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 		peskin_particle_t* parts_d = NULL;
 		cudaMalloc(&parts_d, npart * sizeof(peskin_particle_t));
 		cudaMemcpy(parts_d, parts_h, npart * sizeof(peskin_particle_t),
-		           cudaMemcpyHostToDevice);
+				   cudaMemcpyHostToDevice);
 
 		/* Kernel 2: scatter particle charges */
-		peskin_scatter_particles_kernel<<<(npart + threads - 1) / threads, threads>>>(
+		peskin_scatter_particles_kernel << <(npart + threads - 1) / threads, threads >> > (
 			parts_d, npart, rho_dst_d, nx, ny, nz, nhalo, nsites);
 
 		cudaFree(parts_d);
@@ -3750,7 +4495,7 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 
 	/* Download result into host buffer */
 	cudaMemcpy(rho_smooth, rho_dst_d, (size_t)ndata * sizeof(double),
-	           cudaMemcpyDeviceToHost);
+			   cudaMemcpyDeviceToHost);
 	cudaFree(rho_dst_d);
 
 #else
@@ -3759,7 +4504,7 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 	cs_nlocal(psi_src->cs, nlocal);
 	cs_nlocal_offset(psi_src->cs, offset);
 	int nsites = psi_src->nsites;
-	int nk     = psi_src->nk;
+	int nk = psi_src->nk;
 
 	/* Scatter LB-node charges */
 	for (int i = 1; i <= nlocal[X]; i++) {
@@ -3769,9 +4514,9 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 				double rho0, rho1;
 				psi_rho(psi_src, src, 0, &rho0);
 				psi_rho(psi_src, src, 1, &rho1);
-				int i_min = imax(1, i - 1), i_max = imin(nlocal[X], i + 1);
-				int j_min = imax(1, j - 1), j_max = imin(nlocal[Y], j + 1);
-				int k_min = imax(1, k - 1), k_max = imin(nlocal[Z], k + 1);
+				int i_min = imax(0, i - 1), i_max = imin(nlocal[X] + 1, i + 1);
+				int j_min = imax(0, j - 1), j_max = imin(nlocal[Y] + 1, j + 1);
+				int k_min = imax(0, k - 1), k_max = imin(nlocal[Z] + 1, k + 1);
 				for (int ii = i_min; ii <= i_max; ii++)
 					for (int jj = j_min; jj <= j_max; jj++)
 						for (int kk = k_min; kk <= k_max; kk++) {
@@ -3795,19 +4540,19 @@ int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
 					colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
 					for (; p; p = p->next) {
 						if (p->s.bc != COLLOID_BC_SUBGRID) continue;
-						double r0[3] = { p->s.r[X] - 1.0*offset[X],
-						                 p->s.r[Y] - 1.0*offset[Y],
-						                 p->s.r[Z] - 1.0*offset[Z] };
-						int i_min = imax(1, (int)floor(r0[X]-1.0));
-						int i_max = imin(nlocal[X], (int)ceil(r0[X]+1.0));
-						int j_min = imax(1, (int)floor(r0[Y]-1.0));
-						int j_max = imin(nlocal[Y], (int)ceil(r0[Y]+1.0));
-						int k_min = imax(1, (int)floor(r0[Z]-1.0));
-						int k_max = imin(nlocal[Z], (int)ceil(r0[Z]+1.0));
+						double r0[3] = { p->s.r[X] - 1.0 * offset[X],
+										 p->s.r[Y] - 1.0 * offset[Y],
+										 p->s.r[Z] - 1.0 * offset[Z] };
+						int i_min = imax(0, (int)floor(r0[X] - 1.0));
+						int i_max = imin(nlocal[X] + 1, (int)ceil(r0[X] + 1.0));
+						int j_min = imax(0, (int)floor(r0[Y] - 1.0));
+						int j_max = imin(nlocal[Y] + 1, (int)ceil(r0[Y] + 1.0));
+						int k_min = imax(0, (int)floor(r0[Z] - 1.0));
+						int k_max = imin(nlocal[Z] + 1, (int)ceil(r0[Z] + 1.0));
 						for (int i = i_min; i <= i_max; i++)
 							for (int j = j_min; j <= j_max; j++)
 								for (int k = k_min; k <= k_max; k++) {
-									double dr = d_peskin(r0[X]-i) * d_peskin(r0[Y]-j) * d_peskin(r0[Z]-k);
+									double dr = d_peskin(r0[X] - i) * d_peskin(r0[Y] - j) * d_peskin(r0[Z] - k);
 									int dst = cs_index(psi_src->cs, i, j, k);
 									rho_smooth[addr_rank1(nsites, nk, dst, 0)] += p->s.q0 * dr;
 									rho_smooth[addr_rank1(nsites, nk, dst, 1)] += p->s.q1 * dr;

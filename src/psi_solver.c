@@ -19,6 +19,9 @@
 /* Available implementations ... */
 #include "psi_petsc.h"
 #include "psi_sor.h"
+/*CHANGE INIT - 20260512 add FFT solver to psi_solver_create */
+#include "psi_fft.h"
+/*CHANGE END - 20260512 */
 
 /*****************************************************************************
  *
@@ -54,6 +57,16 @@ int psi_solver_create(psi_t * psi, psi_solver_t ** solver) {
       if (ifail == 0) *solver = (psi_solver_t *) sor;
     }
     break;
+
+  /*CHANGE INIT - 20260512 FFT solver selectable from input for fe_electro */
+  case (PSI_POISSON_SOLVER_FFT):
+    {
+      psi_solver_fft_t * fft = NULL;
+      ifail = psi_solver_fft_create(psi, &fft);
+      if (ifail == 0) *solver = (psi_solver_t *) fft;
+    }
+    break;
+  /*CHANGE END - 20260512 */
 
   default:
     ifail = -1;

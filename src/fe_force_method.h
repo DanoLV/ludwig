@@ -25,11 +25,17 @@ typedef enum {
   FE_FORCE_METHOD_PHI_GRADMU_CORRECTION,      /* Version with conservation */
   FE_FORCE_METHOD_RELAXATION_SYMM,            /* Via LB collision */
   FE_FORCE_METHOD_RELAXATION_ANTI,            /* Antisymmetric case */
-  FE_FORCE_METHOD_MAX
+  FE_FORCE_METHOD_MAX,
+  /* CHANGE INIT - Ewald sumation*/
+  FE_FORCE_METHOD_EWALD,                      /* Ewald summation for electrostatic forces */
+  /* CHANGE END - Ewald sumation*/
+  /* CHANGE INIT - Gaussian_Ewald */
+  FE_FORCE_METHOD_EWALD_GAUSSIAN,             /* Ewald summation with Gaussian charge distributions */
+  /* CHANGE END - Gaussian_Ewald */
 } fe_force_method_enum_t;
 
 fe_force_method_enum_t fe_force_method_default(void);
-fe_force_method_enum_t fe_force_method_to_enum(const char * string);
-const char * fe_force_method_to_string(fe_force_method_enum_t method);
+fe_force_method_enum_t fe_force_method_to_enum(const char* string);
+const char* fe_force_method_to_string(fe_force_method_enum_t method);
 
 #endif

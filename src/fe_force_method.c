@@ -50,6 +50,16 @@ fe_force_method_enum_t fe_force_method_to_enum(const char * method) {
   else if (strcmp(method, "stress_divergence") == 0) {
     imethod = FE_FORCE_METHOD_STRESS_DIVERGENCE;
   }
+  /*CHANGE - Ewald sumation*/
+  else if (strcmp(method, "ewald") == 0) {
+    imethod = FE_FORCE_METHOD_EWALD;
+  }
+   /*CHANGE - Ewald sumation*/
+  /*CHANGE INIT - Gaussian_Ewald*/
+  else if (strcmp(method, "ewald_gaussian") == 0) {
+    imethod = FE_FORCE_METHOD_EWALD_GAUSSIAN;
+  }
+  /*CHANGE END - Gaussian_Ewald*/
   else if (strcmp(method, "phi_gradmu") == 0) {
     imethod = FE_FORCE_METHOD_PHI_GRADMU;
   }

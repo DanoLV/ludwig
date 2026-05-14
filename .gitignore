@@ -3,6 +3,7 @@
 *.a
 *.exe
 a.out
+*.old
 
 *.new
 *.meta
@@ -34,3 +35,7 @@ microgel/local/__pycache__/*
 microgel/local/scripts-old/*
 microgel/local/otro/*
 microgel/local/input para sistema original con 2 bonds por coloide/*
+microgel/local/Eself
+microgel/local/Blibliografia
+microgel/local/Pruebas
+microgel/local/Ewald*/

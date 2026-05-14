@@ -47,6 +47,10 @@ struct psi_s {
   field_t* rho;            /* Charge densities */
   /*CHANGE INIT - 20251203 Electric field output */
   field_t* efield;         /* Electric field E = -grad(psi) */
+  field_t* efield_real;    /* Electric field - real space component (for diagnostics) */
+  field_t* efield_fourier; /* Electric field - Fourier component (for diagnostics) */
+  field_t* psi_real;       /* Electric potential - real space component (for diagnostics) */
+  field_t* psi_fourier;    /* Electric potential - Fourier component (for diagnostics) */
   /*CHANGE END - 20251203 */
 
   double* diffusivity;     /* Diffusivity for each species */
@@ -94,6 +98,9 @@ int psi_compute_electric_field(psi_t* psi);
 
 int psi_rho(psi_t* obj, int index, int n, double* rho);
 int psi_rho_set(psi_t* obj, int index, int n, double rho);
+/*CHANGE INIT - psi_rho_zero */
+int psi_rho_zero(psi_t* obj);
+/*CHANGE END - psi_rho_zero */
 int psi_psi(psi_t* obj, int index, double* psi);
 int psi_psi_set(psi_t* obj, int index, double psi);
 int psi_rho_elec(psi_t* obj, int index, double* rho_elec);
@@ -118,7 +125,7 @@ int psi_force_method_set(psi_t* obj, int flag);
 
 // CHANGE INIT - Subgrid charge
 //  int psi_electroneutral(psi_t* obj, map_t* map);
-int psi_electroneutral(psi_t* psi, map_t* map,colloids_info_t* cinfo);
+int psi_electroneutral(psi_t* psi, map_t* map,colloids_info_t* cinfo, double rho_el);
 // CHANGE END - Subgrid charge
 
 

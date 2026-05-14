@@ -43,7 +43,7 @@ temperature 0.00001
 #  Free energy parameters
 #
 ###############################################################################
-free_energy fe_electro
+free_energy fe_electro_ewald
 
 # External field
 electric_e0 0.0_0.0_0.0
@@ -66,9 +66,16 @@ electrokinetics_abs_tol     1.0e-30
 electrokinetics_multisteps 1
 electrokinetics_solver_stencil 27
 
-# electrokinetics_solver_type petsc
-# # electrokinetics_solver_type #petsc sor
-fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence
+electrokinetics_solver_type petsc
+# # electrokinetics_solver_type #petsc sor fft
+fe_force_method ewald_gaussian #phi_gradmu_correction stress_divergence ewald ewald_gaussian
+
+#Ewald parameters
+ewald_rc 4.0
+ewald_alpha 1.0
+ewald_gaussian_sigma_f 1.2
+ewald_gaussian_sigma_p 1.0
+
 
 ###############################################################################
 #
@@ -81,14 +88,14 @@ colloid_init     from_file
 # colloid_gravity           0.0_0.0_-0.000005  # vector
 
 # lennard_jones_on          1                 # integer 0/1 off/on
-# lj_epsilon                1.44e-08          # energy units
-# lj_sigma                  0.01               # potential length scale
-# lj_cutoff                 2.0               # a centre-centre separation
+# lj_epsilon                1.0e-09         # energy units
+# lj_sigma                  0.1               # potential length scale
+# lj_cutoff                 0.8               # a centre-centre separation
 # lj_unbonded               1
 
 # bond_harmonic_on 1
-# bond_harmonic_k  5.0e-5
-# bond_harmonic_r0 0.5
+# bond_harmonic_k  5.0e-3
+# bond_harmonic_r0 0.6
 
 # angle_harmonic_on 1
 # angle_harmonic_k 1.0e-04

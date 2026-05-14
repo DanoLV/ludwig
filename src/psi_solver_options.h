@@ -25,7 +25,11 @@ typedef enum psi_poisson_solver_enum_s {
   PSI_POISSON_SOLVER_INVALID = 0,
   PSI_POISSON_SOLVER_SOR = 1,
   PSI_POISSON_SOLVER_PETSC = 2,
-  PSI_POISSON_SOLVER_NONE = 3
+  PSI_POISSON_SOLVER_NONE = 3,
+  /*CHANGE INIT - 20260512 add FFT and EWALD solver ids */
+  PSI_POISSON_SOLVER_FFT = 4,    /* cuFFT-based Poisson solver (fe_electro) */
+  PSI_POISSON_SOLVER_EWALD = 5   /* Ewald sum GPU solver (fe_electro_ewald) */
+  /*CHANGE END - 20260512 */
 } psi_poisson_solver_enum_t;
 
 /* This is intended to be general; some components might not be relevant

@@ -53,7 +53,9 @@ psi_options_t psi_options_default(int nhalo) {
 			/*CHANGE INIT - 20251203 Electric field output */
 			.efield      = {0},
 			.efield_real = {0},
-			.efield_fourier = {0}};
+			.efield_fourier = {0},
+			.psi_real    = {0},
+			.psi_fourier = {0}};
 			/*CHANGE END - 20251203 */
 
   opts.psi = field_options_ndata_nhalo(1,  nhalo);
@@ -62,6 +64,8 @@ psi_options_t psi_options_default(int nhalo) {
   opts.efield = field_options_ndata_nhalo(3, nhalo);
   opts.efield_real = field_options_ndata_nhalo(3, nhalo);
   opts.efield_fourier = field_options_ndata_nhalo(3, nhalo);
+  opts.psi_real = field_options_ndata_nhalo(1, nhalo);
+  opts.psi_fourier = field_options_ndata_nhalo(1, nhalo);
   /*CHANGE END - 20251203 */
 
   return opts;
