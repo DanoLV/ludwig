@@ -49,10 +49,20 @@ psi_options_t psi_options_default(int nhalo) {
 			.diffacc     = 0.0,
 			.method      = PSI_FORCE_NONE,
 			.psi         = {0},
-			.rho         = {0}};
+			.rho         = {0},
+			/*CHANGE INIT - 20251203 Electric field output */
+			.efield      = {0},
+			.efield_real = {0},
+			.efield_fourier = {0}};
+			/*CHANGE END - 20251203 */
 
   opts.psi = field_options_ndata_nhalo(1,  nhalo);
   opts.rho = field_options_ndata_nhalo(nk, nhalo);
+  /*CHANGE INIT - 20251203 Electric field output */
+  opts.efield = field_options_ndata_nhalo(3, nhalo);
+  opts.efield_real = field_options_ndata_nhalo(3, nhalo);
+  opts.efield_fourier = field_options_ndata_nhalo(3, nhalo);
+  /*CHANGE END - 20251203 */
 
   return opts;
 }

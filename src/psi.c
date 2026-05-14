@@ -20,9 +20,10 @@
 #include <assert.h>
 #include <math.h>
 #include <limits.h>
+#include <string.h>
 
 #include "psi.h"
-/*CHANGE INIT - 20251203 Electric field output */
+ /*CHANGE INIT - 20251203 Electric field output */
 #include "psi_gradients.h"
 /*CHANGE END - 20251203 */
  /*CHANGE INIT - Subgrid charge */
@@ -130,14 +131,15 @@ int psi_initialise(pe_t* pe, cs_t* cs, const psi_options_t* opts,
     /* Unfortunately, "rho" is not available for the charge density,
      * as it would conflict with the fluid density. */
     lees_edw_t* le = NULL;
+    ifail += field_create(pe, cs, le, "psi", &opts->psi, &psi->psi);
+    ifail += field_create(pe, cs, le, "qsi", &opts->rho, &psi->rho);
     /*CHANGE INIT - 20251203 Electric field output */
-    // field_options_t efield_opts = {.ndata = 3, .nhcomm = 1};
+    ifail += field_create(pe, cs, le, "efield", &opts->efield, &psi->efield);
+    ifail += field_create(pe, cs, le, "efield_real", &opts->efield_real, &psi->efield_real);
+    ifail += field_create(pe, cs, le, "efield_fourier", &opts->efield_fourier, &psi->efield_fourier);
+    ifail += field_create(pe, cs, le, "psi_real", &opts->psi_real, &psi->psi_real);
+    ifail += field_create(pe, cs, le, "psi_fourier", &opts->psi_fourier, &psi->psi_fourier);
     /*CHANGE END - 20251203 */
-    field_create(pe, cs, le, "psi", &opts->psi, &psi->psi);
-    field_create(pe, cs, le, "qsi", &opts->rho, &psi->rho);
-    // /*CHANGE INIT - 20251203 Electric field output */
-    // field_create(pe, cs, le, "efield", &efield_opts, &psi->efield);
-    // /*CHANGE END - 20251203 */
   }
 
   psi->nfreq_io = INT_MAX;
@@ -160,7 +162,11 @@ int psi_finalise(psi_t* psi) {
 
   stencil_free(&psi->stencil);
   /*CHANGE INIT - 20251203 Electric field output */
-  // field_free(psi->efield);
+  field_free(psi->efield);
+  field_free(psi->efield_real);
+  field_free(psi->efield_fourier);
+  field_free(psi->psi_real);
+  field_free(psi->psi_fourier);
   /*CHANGE END - 20251203 */
   field_free(psi->rho);
   field_free(psi->psi);
@@ -313,6 +319,24 @@ int psi_rho_set(psi_t* obj, int index, int n, double rho) {
 
   return 0;
 }
+
+/*****************************************************************************
+ *
+ *  psi_rho_zero
+ *
+ *  Zero all species charge densities on the host.
+ *
+ *****************************************************************************/
+/*CHANGE INIT - psi_rho_zero */
+int psi_rho_zero(psi_t* obj) {
+
+  assert(obj);
+
+  memset(obj->rho->data, 0, obj->nsites * obj->nk * sizeof(double));
+
+  return 0;
+}
+/*CHANGE END - psi_rho_zero */
 
 /*****************************************************************************
  *
@@ -910,8 +934,8 @@ int psi_output_step(psi_t* psi, int its) {
 
  // CHANGE INIT - Subgrid charge
  //  int psi_electroneutral(psi_t* psi, map_t* map) {
-int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
-
+int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo, double rho_el) {
+  // CHANGE END - Subgrid charge
   int ic, jc, kc, index;
   int nlocal[3];
   int n, nk;
@@ -922,9 +946,10 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
 
   int nc;             /* species for countercharge */
   int valency[2];
-  double qloc, qtot;  /* local and global charge */
+  double qtot;        /* global charge */
   double rho, rhoi;   /* charge and countercharge densities */
   int status;
+  kahan_t qloc_k;
 
   MPI_Comm comm;
 
@@ -939,14 +964,14 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
   map_volume_allreduce(map, MAP_COLLOID, &vc);
   map_volume_allreduce(map, MAP_BOUNDARY, &vb);
 
-  qloc = 0.0;
   qtot = 0.0;
+  qloc_k = kahan_zero();
 
   for (n = 0; n < nk; n++) {
     psi_valency(psi, n, valency + n);
   }
 
-  /* accumulate local charge */
+  /* accumulate local charge with Kahan summation */
   for (ic = 1; ic <= nlocal[X]; ic++) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
@@ -955,7 +980,7 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
 
         for (n = 0; n < nk; n++) {
           psi_rho(psi, index, n, &rho);
-          qloc += valency[n] * rho;
+          kahan_add_double(&qloc_k, valency[n] * rho);
         }
 
       }
@@ -968,7 +993,18 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
   colloid_t* p_colloid = NULL;
   colloids_info_ncell(cinfo, ncell);
 
-  /* Loop through all cells  */
+  int noffset[3];
+  cs_nlocal_offset(psi->cs, noffset);
+
+  /* Allocate array to store indices of fluid nodes near a subgrid particle.
+   * Worst case: all local fluid nodes, nlocal[X]*nlocal[Y]*nlocal[Z]. */
+  int nsites_local = nlocal[X] * nlocal[Y] * nlocal[Z];
+  int* near_indices = (int*)calloc(nsites_local, sizeof(int));
+  assert(near_indices);
+  int n_near = 0;
+
+  /* Loop through all colloid cells: accumulate subgrid charge and collect
+   * indices of fluid nodes within 0.1 lu of each subgrid particle. */
   for (ic = 1; ic <= ncell[X]; ic++) {
     for (jc = 1; jc <= ncell[Y]; jc++) {
       for (kc = 1; kc <= ncell[Z]; kc++) {
@@ -978,27 +1014,76 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
         for (; p_colloid; p_colloid = p_colloid->next) {
 
           if (p_colloid->s.bc != COLLOID_BC_SUBGRID) continue;
+
           qcoll += p_colloid->s.q0 - p_colloid->s.q1;
+
+          /* Find fluid nodes within 0.1 lu of this particle */
+          int ini, jni, kni;
+          for (ini = 1; ini <= nlocal[X]; ini++) {
+            for (jni = 1; jni <= nlocal[Y]; jni++) {
+              for (kni = 1; kni <= nlocal[Z]; kni++) {
+
+                int idx = cs_index(psi->cs, ini, jni, kni);
+                map_status(map, idx, &status);
+                if (status != MAP_FLUID) continue;
+
+                double dx = p_colloid->s.r[X] - (noffset[X] + ini);
+                double dy = p_colloid->s.r[Y] - (noffset[Y] + jni);
+                double dz = p_colloid->s.r[Z] - (noffset[Z] + kni);
+
+                if (sqrt(dx * dx + dy * dy + dz * dz) < 0.1) {
+                  /* Avoid duplicates: only add if not already in the array */
+                  int already = 0;
+                  for (n = 0; n < n_near && !already; n++) {
+                    if (near_indices[n] == idx) already = 1;
+                  }
+                  if (!already) near_indices[n_near++] = idx;
+                }
+              }
+            }
+          }
 
         }
       }
     }
   }
 
-  qloc += qcoll;
+  kahan_add_double(&qloc_k, qcoll);
+
+  /* n_near is local; get global count to compute the correct effective volume */
+  int n_near_global = 0;
+  MPI_Allreduce(&n_near, &n_near_global, 1, MPI_INT, MPI_SUM, comm);
+
+  /* Effective fluid volume: exclude nodes too close to a subgrid particle */
+  int vf_eff = vf - n_near_global;
+  assert(vf_eff > 0);
   // CHANGE END - Subgrid charge
 
+  /* MPI reduce with Kahan for better precision */
+  {
+    MPI_Datatype kahan_dt;
+    MPI_Op kahan_op;
+    kahan_mpi_datatype(&kahan_dt);
+    kahan_mpi_op_sum(&kahan_op);
+    MPI_Allreduce(MPI_IN_PLACE, &qloc_k, 1, kahan_dt, kahan_op, comm);
+    MPI_Type_free(&kahan_dt);
+    MPI_Op_free(&kahan_op);
+  }
+  qtot = kahan_sum(&qloc_k);
 
-  MPI_Allreduce(&qloc, &qtot, 1, MPI_DOUBLE, MPI_SUM, comm);
-
-  /* calculate and apply countercharge on fluid */
-  rhoi = fabs(qtot) / vf;
+  double rhoi_opposite_charge = fabs(rho_el * n_near_global) / vf_eff;
+  rhoi = fabs(qtot) / vf_eff + rhoi_opposite_charge;
 
   nc = -1;
-  if (qtot * valency[0] >= 0) nc = 1;
-  if (qtot * valency[1] >= 0) nc = 0;
+  int nn = 0;
+  if (qtot * valency[0] >= 0) { nc = 1; nn = 0; }
+  if (qtot * valency[1] >= 0) { nc = 0; nn = 1; }
   assert(nc == 0 || nc == 1);
 
+  printf("[DIAG psi_electroneutral] qtot=%.16e n_near=%d n_near_global=%d vf=%d vf_eff=%d rho_el=%.16e rhoi=%.16e rhoi_opp=%.16e nc=%d nn=%d\n",
+         qtot, n_near, n_near_global, vf, vf_eff, rho_el, rhoi, rhoi_opposite_charge, nc, nn);
+
+  /* Distribute countercharge uniformly over all fluid nodes */
   for (ic = 1; ic <= nlocal[X]; ic++) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
@@ -1006,16 +1091,26 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
         index = cs_index(psi->cs, ic, jc, kc);
         map_status(map, index, &status);
 
-        if (status == MAP_FLUID) {
-          psi_rho(psi, index, nc, &rho);
-          rho += rhoi;
-          psi_rho_set(psi, index, nc, rho);
-        }
+        if (status != MAP_FLUID) continue;
 
-        /* Next site */
+        psi_rho(psi, index, nc, &rho);
+        rho += rhoi;
+        psi_rho_set(psi, index, nc, rho);
+
+        psi_rho(psi, index, nn, &rho);
+        rho += rhoi_opposite_charge;
+        psi_rho_set(psi, index, nn, rho);
       }
     }
   }
+
+  /* Zero out charge on fluid nodes near a subgrid particle */
+  for (n = 0; n < n_near; n++) {
+    psi_rho_set(psi, near_indices[n], 0, 0.0);
+    psi_rho_set(psi, near_indices[n], 1, 0.0);
+  }
+
+  free(near_indices);
 
   return 0;
 }
@@ -1033,11 +1128,13 @@ int psi_electroneutral(psi_t* psi, map_t* map, colloids_info_t* cinfo) {
 
 int psi_compute_electric_field(psi_t* psi) {
 
-  int nlocal[3] = {0};
-  double e[3] = {0};
+  int nlocal[3] = { 0 };
+  double e[3] = { 0 };
 
   assert(psi);
-  assert(psi->efield);
+
+  /* Skip if efield is not initialized */
+  if (psi->efield == NULL) return 0;
 
   cs_nlocal(psi->cs, nlocal);
 
@@ -1050,11 +1147,8 @@ int psi_compute_electric_field(psi_t* psi) {
         /* Compute electric field at this point */
         psi_electric_field(psi, index, e);
 
-        /* Store in efield (3 components) */
-        int addr = addr_rank1(psi->nsites, 3, index, 0);
-        psi->efield->data[addr + 0] = e[X];
-        psi->efield->data[addr + 1] = e[Y];
-        psi->efield->data[addr + 2] = e[Z];
+        /* Store in efield using field API */
+        field_vector_set(psi->efield, index, e);
       }
     }
   }
@@ -1076,9 +1170,13 @@ int psi_io_write(psi_t* psi, int nstep) {
   int ifail = 0;
   io_event_t io1 = { 0 };
   io_event_t io2 = { 0 };
-  // /*CHANGE INIT - 20251203 Electric field output */
-  // io_event_t io3 = { 0 };
-  // /*CHANGE END - 20251203 */
+  /*CHANGE INIT - 20251203 Electric field output */
+  io_event_t io3 = { 0 };
+  io_event_t io_real = { 0 };
+  io_event_t io_fourier = { 0 };
+  io_event_t io_psi_real = { 0 };
+  io_event_t io_psi_fourier = { 0 };
+  /*CHANGE END - 20251203 */
   const char* extra = "electrokinetics";
   cJSON* json = NULL;
 
@@ -1086,26 +1184,47 @@ int psi_io_write(psi_t* psi, int nstep) {
   if (ifail == 0) {
     io1.extra_name = extra;
     io2.extra_name = extra;
-    // /*CHANGE INIT - 20251203 Electric field output */
-    // io3.extra_name = extra;
-    // /*CHANGE END - 20251203 */
+    /*CHANGE INIT - 20251203 Electric field output */
+    io3.extra_name = extra;
+    io_real.extra_name = extra;
+    io_fourier.extra_name = extra;
+    io_psi_real.extra_name = extra;
+    io_psi_fourier.extra_name = extra;
+    /*CHANGE END - 20251203 */
     io1.extra_json = json;
     io2.extra_json = json;
-    // /*CHANGE INIT - 20251203 Electric field output */
-    // io3.extra_json = json;
-    // /*CHANGE END - 20251203 */
+    /*CHANGE INIT - 20251203 Electric field output */
+    io3.extra_json = json;
+    io_real.extra_json = json;
+    io_fourier.extra_json = json;
+    io_psi_real.extra_json = json;
+    io_psi_fourier.extra_json = json;
+    /*CHANGE END - 20251203 */
   }
-
-  // /*CHANGE INIT - 20251203 Electric field output */
-  // /* Compute electric field before writing */
-  // ifail += psi_compute_electric_field(psi);
-  // /*CHANGE END - 20251203 */
 
   ifail += field_io_write(psi->psi, nstep, &io1);
   ifail += field_io_write(psi->rho, nstep, &io2);
-  // /*CHANGE INIT - 20251203 Electric field output */
-  // ifail += field_io_write(psi->efield, nstep, &io3);
-  // /*CHANGE END - 20251203 */
+  /*CHANGE INIT - 20251203 Electric field output */
+  /* Write electric field if it exists */
+  if (psi->efield) {
+    /* Compute electric field before writing (only if not computed by Ewald) */
+    // ifail += psi_compute_electric_field(psi);
+    ifail += field_io_write(psi->efield, nstep, &io3);
+  }
+  // /* Write diagnostic fields for Ewald component analysis */
+  // if (psi->efield_real) {
+  //   ifail += field_io_write(psi->efield_real, nstep, &io_real);
+  // }
+  // if (psi->efield_fourier) {
+  //   ifail += field_io_write(psi->efield_fourier, nstep, &io_fourier);
+  // }
+  // if (psi->psi_real) {
+  //   ifail += field_io_write(psi->psi_real, nstep, &io_psi_real);
+  // }
+  // if (psi->psi_fourier) {
+  //   ifail += field_io_write(psi->psi_fourier, nstep, &io_psi_fourier);
+  // }
+  /*CHANGE END - 20251203 */
 
   cJSON_Delete(json);
 

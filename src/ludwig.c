@@ -108,6 +108,13 @@
 /*CHANGE INIT - PETSc solver with subgrid */
 #include "psi_petsc.h"
 /*CHANGE END - PETSc solver with subgrid */
+/*CHANGE INIT - 20260119 FFT Poisson solver */
+#include "psi_fft.h"
+#include "psi_fft_pn.h"
+#include "psi_refined.h"
+#include "ewald_charge.h"
+#include "psi_exclusion.h"
+/*CHANGE END - 20260119 FFT Poisson solver */
 
 /* Statistics */
 #include "stats_colloid.h"
@@ -126,6 +133,15 @@
 #include "fe_ternary_stats.h"
 
 #include "ludwig.h"
+
+/*CHANGE INIT - 20260119 FFT Poisson solver */
+static psi_solver_fft_t* fft_solver_ = NULL;
+static psi_fft_pn_t* fft_pn_ = NULL;
+static ewald_charge_t* ewald = NULL;
+static psi_refined_t* psi_refined_ = NULL;
+static int use_refined_grid_ = 0;        /* 0 = normal FFT, 1 = refined grid FFT */
+static int refined_grid_factor_ = 2;     /* Refinement factor (2, 4, 8, etc.) */
+/*CHANGE END - 20260119 FFT Poisson solver */
 
 typedef struct ludwig_s ludwig_t;
 struct ludwig_s {
@@ -424,7 +440,10 @@ static int ludwig_rt(ludwig_t* ludwig) {
     pe_info(pe, "\nArranging initial charge neutrality.\n\n");
     /*CHANGE INIT - Subgrid charge */
     // psi_electroneutral(ludwig->psi, ludwig->map);
-    psi_electroneutral(ludwig->psi, ludwig->map, ludwig->collinfo);
+    double rho_el;              /* Charge density */
+    rt_double_parameter(rt, "electrokinetics_init_rho_el", &rho_el);
+    psi_electroneutral(ludwig->psi, ludwig->map, ludwig->collinfo, rho_el);
+    psi_halo_rho(ludwig->psi);  /* sync host->device after electroneutrality */
     /*CHANGE END - Subgrid charge */
   }
 
@@ -536,11 +555,24 @@ void ludwig_run(const char* inputfile) {
   MPI_Barrier(comm);
 
   // CHANGE INIT -Subgrid charge debug data
-  FILE* fp;
+  FILE* fp, * fpforce;
   double kappa_aux;
 
   if (ludwig->psi) subgrid_compute_kappa(ludwig->psi, &kappa_aux);
   pe_info(ludwig->pe, "Kappa calculado: %.15f\n", kappa_aux);
+
+  sprintf(filename, "./proceced_data/ewald_charge_forces.csv");
+  fpforce = fopen(filename, "r");
+  if (fpforce == NULL) {
+    fpforce = fopen(filename, "w");
+    if (fpforce != NULL) {
+      fprintf(fpforce, "|F_total|,F_total_X,F_total_Y,F_total_Z,F_fluid_X,F_fluid_Y,F_fluid_Z,F_particle_X,F_particle_Y,F_particle_Z\n");
+    }
+  }
+  else {
+    fclose(fpforce);
+    fpforce = fopen(filename, "a");
+  }
 
   fp = fopen("./proceced_data/particle_Esub.csv", "r");
   if (fp == NULL) {
@@ -554,7 +586,17 @@ void ludwig_run(const char* inputfile) {
     fclose(fp);
     fp = fopen("./proceced_data/particle_Esub.csv", "a");
   }
-  // CHANGE END -Subgrid charge debug data  
+
+  {
+    double r0[3] = { 16.1, 16.5, 16.5 };
+    int i_min, i_max, j_min, j_max, k_min, k_max;
+    int nlocal[3] = { 0 };
+    cs_nlocal(ludwig->cs, nlocal);
+    subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+    printf("Lattice indices for r0: i [%d, %d], j [%d, %d], k [%d, %d]\n",
+           i_min, i_max, j_min, j_max, k_min, k_max);
+  }
+  // CHANGE END - Subgrid charge debug data
 
   while (physics_control_next_step(ludwig->phys)) {
 
@@ -633,43 +675,44 @@ void ludwig_run(const char* inputfile) {
     if (ludwig->psi) {
 
       /* Set charge distribution according to updated map */
-      psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
+      // psi_colloid_rho_set(ludwig->psi, ludwig->collinfo);
 
-      /*CHANGE INIT - Subgrid charge - OLD METHOD (commented) */
-      distributed_charge_klein_t* charge = NULL;
-      subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge);
-      // pe_info(ludwig->pe, "Kappa calculado: %.15f\n", subgrid_get_kappa());
-      /*CHANGE END - Subgrid charge */
-            /* Poisson solve */
+      /*CHANGE INIT - Subgrid charge GPU: Peskin scatter via rho data copy */
+      // /* OLD CPU path (slow: Klein sums + binary search per node): */
+      // distributed_charge_klein_t* charge = NULL;
+      // distributed_charge_klein_t* charge_sg = NULL;
+      // subgrid_charge_from_grid(ludwig->collinfo, ludwig->psi, &charge);
+      // subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge_sg);
+
+      /* Save original rho, scatter Peskin-smoothed rho into psi for Poisson */
+      int rho_ndata = ludwig->psi->nsites * ludwig->psi->nk;
+      double* rho_saved  = (double*)malloc(rho_ndata * sizeof(double));
+      double* rho_smooth = (double*)malloc(rho_ndata * sizeof(double));
+      memcpy(rho_saved, ludwig->psi->rho->data, rho_ndata * sizeof(double));
+
+      memset(rho_smooth, 0, rho_ndata * sizeof(double));
+      subgrid_peskin_scatter_rho_buf(ludwig->collinfo, ludwig->psi,
+                                     rho_smooth, rho_ndata);
+
+      memcpy(ludwig->psi->rho->data, rho_smooth, rho_ndata * sizeof(double));
+      free(rho_smooth);
+      /*CHANGE END - Subgrid charge GPU */
+
       TIMER_start(TIMER_ELECTRO_POISSON);
 
-      // /*CHANGE INIT - Use PETSc solver with subgrid charges in RHS */
-      // /* Cast to PETSc solver type to call new method */
-      // psi_solver_petsc_t* petsc_solver = (psi_solver_petsc_t*)ludwig->poisson;
-      // psi_solver_petsc_solve_with_subgrid(petsc_solver, ludwig->collinfo, step);
-      // /*CHANGE END - Use PETSc solver with subgrid charges in RHS */
-
-      // OLD METHOD: 
+      /* Poisson solve */
       ludwig->poisson->impl->solve(ludwig->poisson, step);
 
       TIMER_stop(TIMER_ELECTRO_POISSON);
 
-      /*CHANGE INIT - Subgrid charge - OLD METHOD (commented) */
-      subgrid_charge_from_particles_restore(ludwig->collinfo, ludwig->psi, &charge);
-      subgrid_free_distributed_charge_t(&charge);
-      /*CHANGE END - Subgrid charge */
+      /*CHANGE INIT - Subgrid charge GPU: restore original rho after solve */
+      // /* OLD CPU restore: */
+      // subgrid_charge_from_particles_restore(ludwig->collinfo, ludwig->psi, &charge);
+      // subgrid_free_distributed_charge_t(&charge);
 
-      // /*CHANGE INIT - Calculate force on particles BEFORE adding particle potential */
-      // /* Use rho(t) to calculate force on particles, before Nernst-Planck evolves it */
-      // /* This ensures force is calculated with fluid charge only, not influenced by particle potential */
-      // subgrid_force_poisson_boltzmann(ludwig->collinfo,
-      //                          ludwig->map,
-      //                          ludwig->phys,
-      //                          ludwig->psi,
-      //                          ludwig->hydro,
-      //                          step,
-      //                          fp);
-      // /*CHANGE END - Calculate force on particles */
+      memcpy(ludwig->psi->rho->data, rho_saved, rho_ndata * sizeof(double));
+      free(rho_saved);
+      /*CHANGE END - Subgrid charge GPU */
 
       if (ludwig->hydro) {
         TIMER_start(TIMER_HALO_LATTICE);
@@ -681,8 +724,16 @@ void ludwig_run(const char* inputfile) {
       }
 
       /* Time splitting for high electrokinetic diffusions in Nernst Planck */
-
       psi_multisteps(ludwig->psi, &multisteps);
+
+      // //////////
+      //   /* Charge conservation diagnostic: before Nernst-Planck */
+      // int nlocal_np[3];
+      // cs_nlocal(ludwig->psi->cs, nlocal_np);
+      // double Q_before[2] = { 0.0, 0.0 };
+      // int n_colloid_nodes = 0;
+      // double Q_after[2] = { 0.0, 0.0 };
+      // /////////
 
       for (im = 0; im < multisteps; im++) {
 
@@ -711,14 +762,78 @@ void ludwig_run(const char* inputfile) {
             psi_force_divstress(ludwig->psi, ludwig->fe, ludwig->hydro,
               ludwig->collinfo);
           }
+
           TIMER_stop(TIMER_FORCE_CALCULATION);
 
+          // // CHANGE INIT - Subgrid charge debug data
+          // // /* Charge conservation diagnostic: before Nernst-Planck */
+          // for (int ic_np = 1; ic_np <= nlocal_np[X]; ic_np++) {
+          //   for (int jc_np = 1; jc_np <= nlocal_np[Y]; jc_np++) {
+          //     for (int kc_np = 1; kc_np <= nlocal_np[Z]; kc_np++) {
+          //       int idx_np = cs_index(ludwig->psi->cs, ic_np, jc_np, kc_np);
+          //       if (ludwig->map) {
+          //         int st_np;
+          //         map_status(ludwig->map, idx_np, &st_np);
+          //         if (st_np != MAP_FLUID) n_colloid_nodes++;
+          //       }
+          //       double rho_np;
+          //       psi_rho(ludwig->psi, idx_np, 0, &rho_np);
+          //       Q_before[0] += rho_np;
+          //       psi_rho(ludwig->psi, idx_np, 1, &rho_np);
+          //       Q_before[1] += rho_np;
+          //     }
+          //   }
+          // }
+          // pe_info(ludwig->pe, "  ----------------------------------------------------------------------------\n");
+          // pe_info(ludwig->pe, "  Multistep =%d\n", multisteps);
+          // pe_info(ludwig->pe, "  [NP diag] Before: rho0=%.10e rho1=%.10e Q_net=%.10e colloid_nodes=%d\n",
+          //         Q_before[0], Q_before[1], Q_before[0] - Q_before[1], n_colloid_nodes);
+          // pe_info(ludwig->pe, "  --------------------------------\n");
+          // // CHANGE END - Subgrid charge debug data
         }
 
+        pe_info(ludwig->pe, "  Current step =%d\n", im); // CHANGE INIT - Subgrid charge debug data
+
         TIMER_start(TIMER_ELECTRO_NPEQ);
-        nernst_planck_driver_d3qx(ludwig->psi, ludwig->fe, ludwig->hydro,
+        /*CHANGE INIT - 20260326 Use GPU-parallel NP driver */
+        nernst_planck_driver_d3qx_gpu(ludwig->psi, ludwig->fe, ludwig->hydro,
                 ludwig->map, ludwig->collinfo);
+        /* Original CPU driver:
+        nernst_planck_driver_d3qx(ludwig->psi, ludwig->fe, ludwig->hydro,
+                ludwig->map, ludwig->collinfo); */
+                /*CHANGE END - 20260326 */
         TIMER_stop(TIMER_ELECTRO_NPEQ);
+
+        // // CHANGE INIT - Subgrid charge debug data
+        // /* Charge conservation diagnostic: before Nernst-Planck */
+        // if (im == multisteps - 1)
+        // {
+        //   for (int ic_np = 1; ic_np <= nlocal_np[X]; ic_np++) {
+        //     for (int jc_np = 1; jc_np <= nlocal_np[Y]; jc_np++) {
+        //       for (int kc_np = 1; kc_np <= nlocal_np[Z]; kc_np++) {
+        //         int idx_np = cs_index(ludwig->psi->cs, ic_np, jc_np, kc_np);
+        //         double rho_np;
+        //         psi_rho(ludwig->psi, idx_np, 0, &rho_np);
+        //         Q_after[0] += rho_np;
+        //         psi_rho(ludwig->psi, idx_np, 1, &rho_np);
+        //         Q_after[1] += rho_np;
+        //       }
+        //     }
+        //   }
+
+        //   pe_info(ludwig->pe, "  Multistep =%d\n", multisteps);
+
+        //   pe_info(ludwig->pe, "  [NP diag] Before: rho0=%.10e rho1=%.10e Q_net=%.10e colloid_nodes=%d\n",
+        //           Q_before[0], Q_before[1], Q_before[0] - Q_before[1], n_colloid_nodes);
+
+        //   pe_info(ludwig->pe, "  [NP diag] After:  rho0=%.10e rho1=%.10e Q_net=%.10e\n",
+        //           Q_after[0], Q_after[1], Q_after[0] - Q_after[1]);
+
+        //   pe_info(ludwig->pe, "  [NP diag] Delta:  drho0=%.10e drho1=%.10e dQ_net=%.10e\n",
+        //           Q_after[0] - Q_before[0], Q_after[1] - Q_before[1],
+        //           (Q_after[0] - Q_after[1]) - (Q_before[0] - Q_before[1]));
+        // }
+        // // CHANGE END - Subgrid charge debug data
 
       }
 
@@ -737,12 +852,6 @@ void ludwig_run(const char* inputfile) {
       psi_zero_mean(ludwig->psi);
 
     }
-
-    // /*CHANGE INIT - Resta velocidad media del sistema */
-    // if (ludwig->hydro) {
-    //   hydro_subtract_mean_velocity(ludwig->hydro);
-    // }
-    // /*CHANGE END - Resta velocidad media del sistema */
 
     /* order parameter dynamics (not if symmetric_lb) */
 
@@ -763,15 +872,8 @@ void ludwig_run(const char* inputfile) {
                             fp,
                             ludwig->pe);
 
+        // Distribuyo la fuerza de en partículas subgrid con Peskin a los nodos (Nash et al.)
         subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map, ludwig->phys, ludwig->psi, ludwig->hydro);
-
-        // subgrid_force_poisson_boltzmann(ludwig->collinfo,
-        //                          ludwig->map,
-        //                          ludwig->phys,
-        //                          ludwig->psi,
-        //                          ludwig->hydro,
-        //                          step,
-        //                          fp);
         /*CHANGE END - Subgrid charge */
 
       }
@@ -1003,6 +1105,10 @@ void ludwig_run(const char* inputfile) {
       int output = (0 == util_mod(step, ludwig->psi->psi->opts.iodata.iofreq));
       if (output || is_config_step() || step == 1) {
         pe_info(ludwig->pe, "Writing electrokinetic data at step %d!\n", step);
+        //CHANGE INIT - Subgrid charge debug data
+        // Necesario si no uso GPU pero esta activo el device 
+        if (!ewald)field_memcpy(ludwig->psi->efield, tdpMemcpyHostToDevice);
+        // CHANGE END - Subgrid charge debug data
         psi_io_write(ludwig->psi, step);
       }
     }
@@ -1089,6 +1195,10 @@ void ludwig_run(const char* inputfile) {
   if (fp != NULL) {
     fclose(fp);
   }
+  if (fpforce != NULL) {
+    fclose(fpforce);
+  }
+  // subgrid_free_distributed_charge_t(&charge);
   /* CHANGE END - Subgrid charge debug data*/
 
   /* End of time step loop. A barrier, before closing down. */
@@ -1097,6 +1207,13 @@ void ludwig_run(const char* inputfile) {
   /* Shut down cleanly. Give the timer statistics. Finalise PE. */
 
   if (ludwig->poisson) ludwig->poisson->impl->free(&ludwig->poisson);
+  /*CHANGE INIT - 20260119 FFT Poisson solver */
+  if (psi_refined_) psi_refined_free(&psi_refined_);
+  if (fft_pn_) psi_fft_pn_free(&fft_pn_);
+  if (fft_solver_) psi_solver_fft_free(&fft_solver_);
+  // /* At the end: */
+  // ewald_charge_self_table_free(&self_table);
+  // /*CHANGE END - 20260119 FFT Poisson solver */
   if (ludwig->psi) psi_free(&ludwig->psi);
 
   if (ludwig->stat_rheo) stats_rheology_free(ludwig->stat_rheo);
@@ -1248,20 +1365,23 @@ static int ludwig_report_momentum(ludwig_t* ludwig) {
   }
 
   /*CHANGE INIT - Total force calculation */
-  /* Calculate and report total forces */
-  stats_total_force(ludwig->hydro, ludwig->map, ludwig->collinfo,
-                    ffluid, fcoll, fsubgrid, ftotal);
+  if (ludwig->hydro) {
+    /* Calculate and report total forces */
+    stats_total_force(ludwig->hydro, ludwig->map, ludwig->collinfo,
+                      ffluid, fcoll, fsubgrid, ftotal);
 
-  pe_info(pe, "\n");
-  pe_info(pe, "Total force - x y z\n");
-  // pe_info(pe, "[total   ] %14.7e %14.7e %14.7e\n", ftotal[X], ftotal[Y], ftotal[Z]);
-  pe_info(pe, "[fluid   ] %14.7e %14.7e %14.7e\n", ffluid[X], ffluid[Y], ffluid[Z]);
-  if (ncolloid > 0) {
-    pe_info(pe, "[colloids] %14.7e %14.7e %14.7e\n", fcoll[X], fcoll[Y], fcoll[Z]);
+    pe_info(pe, "\n");
+    pe_info(pe, "Total force - x y z\n");
+    // pe_info(pe, "[total   ] %14.7e %14.7e %14.7e\n", ftotal[X], ftotal[Y], ftotal[Z]);
+    pe_info(pe, "[fluid   ] %14.7e %14.7e %14.7e\n", ffluid[X], ffluid[Y], ffluid[Z]);
+    if (ncolloid > 0) {
+      pe_info(pe, "[colloids] %14.7e %14.7e %14.7e\n", fcoll[X], fcoll[Y], fcoll[Z]);
+    }
+    if (nsubgrid > 0) {
+      pe_info(pe, "[subgrid ] %14.7e %14.7e %14.7e\n", fsubgrid[X], fsubgrid[Y], fsubgrid[Z]);
+    }
   }
-  if (nsubgrid > 0) {
-    pe_info(pe, "[subgrid ] %14.7e %14.7e %14.7e\n", fsubgrid[X], fsubgrid[Y], fsubgrid[Z]);
-  }
+
   /*CHANGE END - Total force calculation */
 
   return 0;
@@ -2049,6 +2169,54 @@ int free_energy_init_rt(ludwig_t* ludwig) {
       pe_info(pe, "not been compiled. Please specify sor in the input.\n");
       pe_fatal(pe, "Please check and try again\n");
     }
+
+    /*CHANGE INIT - 20260119 FFT Poisson solver */
+    /* Use discrete Laplacian for consistency with the FD stencil used elsewhere */
+    // ifail = psi_solver_fft_create_opt(ludwig->psi, PSI_FFT_LAPLACIAN_DISCRETE, &fft_solver_);
+    // ifail = psi_solver_fft_create_opt(ludwig->psi, PSI_FFT_LAPLACIAN_ANALYTIC, &fft_solver_);
+    // ifail = psi_solver_fft_create_hockney(ludwig->psi, PSI_FFT_LAPLACIAN_DISCRETE, 
+    //                                       0.001,  /* shape_a */
+    //                                       10,    /* n_alias_max */
+    //                                       &fft_solver_);
+    // ifail = psi_solver_fft_create_ewald(ludwig->psi, PSI_FFT_LAPLACIAN_DISCRETE,
+    //                                0.8,  /* alpha */
+    //                                2.5,  /* rcut */
+    //                                &fft_solver_);
+    // if (ifail != 0) {
+    //   pe_info(pe, "FFT Poisson solver initialisation failed\n");
+    // }
+    // else {
+    //   psi_solver_fft_info(fft_solver_);
+
+    //   /* Create PN correction for FFT solver */
+    //   ifail = psi_fft_pn_create(fft_solver_, ludwig->psi, &fft_pn_);
+    //   if (ifail != 0) {
+    //     pe_info(pe, "FFT PN correction initialisation failed\n");
+    //   }
+    //   else {
+    //     psi_fft_pn_info(fft_pn_);
+    //   }
+    // }
+
+    // /* Create refined grid Poisson solver */
+    // if (use_refined_grid_) {
+    //   psi_refined_options_t ref_opts = PSI_REFINED_OPTIONS_DEFAULT;
+    //   ref_opts.refinement_factor = refined_grid_factor_;
+    //   psi_epsilon(ludwig->psi, &ref_opts.epsilon);
+    //   psi_beta(ludwig->psi, &ref_opts.beta);
+    //   psi_unit_charge(ludwig->psi, &ref_opts.e);
+
+    //   ifail = psi_refined_create(pe, cs, ludwig->psi, &ref_opts, &psi_refined_);
+    //   if (ifail != 0) {
+    //     pe_info(pe, "Refined grid Poisson solver initialisation failed\n");
+    //     pe_info(pe, "Falling back to normal FFT solver\n");
+    //     use_refined_grid_ = 0;
+    //   }
+    //   else {
+    //     psi_refined_info(psi_refined_);
+    //   }
+    // }
+    /*CHANGE END - 20260119 FFT Poisson solver */
   }
   else if (strcmp(description, "fe_electro_symmetric") == 0) {
 

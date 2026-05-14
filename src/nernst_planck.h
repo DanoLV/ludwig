@@ -23,6 +23,10 @@
 int nernst_planck_driver(psi_t * psi, fe_t * fe, map_t * map);
 int nernst_planck_driver_d3qx(psi_t * psi, fe_t * fe, hydro_t * hydro,
 			      map_t * map, colloids_info_t * cinfo);
+/*CHANGE INIT - 20260326 GPU driver for Nernst-Planck d3qx */
+int nernst_planck_driver_d3qx_gpu(psi_t * psi, fe_t * fe, hydro_t * hydro,
+                                   map_t * map, colloids_info_t * cinfo);
+/*CHANGE END - 20260326 */
 int nernst_planck_adjust_multistep(psi_t * psi);
 
 int nernst_planck_maxacc(double * acc);

@@ -19,5 +19,9 @@
         "coords.h": "c",
         "variant": "c"
     },
-    "C_Cpp.dimInactiveRegions": false
+    "C_Cpp.dimInactiveRegions": false,
+    "workbench.editorAssociations": {
+        "*.png": "imagePreview.previewEditor",
+        "*.jpg": "imagePreview.previewEditor"
+    }
 }

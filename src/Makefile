@@ -48,6 +48,11 @@ ifdef HAVE_PETSC
 OPTS += -DPETSC
 INCL += $(PETSC_INC)
 LIBS += $(PETSC_LIB)
+endif
+
+# cuFFT is included with CUDA, just need to link
+ifeq ($(TARGET),nvcc)
+LIBS += -lcufft
 endif 
 
 ###############################################################################

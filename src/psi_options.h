@@ -60,6 +60,13 @@ struct psi_options_s {
   int method;                     /* Force computation method */
   field_options_t psi;            /* Field options for potential (i/o etc) */
   field_options_t rho;            /* field options for charges   (i/o etc) */
+  /*CHANGE INIT - 20251203 Electric field output */
+  field_options_t efield;         /* Field options for electric field (i/o etc) */
+  field_options_t efield_real;    /* Field options for efield real component (diagnostics) */
+  field_options_t efield_fourier; /* Field options for efield Fourier component (diagnostics) */
+  field_options_t psi_real;       /* Field options for psi real component (diagnostics) */
+  field_options_t psi_fourier;    /* Field options for psi Fourier component (diagnostics) */
+  /*CHANGE END - 20251203 */
 };
 
 psi_options_t psi_options_default(int nhalo);

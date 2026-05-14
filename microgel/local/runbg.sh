@@ -207,6 +207,9 @@ fi
 # Copy files to execute simulation
 cp "$input_file" $RESULTS_DIR/input
 cp Ludwig.exe $RESULTS_DIR
+# Copy PETSc options file if present
+[ -f ".petscrc" ] && cp .petscrc $RESULTS_DIR/.petscrc
+# cp efield_self_*.bin $RESULTS_DIR/
 # cp del.sh $RESULTS_DIR
 
 # Create graphics subdirectory
@@ -227,6 +230,7 @@ cp calculosvelfluid.py $RESULTS_DIR/scripts
 cp calculosvelfluidonly.py $RESULTS_DIR/scripts
 cp extraer_posicion.py $RESULTS_DIR/scripts
 cp calculos.py $RESULTS_DIR/scripts
+cp calc_mui.py $RESULTS_DIR/scripts
 
 # Plotting scripts (only read processed CSVs) go to plot subdirectory
 cp plotvel.py $RESULTS_DIR/scripts
@@ -239,6 +243,9 @@ cp plotdatos.py $RESULTS_DIR/scripts
 # cp batch_plot_electric_field.py $RESULTS_DIR/scripts
 cp compare_field_theory.py $RESULTS_DIR/scripts
 # cp compare_field_theory_peskin.py $RESULTS_DIR/scripts
+
+cp plot_*ewald.py $RESULTS_DIR/scripts
+cp plot_mui*.py $RESULTS_DIR/scripts
 
 # Provide access to plot scripts
 chmod +x $RESULTS_DIR/scripts/runplot.sh
@@ -254,6 +261,8 @@ chmod +x $RESULTS_DIR/scripts/plot_charge_distribution.py
 chmod +x $RESULTS_DIR/scripts/plot_electric_field.py
 chmod +x $RESULTS_DIR/scripts/plotdatos.py
 chmod +x $RESULTS_DIR/scripts/compare_field_theory.py
+
+chmod +x $RESULTS_DIR/scripts/plot_*ewald.py
 
 # Change to result dir
 cd $RESULTS_DIR/

@@ -39,25 +39,25 @@
 #include "psi_petsc.h"
 
 static psi_solver_vt_t vt_ = {
-  (psi_solver_free_ft)  psi_solver_petsc_free,
-  (psi_solver_solve_ft) psi_solver_petsc_solve
+  (psi_solver_free_ft)psi_solver_petsc_free,
+  (psi_solver_solve_ft)psi_solver_petsc_solve
 };
 
 static psi_solver_vt_t vart_ = {
-  (psi_solver_free_ft) psi_solver_petsc_free,
-  (psi_solver_solve_ft) psi_solver_petsc_var_epsilon_solve
+  (psi_solver_free_ft)psi_solver_petsc_free,
+  (psi_solver_solve_ft)psi_solver_petsc_var_epsilon_solve
 };
 
-int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver);
-int psi_solver_petsc_matrix_set(psi_solver_petsc_t * solver);
-int psi_solver_petsc_rhs_set(psi_solver_petsc_t * solver);
-int psi_solver_petsc_psi_to_da(psi_solver_petsc_t * solver);
-int psi_solver_petsc_da_to_psi(psi_solver_petsc_t * solver);
+int psi_solver_petsc_initialise(psi_t* psi, psi_solver_petsc_t* solver);
+int psi_solver_petsc_matrix_set(psi_solver_petsc_t* solver);
+int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver);
+int psi_solver_petsc_psi_to_da(psi_solver_petsc_t* solver);
+int psi_solver_petsc_da_to_psi(psi_solver_petsc_t* solver);
 
-int psi_solver_petsc_var_epsilon_initialise(psi_t * psi, var_epsilon_t epsilon,
-					    psi_solver_petsc_t * solver);
-int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t * solver);
-int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t * solver);
+int psi_solver_petsc_var_epsilon_initialise(psi_t* psi, var_epsilon_t epsilon,
+              psi_solver_petsc_t* solver);
+int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t* solver);
+int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t* solver);
 
 
 /*****************************************************************************
@@ -66,7 +66,7 @@ int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t * solver);
  *
  *****************************************************************************/
 
-int psi_solver_petsc_create(psi_t * psi, psi_solver_petsc_t ** solver) {
+int psi_solver_petsc_create(psi_t* psi, psi_solver_petsc_t** solver) {
 
   int ifail = -1;                     /* Check PETSC is available */
   int isInitialised = 0;
@@ -74,9 +74,9 @@ int psi_solver_petsc_create(psi_t * psi, psi_solver_petsc_t ** solver) {
   PetscInitialised(&isInitialised);
 
   if (isInitialised) {
-    psi_solver_petsc_t * petsc = NULL;
+    psi_solver_petsc_t* petsc = NULL;
 
-    petsc = (psi_solver_petsc_t *) calloc(1, sizeof(psi_solver_petsc_t));
+    petsc = (psi_solver_petsc_t*)calloc(1, sizeof(psi_solver_petsc_t));
     assert(petsc);
 
     if (petsc != NULL) {
@@ -98,8 +98,8 @@ int psi_solver_petsc_create(psi_t * psi, psi_solver_petsc_t ** solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_var_epsilon_create(psi_t * psi, var_epsilon_t user,
-					psi_solver_petsc_t ** solver) {
+int psi_solver_petsc_var_epsilon_create(psi_t* psi, var_epsilon_t user,
+          psi_solver_petsc_t** solver) {
 
   int ifail = -1;                     /* Check PETSC is available */
   int isInitialised = 0;
@@ -107,9 +107,9 @@ int psi_solver_petsc_var_epsilon_create(psi_t * psi, var_epsilon_t user,
   PetscInitialised(&isInitialised);
 
   if (isInitialised) {
-    psi_solver_petsc_t * petsc = NULL;
+    psi_solver_petsc_t* petsc = NULL;
 
-    petsc = (psi_solver_petsc_t *) calloc(1, sizeof(psi_solver_petsc_t));
+    petsc = (psi_solver_petsc_t*)calloc(1, sizeof(psi_solver_petsc_t));
     assert(petsc);
 
     if (petsc != NULL) {
@@ -133,7 +133,7 @@ int psi_solver_petsc_var_epsilon_create(psi_t * psi, var_epsilon_t user,
  *
  *****************************************************************************/
 
-int psi_solver_petsc_free(psi_solver_petsc_t ** solver) {
+int psi_solver_petsc_free(psi_solver_petsc_t** solver) {
 
   assert(solver && *solver);
 
@@ -155,7 +155,7 @@ int psi_solver_petsc_free(psi_solver_petsc_t ** solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
+int psi_solver_petsc_initialise(psi_t* psi, psi_solver_petsc_t* solver) {
 
   /* No implementation */
   return -1;
@@ -167,7 +167,7 @@ int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_solve(psi_solver_petsc_t * solver, int ntimestep) {
+int psi_solver_petsc_solve(psi_solver_petsc_t* solver, int ntimestep) {
 
   /* No implementation */
   return -1;
@@ -179,7 +179,7 @@ int psi_solver_petsc_solve(psi_solver_petsc_t * solver, int ntimestep) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t * solver, int nt) {
+int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t* solver, int nt) {
 
   /* No implementation */
   return -1;
@@ -206,14 +206,14 @@ struct psi_solver_petsc_block_s {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
+int psi_solver_petsc_initialise(psi_t* psi, psi_solver_petsc_t* solver) {
 
   assert(psi);
   assert(solver);
 
   {
     size_t sz = sizeof(psi_solver_petsc_block_t);
-    solver->block = (psi_solver_petsc_block_t *) calloc(1, sz);
+    solver->block = (psi_solver_petsc_block_t*)calloc(1, sz);
     assert(solver->block);
     if (solver->block == NULL) return -1;
   }
@@ -224,10 +224,10 @@ int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
    *  PETSc communicator. Default PETSc is column major decomposition. */
 
   {
-    cs_t * cs = psi->cs;
-    int coords[3] = {0};
-    int cartsz[3] = {0};
-    int ntotal[3] = {0};
+    cs_t* cs = psi->cs;
+    int coords[3] = { 0 };
+    int cartsz[3] = { 0 };
+    int ntotal[3] = { 0 };
     int nhalo = -1;
     int rank = -1;
 
@@ -243,19 +243,37 @@ int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
     /* Create communicator with new ranks according to PETSc ordering */
     /* Override default PETSc communicator */
 
-    rank = coords[Z]*cartsz[Y]*cartsz[X] + coords[Y]*cartsz[X] + coords[X];
+    rank = coords[Z] * cartsz[Y] * cartsz[X] + coords[Y] * cartsz[X] + coords[X];
     MPI_Comm_split(PETSC_COMM_WORLD, 1, rank, &comm);
     PETSC_COMM_WORLD = comm;
 
     /* Create 3D distributed array (always periodic) */
 
     DMDACreate3d(PETSC_COMM_WORLD, periodic, periodic, periodic,
-		 DMDA_STENCIL_BOX, ntotal[X], ntotal[Y], ntotal[Z],
-		 cartsz[X], cartsz[Y], cartsz[Z], 1, nhalo,
-		 NULL, NULL, NULL, &solver->block->da);
+     DMDA_STENCIL_BOX, ntotal[X], ntotal[Y], ntotal[Z],
+     cartsz[X], cartsz[Y], cartsz[Z], 1, nhalo,
+     NULL, NULL, NULL, &solver->block->da);
 
-    PetscCall(DMSetVecType(solver->block->da, VECSTANDARD));
-    PetscCall(DMSetMatType(solver->block->da, MATMPIAIJ));
+    /*CHANGE INIT - 20260326 Use GPU vec/mat types when -vec_type cuda is set via .petscrc.
+     * DMSetVecType/DMSetMatType must match the requested type BEFORE DMSetUp and
+     * DMCreateGlobalVector, otherwise -vec_type cuda in .petscrc is ignored and
+     * hypre PC fails with "HYPRE_MEMORY_DEVICE expects a device vector".
+     * Original (CPU only):
+     *   PetscCall(DMSetVecType(solver->block->da, VECSTANDARD));
+     *   PetscCall(DMSetMatType(solver->block->da, MATMPIAIJ)); */
+    {
+      PetscBool use_cuda = PETSC_FALSE;
+      char vtype[64];
+      PetscOptionsGetString(NULL, NULL, "-vec_type", vtype, sizeof(vtype), &use_cuda);
+      if (use_cuda && !strcmp(vtype, "cuda")) {
+        PetscCall(DMSetVecType(solver->block->da, VECCUDA));
+        PetscCall(DMSetMatType(solver->block->da, MATAIJCUSPARSE));
+      } else {
+        PetscCall(DMSetVecType(solver->block->da, VECSTANDARD));
+        PetscCall(DMSetMatType(solver->block->da, MATMPIAIJ));
+      }
+    }
+    /*CHANGE END - 20260326 */
     PetscCall(DMSetUp(solver->block->da));
   }
 
@@ -269,12 +287,15 @@ int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
 
   {
     PetscReal abstol = psi->solver.abstol;
-    PetscReal rtol   = psi->solver.reltol;
+    PetscReal rtol = psi->solver.reltol;
     PetscInt  maxits = psi->solver.maxits;
 
     KSPCreate(PETSC_COMM_WORLD, &solver->block->ksp);
     KSPSetOperators(solver->block->ksp, solver->block->a, solver->block->a);
     KSPSetTolerances(solver->block->ksp, rtol, abstol, PETSC_DEFAULT, maxits);
+    /*CHANGE INIT - 20260326 Allow .petscrc / command-line options for KSP solver */
+    KSPSetFromOptions(solver->block->ksp);
+    /*CHANGE END - 20260326 */
   }
 
   /* Not required in var-epsilon case, but no harm. */
@@ -291,17 +312,17 @@ int psi_solver_petsc_initialise(psi_t * psi, psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_matrix_set(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_matrix_set(psi_solver_petsc_t* solver) {
 
   int xs, ys, zs;
   int xw, yw, zw;
   int xe, ye, ze;
   double epsilon;
 
-  double v[27] = {0};        /* Accomodate largest current stencil */
-  MatStencil col[27] = {0};  /* Ditto */
+  double v[27] = { 0 };        /* Accomodate largest current stencil */
+  MatStencil col[27] = { 0 };  /* Ditto */
 
-  stencil_t * s = solver->psi->stencil;
+  stencil_t* s = solver->psi->stencil;
 
   assert(solver);
   assert(solver->psi->solver.nstencil <= 27);
@@ -322,23 +343,23 @@ int psi_solver_petsc_matrix_set(psi_solver_petsc_t * solver) {
     for (int j = ys; j < ye; j++) {
       for (int i = xs; i < xe; i++) {
 
-	/*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
-	/* Original: MatStencil row = {.i = i, .j = j, .k = k}; */
-	/* CUDA nvcc requires explicit member assignment instead of designated initializers */
-	MatStencil row;
-	row.i = i;
-	row.j = j;
-	row.k = k;
-	/*CHANGE END*/
+        /*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
+        /* Original: MatStencil row = {.i = i, .j = j, .k = k}; */
+        /* CUDA nvcc requires explicit member assignment instead of designated initializers */
+        MatStencil row;
+        row.i = i;
+        row.j = j;
+        row.k = k;
+        /*CHANGE END*/
 
-	for (int p = 0; p < s->npoints; p++) {
-	  col[p].i = i + s->cv[p][X];
-	  col[p].j = j + s->cv[p][Y];
-	  col[p].k = k + s->cv[p][Z];
-	  v[p] = s->wlaplacian[p]*epsilon;
-	}
-	MatSetValuesStencil(solver->block->a, 1, &row, s->npoints, col, v,
-			    INSERT_VALUES);
+        for (int p = 0; p < s->npoints; p++) {
+          col[p].i = i + s->cv[p][X];
+          col[p].j = j + s->cv[p][Y];
+          col[p].k = k + s->cv[p][Z];
+          v[p] = s->wlaplacian[p] * epsilon;
+        }
+        MatSetValuesStencil(solver->block->a, 1, &row, s->npoints, col, v,
+                INSERT_VALUES);
       }
     }
   }
@@ -369,7 +390,7 @@ int psi_solver_petsc_matrix_set(psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_solve(psi_solver_petsc_t * solver, int ntimestep) {
+int psi_solver_petsc_solve(psi_solver_petsc_t* solver, int ntimestep) {
 
   /*CHANGE INIT - 20250112 Fix NULL pointer handling for test compatibility */
   /* Original: assert(solver); */
@@ -381,14 +402,27 @@ int psi_solver_petsc_solve(psi_solver_petsc_t * solver, int ntimestep) {
   psi_solver_petsc_rhs_set(solver);
   psi_solver_petsc_psi_to_da(solver);
 
+  /*CHANGE INIT - 20260326 Fix DIVERGED_INDEFINITE_MAT with aijcusparse:
+   * MatSetNullSpace does not project the null space from the RHS/solution when
+   * using GPU matrices. Explicit projection via MatNullSpaceRemove on b and x
+   * ensures CG sees a consistent SPD system (no constant-mode contamination). */
+  {
+    MatNullSpace nullsp;
+    MatNullSpaceCreate(PETSC_COMM_WORLD, PETSC_TRUE, 0, NULL, &nullsp);
+    MatNullSpaceRemove(nullsp, solver->block->b);
+    MatNullSpaceRemove(nullsp, solver->block->x);
+    MatNullSpaceDestroy(&nullsp);
+  }
+  /*CHANGE END - 20260326 */
+
   KSPSetInitialGuessNonzero(solver->block->ksp, PETSC_TRUE);
   KSPSolve(solver->block->ksp, solver->block->b, solver->block->x);
 
   if (ntimestep % solver->psi->solver.nfreq == 0) {
     /* Report on progress of the solver.
      * Note the default Petsc residual is the preconditioned L2 norm. */
-    pe_t * pe = solver->psi->pe;
-    PetscInt  its  = 0;
+    pe_t* pe = solver->psi->pe;
+    PetscInt  its = 0;
     PetscReal norm = 0.0;
     PetscCall(KSPGetIterationNumber(solver->block->ksp, &its));
     PetscCall(KSPGetResidualNorm(solver->block->ksp, &norm));
@@ -408,15 +442,15 @@ int psi_solver_petsc_solve(psi_solver_petsc_t * solver, int ntimestep) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_rhs_set(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver) {
 
-  cs_t * cs = NULL;
+  cs_t* cs = NULL;
   int xs, ys, zs;
   int xw, yw, zw;
   int xe, ye, ze;
-  int offset[3] = {0};
-  double e0[3] = {0};
-  double *** rho_3d = {0};
+  int offset[3] = { 0 };
+  double e0[3] = { 0 };
+  double*** rho_3d = { 0 };
 
   assert(solver);
 
@@ -436,15 +470,15 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t * solver) {
       int jc = j - offset[Y] + 1;
       for (int i = xs; i < xe; i++) {
 
-	int ic = i - offset[X] + 1;
-	int index = cs_index(cs, ic, jc, kc);
-	double rho_elec = 0.0;
-	/* Non-dimensional potential in Poisson eqn requires e/kT */
-	double eunit = solver->psi->e;
-	double beta  = solver->psi->beta;
+        int ic = i - offset[X] + 1;
+        int index = cs_index(cs, ic, jc, kc);
+        double rho_elec = 0.0;
+        /* Non-dimensional potential in Poisson eqn requires e/kT */
+        double eunit = solver->psi->e;
+        double beta = solver->psi->beta;
 
-	psi_rho_elec(solver->psi, index, &rho_elec);
-	rho_3d[k][j][i] = rho_elec*eunit*beta;
+        psi_rho_elec(solver->psi, index, &rho_elec);
+        rho_3d[k][j][i] = rho_elec * eunit * beta;
       }
     }
   }
@@ -458,9 +492,9 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t * solver) {
 
   if (e0[X] || e0[Y] || e0[Z]) {
 
-    int ntotal[3] = {0};
-    int mpi_coords[3] = {0};
-    int mpi_cartsz[3] = {0};
+    int ntotal[3] = { 0 };
+    int mpi_coords[3] = { 0 };
+    int mpi_cartsz[3] = { 0 };
     double epsilon = 0.0;
 
     cs_ntotal(cs, ntotal);
@@ -469,128 +503,54 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t * solver) {
 
     psi_epsilon(solver->psi, &epsilon);
 
-    /*CHANGE INIT - 20251201 Correct scaling factor for external field RHS */
-    /*CHANGE UPDATED - 20251203 Removed RHS correction after Laplacian renormalization */
-    /* The external field contribution to RHS must be scaled for D3Q19 and D3Q27.
-     * D3Q7 already works correctly in the original code (no correction needed).
-     * For stencil D3Q19: correction = 36.0/6.0 = 6.0
-     * For stencil D3Q27: correction = 216.0/6.0 = 36.0
-     *
-     * UPDATE 20251203: After renormalizing wlaplacian in stencil_d3q19.c and
-     * stencil_d3q27.c from (-36, -216) to (-6, -6), the RHS no longer needs
-     * this correction. All stencils now use the same normalization.
-     */
-    // stencil_t * s = solver->psi->stencil;
-    double rhs_correction = 1.0;  /* No correction needed after Laplacian fix */
-    // if (s->npoints == 19) {
-    //   rhs_correction = 36.0 / 6.0;  /* D3Q19: needs factor 6.0 */
-    // } else if (s->npoints == 27) {
-    //   rhs_correction = 216.0 / 6.0;  /* D3Q27: needs factor 36.0 */
-    // }
-    /* All stencils (D3Q7, D3Q19, D3Q27) now use rhs_correction = 1.0 */
-    /*CHANGE END - 20251203 Removed RHS correction after Laplacian renormalization */
-
-    /*CHANGE INIT - 20251201 Apply RHS correction factor for external field */
-    // if (e0[X] && mpi_coords[X] == 0) {
-    //   for (int k = zs; k < ze; k++) {
-    // for (int j = ys; j < ye; j++) {
-    //   rho_3d[k][j][0] += epsilon*e0[X]*ntotal[X];
-    // }
-    //   }
-    // }
-
-    // if (e0[X] && mpi_coords[X] == mpi_cartsz[X] - 1) {
-    //   for (int k = zs; k < ze; k++) {
-    // for (int j = ys; j < ye; j++) {
-    //   rho_3d[k][j][xe-1] -= epsilon*e0[X]*ntotal[X];
-    // }
-    //   }
-    // }
-
     if (e0[X] && mpi_coords[X] == 0) {
       for (int k = zs; k < ze; k++) {
-	for (int j = ys; j < ye; j++) {
-	  rho_3d[k][j][0] += rhs_correction*epsilon*e0[X]*ntotal[X];
-	}
+        for (int j = ys; j < ye; j++) {
+          rho_3d[k][j][0] += epsilon * e0[X] * ntotal[X];
+        }
       }
     }
 
     if (e0[X] && mpi_coords[X] == mpi_cartsz[X] - 1) {
       for (int k = zs; k < ze; k++) {
-	for (int j = ys; j < ye; j++) {
-	  rho_3d[k][j][xe-1] -= rhs_correction*epsilon*e0[X]*ntotal[X];
-	}
+        for (int j = ys; j < ye; j++) {
+          rho_3d[k][j][xe - 1] -= epsilon * e0[X] * ntotal[X];
+        }
       }
     }
-    /*CHANGE END - 20251201 Apply RHS correction factor for external field */
-
-    /*CHANGE INIT - 20251201 Apply RHS correction factor for external field Y */
-    // if (e0[Y] && mpi_coords[Y] == 0) {
-    //   for (int k = zs; k < ze; k++) {
-    // for (int i = xs; i < xe; i++) {
-    //   rho_3d[k][0][i] += epsilon*e0[Y]*ntotal[Y];
-    // }
-    //   }
-    // }
-
-    // if (e0[Y] && mpi_coords[Y] == mpi_cartsz[Y] - 1) {
-    //   for (int k = zs; k < ze; k++) {
-    // for (int i = xs; i < xe; i++) {
-    //   rho_3d[k][ye-1][i] -= epsilon*e0[Y]*ntotal[Y];
-    // }
-    //   }
-    // }
 
     if (e0[Y] && mpi_coords[Y] == 0) {
       for (int k = zs; k < ze; k++) {
-	for (int i = xs; i < xe; i++) {
-	  rho_3d[k][0][i] += rhs_correction*epsilon*e0[Y]*ntotal[Y];
-	}
+        for (int i = xs; i < xe; i++) {
+          rho_3d[k][0][i] += epsilon * e0[Y] * ntotal[Y];
+        }
       }
     }
 
     if (e0[Y] && mpi_coords[Y] == mpi_cartsz[Y] - 1) {
       for (int k = zs; k < ze; k++) {
-	for (int i = xs; i < xe; i++) {
-	  rho_3d[k][ye-1][i] -= rhs_correction*epsilon*e0[Y]*ntotal[Y];
-	}
+        for (int i = xs; i < xe; i++) {
+          rho_3d[k][ye - 1][i] -= epsilon * e0[Y] * ntotal[Y];
+        }
       }
     }
-    /*CHANGE END - 20251201 Apply RHS correction factor for external field Y */
-
-    /*CHANGE INIT - 20251201 Apply RHS correction factor for external field Z */
-    // if (e0[Z] && mpi_coords[Z] == 0) {
-    //   for (int j = ys; j < ye; j++) {
-    // for (int i = xs; i < xe; i++) {
-    //   rho_3d[0][j][i] += epsilon*e0[Z]*ntotal[Z];
-    // }
-    //   }
-    // }
-
-    // if (e0[Z] && mpi_coords[Z] == mpi_cartsz[Z] - 1) {
-    //   for (int j = ys; j < ye; j++) {
-    // for (int i = xs; i < xe; i++) {
-    //   rho_3d[ze-1][j][i] -= epsilon*e0[Z]*ntotal[Z];
-    // }
-    //   }
-    // }
 
     if (e0[Z] && mpi_coords[Z] == 0) {
       for (int j = ys; j < ye; j++) {
-	for (int i = xs; i < xe; i++) {
-	  rho_3d[0][j][i] += rhs_correction*epsilon*e0[Z]*ntotal[Z];
-	}
+        for (int i = xs; i < xe; i++) {
+          rho_3d[0][j][i] += epsilon * e0[Z] * ntotal[Z];
+        }
       }
     }
 
     if (e0[Z] && mpi_coords[Z] == mpi_cartsz[Z] - 1) {
       for (int j = ys; j < ye; j++) {
-	for (int i = xs; i < xe; i++) {
-	  rho_3d[ze-1][j][i] -= rhs_correction*epsilon*e0[Z]*ntotal[Z];
-	}
+        for (int i = xs; i < xe; i++) {
+          rho_3d[ze - 1][j][i] -= epsilon * e0[Z] * ntotal[Z];
+        }
       }
     }
-    /*CHANGE END - 20251201 Apply RHS correction factor for external field Z */
+
   }
 
   DMDAVecRestoreArray(solver->block->da, solver->block->b, &rho_3d);
@@ -823,14 +783,14 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_psi_to_da(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_psi_to_da(psi_solver_petsc_t* solver) {
 
-  cs_t * cs = NULL;
+  cs_t* cs = NULL;
   int xs, ys, zs;
   int xw, yw, zw;
   int xe, ye, ze;
-  int offset[3] = {0};
-  double *** psi_3d = NULL;
+  int offset[3] = { 0 };
+  double*** psi_3d = NULL;
 
   assert(solver);
 
@@ -849,9 +809,9 @@ int psi_solver_petsc_psi_to_da(psi_solver_petsc_t * solver) {
     for (int j = ys; j < ye; j++) {
       int jc = j - offset[Y] + 1;
       for (int i = xs; i < xe; i++) {
-	int ic = i - offset[X] + 1;
-	int index = cs_index(cs, ic, jc, kc);
-	psi_3d[k][j][i] = solver->psi->psi->data[index];
+        int ic = i - offset[X] + 1;
+        int index = cs_index(cs, ic, jc, kc);
+        psi_3d[k][j][i] = solver->psi->psi->data[index];
       }
     }
   }
@@ -869,14 +829,14 @@ int psi_solver_petsc_psi_to_da(psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_da_to_psi(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_da_to_psi(psi_solver_petsc_t* solver) {
 
-  cs_t * cs = NULL;
+  cs_t* cs = NULL;
   int xs, ys, zs;
   int xw, yw, zw;
   int xe, ye, ze;
-  int offset[3] = {0};
-  double *** psi_3d = NULL;
+  int offset[3] = { 0 };
+  double*** psi_3d = NULL;
 
   assert(solver);
 
@@ -884,6 +844,12 @@ int psi_solver_petsc_da_to_psi(psi_solver_petsc_t * solver) {
   cs_nlocal_offset(cs, offset);
 
   DMDAGetCorners(solver->block->da, &xs, &ys, &zs, &xw, &yw, &zw);
+
+  /*CHANGE INIT - 20260326 If the solution vector is on GPU (VECCUDA), bind it to CPU
+   * so that DMDAVecGetArray can access it from the host. */
+  VecBindToCPU(solver->block->x, PETSC_TRUE);
+  /*CHANGE END - 20260326 */
+
   DMDAVecGetArray(solver->block->da, solver->block->x, &psi_3d);
 
   xe = xs + xw;
@@ -894,15 +860,19 @@ int psi_solver_petsc_da_to_psi(psi_solver_petsc_t * solver) {
     int kc = k - offset[Z] + 1;
     for (int j = ys; j < ye; j++) {
       int jc = j - offset[Y] + 1;
-      for (int i = xs; i < xe; i++)  {
-	int ic = i - offset[X] + 1;
-	int index = cs_index(cs, ic, jc, kc);
-	solver->psi->psi->data[index] = psi_3d[k][j][i];
+      for (int i = xs; i < xe; i++) {
+        int ic = i - offset[X] + 1;
+        int index = cs_index(cs, ic, jc, kc);
+        solver->psi->psi->data[index] = psi_3d[k][j][i];
       }
     }
   }
 
   DMDAVecRestoreArray(solver->block->da, solver->block->x, &psi_3d);
+
+  /*CHANGE INIT - 20260326 Restore GPU binding after host read. */
+  VecBindToCPU(solver->block->x, PETSC_FALSE);
+  /*CHANGE END - 20260326 */
 
   return 0;
 }
@@ -913,7 +883,7 @@ int psi_solver_petsc_da_to_psi(psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t * solver, int nt) {
+int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t* solver, int nt) {
 
   assert(solver);
 
@@ -928,8 +898,8 @@ int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t * solver, int nt) {
   if (nt % solver->psi->solver.nfreq == 0) {
     /* Report on progress of the solver.
      * Note the default Petsc residual is the preconditioned L2 norm. */
-    pe_t * pe = solver->psi->pe;
-    PetscInt  its  = 0;
+    pe_t* pe = solver->psi->pe;
+    PetscInt  its = 0;
     PetscReal norm = 0.0;
     PetscCall(KSPGetIterationNumber(solver->block->ksp, &its));
     PetscCall(KSPGetResidualNorm(solver->block->ksp, &norm));
@@ -949,17 +919,17 @@ int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t * solver, int nt) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t* solver) {
 
-  cs_t * cs = NULL;
+  cs_t* cs = NULL;
   int xs, ys, zs;
   int xw, yw, zw;
   int xe, ye, ze;
-  int offset[3] = {0};
+  int offset[3] = { 0 };
 
-  double v[27] = {0};
-  MatStencil col[27] = {0};
-  stencil_t * s = solver->psi->stencil;
+  double v[27] = { 0 };
+  MatStencil col[27] = { 0 };
+  stencil_t* s = solver->psi->stencil;
 
   assert(solver);
 
@@ -984,51 +954,51 @@ int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t * solver) {
       int jc = 1 + j - offset[Y];
       for (int i = xs; i < xe; i++) {
 
-	int ic = 1 + i - offset[X];
-	int index = cs_index(cs, ic, jc, kc);
-	double epsilon0 = 0.0;
-	double gradeps[3] = {0};
+        int ic = 1 + i - offset[X];
+        int index = cs_index(cs, ic, jc, kc);
+        double epsilon0 = 0.0;
+        double gradeps[3] = { 0 };
 
-	/*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
-	/* Original: MatStencil row = {.i = i, .j = j, .k = k}; */
-	/* CUDA nvcc requires explicit member assignment instead of designated initializers */
-	MatStencil row;
-	row.i = i;
-	row.j = j;
-	row.k = k;
-	/*CHANGE END*/
+        /*CHANGE INIT - 20251119 CUDA C++ compatibility fix */
+        /* Original: MatStencil row = {.i = i, .j = j, .k = k}; */
+        /* CUDA nvcc requires explicit member assignment instead of designated initializers */
+        MatStencil row;
+        row.i = i;
+        row.j = j;
+        row.k = k;
+        /*CHANGE END*/
 
-	solver->epsilon(solver->fe, index, &epsilon0);
+        solver->epsilon(solver->fe, index, &epsilon0);
 
-	/* Local approx. to grad epsilon ... */
-	for (int p = 1; p < s->npoints; p++) {
-	  int ic1 = ic + s->cv[p][X];
-	  int jc1 = jc + s->cv[p][Y];
-	  int kc1 = kc + s->cv[p][Z];
-	  int index1 = cs_index(cs, ic1, jc1, kc1);
-	  double epsilon1 = 0.0;
-	  solver->epsilon(solver->fe, index1, &epsilon1);
-	  gradeps[X] += s->wgradients[p]*s->cv[p][X]*epsilon1;
-	  gradeps[Y] += s->wgradients[p]*s->cv[p][Y]*epsilon1;
-	  gradeps[Z] += s->wgradients[p]*s->cv[p][Z]*epsilon1;
-	}
+        /* Local approx. to grad epsilon ... */
+        for (int p = 1; p < s->npoints; p++) {
+          int ic1 = ic + s->cv[p][X];
+          int jc1 = jc + s->cv[p][Y];
+          int kc1 = kc + s->cv[p][Z];
+          int index1 = cs_index(cs, ic1, jc1, kc1);
+          double epsilon1 = 0.0;
+          solver->epsilon(solver->fe, index1, &epsilon1);
+          gradeps[X] += s->wgradients[p] * s->cv[p][X] * epsilon1;
+          gradeps[Y] += s->wgradients[p] * s->cv[p][Y] * epsilon1;
+          gradeps[Z] += s->wgradients[p] * s->cv[p][Z] * epsilon1;
+        }
 
-	for (int p = 0; p < s->npoints; p++) {
-	  col[p].i = i + s->cv[p][X];
-	  col[p].j = j + s->cv[p][Y];
-	  col[p].k = k + s->cv[p][Z];
+        for (int p = 0; p < s->npoints; p++) {
+          col[p].i = i + s->cv[p][X];
+          col[p].j = j + s->cv[p][Y];
+          col[p].k = k + s->cv[p][Z];
 
-	  /* Laplacian part of operator */
-	  v[p] = s->wlaplacian[p]*epsilon0;
+          /* Laplacian part of operator */
+          v[p] = s->wlaplacian[p] * epsilon0;
 
-	  /* Addtional terms in generalised Poisson equation */
-	  v[p] += s->wgradients[p]*s->cv[p][X]*gradeps[X];
-	  v[p] += s->wgradients[p]*s->cv[p][Y]*gradeps[Y];
-	  v[p] += s->wgradients[p]*s->cv[p][Z]*gradeps[Z];
-	}
+          /* Addtional terms in generalised Poisson equation */
+          v[p] += s->wgradients[p] * s->cv[p][X] * gradeps[X];
+          v[p] += s->wgradients[p] * s->cv[p][Y] * gradeps[Y];
+          v[p] += s->wgradients[p] * s->cv[p][Z] * gradeps[Z];
+        }
 
-	MatSetValuesStencil(solver->block->a, 1, &row, s->npoints, col, v,
-			    INSERT_VALUES);
+        MatSetValuesStencil(solver->block->a, 1, &row, s->npoints, col, v,
+                INSERT_VALUES);
       }
     }
   }
@@ -1064,15 +1034,15 @@ int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t* solver) {
 
-  cs_t * cs = NULL;
+  cs_t* cs = NULL;
   int xs, ys, zs;
   int xw, yw, zw;
   int xe, ye, ze;
-  int offset[3] = {0};
-  double e0[3] = {0};
-  double *** rho_3d = {0};
+  int offset[3] = { 0 };
+  double e0[3] = { 0 };
+  double*** rho_3d = { 0 };
 
   assert(solver);
 
@@ -1092,15 +1062,15 @@ int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t * solver) {
       int jc = j - offset[Y] + 1;
       for (int i = xs; i < xe; i++) {
 
-	int ic = i - offset[X] + 1;
-	int index = cs_index(cs, ic, jc, kc);
-	double rho_elec = 0.0;
-	/* Non-dimensional potential in Poisson eqn requires e/kT */
-	double eunit = solver->psi->e;
-	double beta  = solver->psi->beta;
+        int ic = i - offset[X] + 1;
+        int index = cs_index(cs, ic, jc, kc);
+        double rho_elec = 0.0;
+        /* Non-dimensional potential in Poisson eqn requires e/kT */
+        double eunit = solver->psi->e;
+        double beta = solver->psi->beta;
 
-	psi_rho_elec(solver->psi, index, &rho_elec);
-	rho_3d[k][j][i] = rho_elec*eunit*beta;
+        psi_rho_elec(solver->psi, index, &rho_elec);
+        rho_3d[k][j][i] = rho_elec * eunit * beta;
       }
     }
   }
@@ -1114,193 +1084,94 @@ int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t * solver) {
 
   if (e0[X] || e0[Y] || e0[Z]) {
 
-    int ntotal[3] = {0};
-    int mpi_coords[3] = {0};
-    int mpi_cartsz[3] = {0};
+    int ntotal[3] = { 0 };
+    int mpi_coords[3] = { 0 };
+    int mpi_cartsz[3] = { 0 };
 
     cs_ntotal(cs, ntotal);
     cs_cart_coords(cs, mpi_coords);
     cs_cartsz(cs, mpi_cartsz);
 
-    /*CHANGE INIT - 20251201 Correct scaling factor for external field RHS (var epsilon) */
-    /*CHANGE UPDATED - 20251203 Removed RHS correction after Laplacian renormalization */
-    /* Same correction as in uniform epsilon case: only for D3Q19 and D3Q27 */
-    /* UPDATE 20251203: After renormalizing wlaplacian in stencil_d3q19.c and
-     * stencil_d3q27.c from (-36, -216) to (-6, -6), the RHS no longer needs
-     * this correction. All stencils now use the same normalization.
-     */
-    // stencil_t * s = solver->psi->stencil;
-    double rhs_correction = 1.0;  /* No correction needed after Laplacian fix */
-    // if (s->npoints == 19) {
-    //   rhs_correction = 36.0 / 6.0;  /* D3Q19 */
-    // } else if (s->npoints == 27) {
-    //   rhs_correction = 216.0 / 6.0;  /* D3Q27 */
-    // }
-    /*CHANGE END - 20251203 Removed RHS correction after Laplacian renormalization */
-
-    /*CHANGE INIT - 20251201 Apply RHS correction for var epsilon case */
-    // if (e0[X] && mpi_coords[X] == 0) {
-    //   for (int k = zs; k < ze; k++) {
-    // int kc = 1 + k - offset[Z];
-    // for (int j = ys; j < ye; j++) {
-    //   int jc = 1 + j - offset[Y];
-    //   int index = cs_index(cs, 1, jc, kc);
-    //   double epsilon = 0.0;
-    //   solver->epsilon(solver->fe, index, &epsilon);
-    //   rho_3d[k][j][0] += epsilon*e0[X]*ntotal[X];
-    // }
-    //   }
-    // }
-
-    // if (e0[X] && mpi_coords[X] == mpi_cartsz[X] - 1) {
-    //   for (int k = zs; k < ze; k++) {
-    // int kc = 1 + k - offset[Z];
-    // for (int j = ys; j < ye; j++) {
-    //   int jc = 1 + j - offset[Y];
-    //   int ic = xe    - offset[X];
-    //   int index = cs_index(cs, ic, jc, kc);
-    //   double epsilon = 0.0;
-    //   solver->epsilon(solver->fe, index, &epsilon);
-    //   rho_3d[k][j][xe-1] -= epsilon*e0[X]*ntotal[X];
-    // }
-    //   }
-    // }
-
     if (e0[X] && mpi_coords[X] == 0) {
       for (int k = zs; k < ze; k++) {
-	int kc = 1 + k - offset[Z];
-	for (int j = ys; j < ye; j++) {
-	  int jc = 1 + j - offset[Y];
-	  int index = cs_index(cs, 1, jc, kc);
-	  double epsilon = 0.0;
-	  solver->epsilon(solver->fe, index, &epsilon);
-	  rho_3d[k][j][0] += rhs_correction*epsilon*e0[X]*ntotal[X];
-	}
+        int kc = 1 + k - offset[Z];
+        for (int j = ys; j < ye; j++) {
+          int jc = 1 + j - offset[Y];
+          int index = cs_index(cs, 1, jc, kc);
+          double epsilon = 0.0;
+          solver->epsilon(solver->fe, index, &epsilon);
+          rho_3d[k][j][0] += epsilon * e0[X] * ntotal[X];
+        }
       }
     }
 
     if (e0[X] && mpi_coords[X] == mpi_cartsz[X] - 1) {
       for (int k = zs; k < ze; k++) {
-	int kc = 1 + k - offset[Z];
-	for (int j = ys; j < ye; j++) {
-	  int jc = 1 + j - offset[Y];
-	  int ic = xe    - offset[X];
-	  int index = cs_index(cs, ic, jc, kc);
-	  double epsilon = 0.0;
-	  solver->epsilon(solver->fe, index, &epsilon);
-	  rho_3d[k][j][xe-1] -= rhs_correction*epsilon*e0[X]*ntotal[X];
-	}
+        int kc = 1 + k - offset[Z];
+        for (int j = ys; j < ye; j++) {
+          int jc = 1 + j - offset[Y];
+          int ic = xe - offset[X];
+          int index = cs_index(cs, ic, jc, kc);
+          double epsilon = 0.0;
+          solver->epsilon(solver->fe, index, &epsilon);
+          rho_3d[k][j][xe - 1] -= epsilon * e0[X] * ntotal[X];
+        }
       }
     }
 
-    // if (e0[Y] && mpi_coords[Y] == 0) {
-    //   for (int k = zs; k < ze; k++) {
-    // int kc = 1 + k - offset[Z];
-    // for (int i = xs; i < xe; i++) {
-    //   int ic = 1 + i - offset[X];
-    //   int index = cs_index(cs, ic, 1, kc);
-    //   double epsilon = 0.0;
-    //   solver->epsilon(solver->fe, index, &epsilon);
-    //   rho_3d[k][0][i] += epsilon*e0[Y]*ntotal[Y];
-    // }
-    //   }
-    // }
-
-    // if (e0[Y] && mpi_coords[Y] == mpi_cartsz[Y] - 1) {
-    //   for (int k = zs; k < ze; k++) {
-    // int kc = 1 + k - offset[Z];
-    // for (int i = xs; i < xe; i++) {
-    //   int jc = ye    - offset[Y];
-    //   int ic = 1 + i - offset[X];
-    //   int index = cs_index(cs, ic, jc, kc);
-    //   double epsilon = 0.0;
-    //   solver->epsilon(solver->fe, index, &epsilon);
-    //   rho_3d[k][ye-1][i] -= epsilon*e0[Y]*ntotal[Y];
-    // }
-    //   }
-    // }
-
     if (e0[Y] && mpi_coords[Y] == 0) {
       for (int k = zs; k < ze; k++) {
-	int kc = 1 + k - offset[Z];
-	for (int i = xs; i < xe; i++) {
-	  int ic = 1 + i - offset[X];
-	  int index = cs_index(cs, ic, 1, kc);
-	  double epsilon = 0.0;
-	  solver->epsilon(solver->fe, index, &epsilon);
-	  rho_3d[k][0][i] += rhs_correction*epsilon*e0[Y]*ntotal[Y];
-	}
+        int kc = 1 + k - offset[Z];
+        for (int i = xs; i < xe; i++) {
+          int ic = 1 + i - offset[X];
+          int index = cs_index(cs, ic, 1, kc);
+          double epsilon = 0.0;
+          solver->epsilon(solver->fe, index, &epsilon);
+          rho_3d[k][0][i] += epsilon * e0[Y] * ntotal[Y];
+        }
       }
     }
 
     if (e0[Y] && mpi_coords[Y] == mpi_cartsz[Y] - 1) {
       for (int k = zs; k < ze; k++) {
-	int kc = 1 + k - offset[Z];
-	for (int i = xs; i < xe; i++) {
-	  int jc = ye    - offset[Y];
-	  int ic = 1 + i - offset[X];
-	  int index = cs_index(cs, ic, jc, kc);
-	  double epsilon = 0.0;
-	  solver->epsilon(solver->fe, index, &epsilon);
-	  rho_3d[k][ye-1][i] -= rhs_correction*epsilon*e0[Y]*ntotal[Y];
-	}
+        int kc = 1 + k - offset[Z];
+        for (int i = xs; i < xe; i++) {
+          int jc = ye - offset[Y];
+          int ic = 1 + i - offset[X];
+          int index = cs_index(cs, ic, jc, kc);
+          double epsilon = 0.0;
+          solver->epsilon(solver->fe, index, &epsilon);
+          rho_3d[k][ye - 1][i] -= epsilon * e0[Y] * ntotal[Y];
+        }
       }
     }
 
-    // if (e0[Z] && mpi_coords[Z] == 0) {
-    //   for (int j = ys; j < ye; j++) {
-    // int jc = 1 + j - offset[Y];
-    // for (int i = xs; i < xe; i++) {
-    //   int ic = 1 + i - offset[X];
-    //   int index = cs_index(cs, ic, jc, 1);
-    //   double epsilon = 0.0;
-    //   solver->epsilon(solver->fe, index, &epsilon);
-    //   rho_3d[0][j][i] += epsilon*e0[Z]*ntotal[Z];
-    // }
-    //   }
-    // }
-
-    // if (e0[Z] && mpi_coords[Z] == mpi_cartsz[Z] - 1) {
-    //   int kc = ze - offset[Z];
-    //   for (int j = ys; j < ye; j++) {
-    // int jc = 1 + j - offset[Y];
-    // for (int i = xs; i < xe; i++) {
-    //   int ic = 1 + i - offset[X];
-    //   int index = cs_index(cs, ic, jc, kc);
-    //   double epsilon = 0.0;
-    //   solver->epsilon(solver->fe, index, &epsilon);
-    //   rho_3d[ze-1][j][i] -= epsilon*e0[Z]*ntotal[Z];
-    // }
-    //   }
-    // }
-
     if (e0[Z] && mpi_coords[Z] == 0) {
       for (int j = ys; j < ye; j++) {
-	int jc = 1 + j - offset[Y];
-	for (int i = xs; i < xe; i++) {
-	  int ic = 1 + i - offset[X];
-	  int index = cs_index(cs, ic, jc, 1);
-	  double epsilon = 0.0;
-	  solver->epsilon(solver->fe, index, &epsilon);
-	  rho_3d[0][j][i] += rhs_correction*epsilon*e0[Z]*ntotal[Z];
-	}
+        int jc = 1 + j - offset[Y];
+        for (int i = xs; i < xe; i++) {
+          int ic = 1 + i - offset[X];
+          int index = cs_index(cs, ic, jc, 1);
+          double epsilon = 0.0;
+          solver->epsilon(solver->fe, index, &epsilon);
+          rho_3d[0][j][i] += epsilon * e0[Z] * ntotal[Z];
+        }
       }
     }
 
     if (e0[Z] && mpi_coords[Z] == mpi_cartsz[Z] - 1) {
       int kc = ze - offset[Z];
       for (int j = ys; j < ye; j++) {
-	int jc = 1 + j - offset[Y];
-	for (int i = xs; i < xe; i++) {
-	  int ic = 1 + i - offset[X];
-	  int index = cs_index(cs, ic, jc, kc);
-	  double epsilon = 0.0;
-	  solver->epsilon(solver->fe, index, &epsilon);
-	  rho_3d[ze-1][j][i] -= rhs_correction*epsilon*e0[Z]*ntotal[Z];
-	}
+        int jc = 1 + j - offset[Y];
+        for (int i = xs; i < xe; i++) {
+          int ic = 1 + i - offset[X];
+          int index = cs_index(cs, ic, jc, kc);
+          double epsilon = 0.0;
+          solver->epsilon(solver->fe, index, &epsilon);
+          rho_3d[ze - 1][j][i] -= epsilon * e0[Z] * ntotal[Z];
+        }
       }
     }
-    /*CHANGE END - 20251201 Apply RHS correction for var epsilon case */
   }
 
   DMDAVecRestoreArray(solver->block->da, solver->block->b, &rho_3d);
@@ -1314,7 +1185,7 @@ int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t * solver) {
  *
  *****************************************************************************/
 
-int psi_solver_petsc_finalise(psi_solver_petsc_t * solver) {
+int psi_solver_petsc_finalise(psi_solver_petsc_t* solver) {
 
   assert(solver);
 

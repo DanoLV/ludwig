@@ -24,6 +24,8 @@ grid 1_1_1
 #
 ##############################################################################
 
+# hydrodynamics off
+
 fluid_rho0 0.8
 viscosity 0.05
 viscosity_bulk 0.05
@@ -49,8 +51,8 @@ electric_e0 0.0_0.0_0.0
 electrokinetics_init uniform
 # # electrokinetics_z0      +1
 # # electrokinetics_z1      -1
-# electrokinetics_d0      0.1
-# electrokinetics_d1      0.1
+# electrokinetics_d0      0.005
+# electrokinetics_d1      0.005
 # # electrokinetics_eunit   0.5
 # # electrokinetics_epsilon     1.0e4c
 # electrokinetics_epsilon 1.0e4
@@ -61,7 +63,7 @@ electrokinetics_rel_tol     1.0e-28
 electrokinetics_abs_tol     1.0e-30
 # # electrokinetics_maxits   10000
 # #electrokinetics_diffacc  0
-# # electrokinetics_multisteps 5
+electrokinetics_multisteps 1
 electrokinetics_solver_stencil 27
 
 # electrokinetics_solver_type petsc

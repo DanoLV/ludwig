@@ -92,6 +92,7 @@ for d in ./*/; do
                  --epsilon $epsilon \
                  --kt $kt \
                  --radial-only --efield-only \
+                 --no-fit-scale \
                  --theory-start-distance $theory_start_distance \
                  --distance-bin-size $distance_bin_size \
                  -o ./plots/simetria_DH-pos_${p1}_${p2}_${p3}-kappa_$kappa-eps_$epsilon-p_$paso-
@@ -105,6 +106,7 @@ for d in ./*/; do
                  --epsilon $epsilon \
                  --kt $kt \
                  --radial-only --efield-only \
+                 --no-fit-scale \
                  --theory-start-distance $theory_start_distance \
                  --distance-bin-size $distance_bin_size \
                  --log-scale xy \

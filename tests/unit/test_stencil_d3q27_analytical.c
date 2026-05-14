@@ -120,7 +120,7 @@ int test_stencil_d3q27_analytical_laplacian_quadratic(void) {
   ifail = stencil_d3q27_create(&s);
   assert(ifail == 0);
 
-  /* Test point at origin (but could be any point) */
+  /* Test point (but could be any point) */
   double x0 = 5.0, y0 = 3.0, z0 = -2.0;
 
   /* Field: f(x,y,z) = x² + y² + z² */

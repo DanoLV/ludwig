@@ -66,19 +66,119 @@
 #include "util.h"
 #include "subgrid.h"
  /*CHANGE INIT - Subgrid charge */
-#include "psi_colloid.h" 
+#include "psi_colloid.h"
 #include "psi_gradients.h"
 #include "psi_petsc.h"
+#include "field.h"
+#include "target.h"
 /*CHANGE END - Subgrid charge */
 
 // static double d_peskin(double);
 static int subgrid_interpolation(colloids_info_t* cinfo, hydro_t* hydro);
+// CHANGE INIT - 20260117 cambio de soporte de peskin
+// static const double drange_ = 1.0; /* Max. range of interpolation - 1 */
 static const double drange_ = 1.0; /* Max. range of interpolation - 1 */
+// CHANGE END - 20260117 cambio de soporte de peskin
 
 /*CHANGE INIT - Poisson-Boltzmann kappa (inverse Debye length) */
 static double kappa_pb_ = 0.0;  /* Stored kappa value, computed once */
 static int kappa_initialized_ = 0;  /* Flag to check if kappa has been computed */
 /*CHANGE END - Poisson-Boltzmann kappa */
+
+/*CHANGE INIT - 20260117 Short-range corrections infrastructure (Level 0)
+ * See docs/SHORT_RANGE_CORRECTIONS_ANALYSIS.md for full documentation.
+ * This implements P3M-style short-range corrections for electric interactions
+ * of subgrid particles to eliminate spurious velocities and improve accuracy.
+ */
+
+ /* Short-range correction parameters */
+ /* CHANGE 20260118: Reduced kappa_E from 2.0 to 0.5 to avoid over-correction.
+  * With kappa_E = 2.0, the correction was ~23x larger than the mesh field.
+  * With kappa_E = 0.5, the correction is ~5-6x the mesh field, which is
+  * still large but more reasonable for testing. This needs calibration.
+  * OLD VALUE: 2.0
+  */
+#define SHORTRANGE_KAPPA_E  0.5    /* Ewald splitting parameter (numerical, NOT Debye-Huckel) */
+#define SHORTRANGE_RC       1.5    /* Cutoff radius in lattice units */
+
+  /* Short-range correction level selector */
+typedef enum {
+	SHORTRANGE_LEVEL_NONE = 0,      /* No corrections */
+	SHORTRANGE_LEVEL_1_SELF = 1,    /* Self-field only (Alternative A) */
+	SHORTRANGE_LEVEL_2_PP = 2,      /* + Particle-Particle (Alternative B) */
+	SHORTRANGE_LEVEL_3_PN = 3,      /* + Particle-Node (Alternative F) */
+	SHORTRANGE_LEVEL_4_P3M = 4,     /* + Reference function (Alternative D) */
+	SHORTRANGE_LEVEL_5_CONSERV = 5  /* + Mass conservation (Alternative E) */
+} shortrange_level_t;
+
+/* Current correction level (can be set from input) */
+static shortrange_level_t shortrange_level_ = SHORTRANGE_LEVEL_NONE;
+
+/*****************************************************************************
+ *
+ *  shortrange_erf_kernel
+ *
+ *  Computes the short-range correction kernel: erf(kappa*r) / r^2
+ *  This kernel represents the part of the interaction that the mesh
+ *  does NOT capture well and must be corrected directly.
+ *
+ *  Note: kappa_E is a NUMERICAL splitting parameter, NOT the physical
+ *  Debye-Huckel screening length. See Section 1.5 of the analysis document.
+ *
+ *****************************************************************************/
+static double shortrange_erf_kernel(double r, double kappa_E) {
+	if (r < 1.0e-10) return 0.0;  /* Avoid singularity at r=0 */
+	return erf(kappa_E * r) / (r * r);
+}
+
+/*****************************************************************************
+ *
+ *  shortrange_coulomb_prefactor
+ *
+ *  Computes the Coulomb field prefactor: 1 / (4*pi*epsilon)
+ *  This is used for computing electric fields from charges.
+ *
+ *  Note: For the electric FIELD E = q/(4*pi*epsilon*r^2), we need 1/(4*pi*epsilon).
+ *  The factor e^2/(4*pi*epsilon) would be for FORCE or ENERGY, not field.
+ *
+ *  CHANGE 20260118: Fixed prefactor - removed e^2 factor
+ *  OLD CODE: return (eunit * eunit) / (4.0 * pi * epsilon);
+ *
+ *****************************************************************************/
+static double shortrange_coulomb_prefactor(psi_t* psi) {
+	double epsilon;
+	PI_DOUBLE(pi);
+	psi_epsilon(psi, &epsilon);
+	return 1.0 / (4.0 * pi * epsilon);
+}
+
+/*****************************************************************************
+ *
+ *  shortrange_force
+ *
+ *  Computes the short-range correction force vector between two charges.
+ *  F_corr = prefactor * q1 * q2 * erf(kappa*r)/r^2 * r_hat
+ *
+ *  Arguments:
+ *    dist      - distance between charges
+ *    q1, q2    - charges (in units of elementary charge)
+ *    prefactor - Coulomb prefactor e^2/(4*pi*epsilon)
+ *    kappa_E   - Ewald splitting parameter
+ *    r_vec[3]  - separation vector (from 1 to 2)
+ *    F[3]      - OUTPUT: force vector on charge 1
+ *
+ *****************************************************************************/
+static void shortrange_force(double dist, double q1, double q2,
+							  double prefactor, double kappa_E,
+							  const double r_vec[3], double F[3]) {
+	double kernel = shortrange_erf_kernel(dist, kappa_E);
+	double mag = prefactor * q1 * q2 * kernel / dist;  /* Force magnitude / r */
+	F[X] = mag * r_vec[X];
+	F[Y] = mag * r_vec[Y];
+	F[Z] = mag * r_vec[Z];
+}
+
+/*CHANGE END - 20260117 Short-range corrections infrastructure (Level 0) */
 
 /*****************************************************************************
  *
@@ -244,7 +344,7 @@ static int binary_search_charge_index(distributed_charge_klein_t* charge, int cs
  *  Add or accumulate charge at given cs_index
  *
  *****************************************************************************/
-static void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_index,
+void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_index,
 								double q0_dr, double q1_dr, psi_t* obj) {
 	distributed_charge_klein_t* charge = *charge_ptr;
 
@@ -497,6 +597,119 @@ int subgrid_charge_from_particles_compenzate(colloids_info_t* cinfo, psi_t* obj,
 
 	return 0;
 }
+
+/*****************************************************************************
+ *
+ *  subgrid_charge_from_grid()
+ *
+ *  Copy original fluid charge from psi into charge (saving originals),
+ *  then redistribute each node's charge via the Peskin kernel so that
+ *  the field in psi becomes the Peskin-smoothed version.
+ *
+ *  The charge structure stores the pre-smoothing rho values so that
+ *  subgrid_charge_from_particles_restore() can recover them.
+ *
+ *****************************************************************************/
+/*CHANGE INIT - subgrid_charge_from_grid */
+int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj,
+                              distributed_charge_klein_t** charge)
+{
+	int i, j, k;
+	int i2, j2, k2;
+	int i_min, i_max, j_min, j_max, k_min, k_max;
+	int index, index2;
+	int nlocal[3];
+	double rho0, rho1, dr;
+	int drange_i = (int)ceil(drange_);
+
+	/* Temporary list of charged source nodes with their coordinates */
+	typedef struct { int idx, si, sj, sk; double rho0, rho1; } src_t;
+	int src_cap = 64, src_n = 0;
+	src_t* srcs = (src_t*)malloc(src_cap * sizeof(src_t));
+
+	assert(cinfo);
+	assert(obj);
+	assert(charge);
+	assert(srcs);
+
+	cs_nlocal(cinfo->cs, nlocal);
+
+	/* Pass 1: collect charged nodes, save originals via charge, zero psi */
+	for (i = 1; i <= nlocal[X]; i++) {
+		for (j = 1; j <= nlocal[Y]; j++) {
+			for (k = 1; k <= nlocal[Z]; k++) {
+
+				index = cs_index(cinfo->cs, i, j, k);
+
+				psi_rho(obj, index, 0, &rho0);
+				psi_rho(obj, index, 1, &rho1);
+
+				if (rho0 == 0.0 && rho1 == 0.0) continue;
+
+				add_charge_to_array(charge, index, 0.0, 0.0, obj);
+
+				psi_rho_set(obj, index, 0, 0.0);
+				psi_rho_set(obj, index, 1, 0.0);
+
+				if (src_n >= src_cap) {
+					src_cap *= 2;
+					srcs = (src_t*)realloc(srcs, src_cap * sizeof(src_t));
+				}
+				srcs[src_n].idx  = index;
+				srcs[src_n].si   = i;
+				srcs[src_n].sj   = j;
+				srcs[src_n].sk   = k;
+				srcs[src_n].rho0 = rho0;
+				srcs[src_n].rho1 = rho1;
+				src_n++;
+			}
+		}
+	}
+
+	/* Pass 2: Peskin-spread each source node's charge to neighbours */
+	for (int e = 0; e < src_n; e++) {
+
+		int si = srcs[e].si, sj = srcs[e].sj, sk = srcs[e].sk;
+		rho0 = srcs[e].rho0;
+		rho1 = srcs[e].rho1;
+
+		i_min = imax(1, si - drange_i);
+		i_max = imin(nlocal[X], si + drange_i);
+		j_min = imax(1, sj - drange_i);
+		j_max = imin(nlocal[Y], sj + drange_i);
+		k_min = imax(1, sk - drange_i);
+		k_max = imin(nlocal[Z], sk + drange_i);
+
+		for (i2 = i_min; i2 <= i_max; i2++) {
+			for (j2 = j_min; j2 <= j_max; j2++) {
+				for (k2 = k_min; k2 <= k_max; k2++) {
+
+					dr = d_peskin((double)(si - i2))
+					   * d_peskin((double)(sj - j2))
+					   * d_peskin((double)(sk - k2));
+					if (dr == 0.0) continue;
+
+					index2 = cs_index(cinfo->cs, i2, j2, k2);
+					add_charge_to_array(charge, index2, rho0 * dr, rho1 * dr, obj);
+				}
+			}
+		}
+	}
+
+	free(srcs);
+
+	if (*charge == NULL) return 0;
+
+	/* Pass 3: write Peskin-smoothed charges into psi */
+	for (int e = 0; e < (*charge)->count; e++) {
+		distributed_charge_klein_entry_t* entry = (*charge)->entries[e];
+		psi_rho_set(obj, entry->cs_index, 0, klein_sum(entry->rho0_sum));
+		psi_rho_set(obj, entry->cs_index, 1, klein_sum(entry->rho1_sum));
+	}
+
+	return 0;
+}
+/*CHANGE END - subgrid_charge_from_grid */
 
 /*****************************************************************************
  *
@@ -854,6 +1067,70 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	assert(hydro);
 	hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
 
+    // // INIT VERSION - Ewald											
+	// /* Calculate electric forces on particles and accumulate total force */
+	// for (ic = 0; ic <= ncell[X] + 1; ic++) {
+	// 	for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+	// 		for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+	// 			colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+	// 			for (; pc; pc = pc->next) {
+
+
+	// 				if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+	// 				klein_t force_k[3];
+	// 				force_k[X] = klein_zero();
+	// 				force_k[Y] = klein_zero();
+	// 				force_k[Z] = klein_zero();
+
+	// 				// Si uso Ewald	se asigna directamente la fuerza calculada en Ewald, que ya incluye el término de carga
+	// 				force[X] = pc->fex[X];
+	// 				force[Y] = pc->fex[Y];
+	// 				force[Z] = pc->fex[Z];
+
+	// 				/* Translate colloid position to local coordinates */
+	// 				r0[X] = pc->s.r[X] - 1.0 * offset[X];
+	// 				r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+	// 				r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+	// 				/* Work out which local lattice sites are involved */
+	// 				subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+	// 				for (i = i_min; i <= i_max; i++) {
+	// 					for (j = j_min; j <= j_max; j++) {
+	// 						for (k = k_min; k <= k_max; k++) {
+
+	// 							double force_aux[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
+
+	// 							index = cs_index(cinfo->cs, i, j, k);
+
+	// 							/* Separation between r0 and the lattice site */
+	// 							r[X] = r0[X] - 1.0 * i;
+	// 							r[Y] = r0[Y] - 1.0 * j;
+	// 							r[Z] = r0[Z] - 1.0 * k;
+
+	// 							dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+	// 							/* Force on particle from electric field at this site index*/
+	// 							force_aux[X] = force[X] * dr;
+	// 							force_aux[Y] = force[Y] * dr;
+	// 							force_aux[Z] = force[Z] * dr;
+
+	// 							/* Add to Klein sum array with binary search */
+	// 							add_force_to_array(&force_k_indexed, index, force_aux);
+
+	// 						}
+	// 					}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// // // END VERSION - Ewald
+
+	// INIT VERSION - Peskin 
 	/* Calculate electric forces on particles and accumulate total force */
 	for (ic = 0; ic <= ncell[X] + 1; ic++) {
 		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
@@ -866,16 +1143,14 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-					int num_nodes = 0;
-					klein_t force_k[3];
-					force_k[X] = klein_zero();
-					force_k[Y] = klein_zero();
-					force_k[Z] = klein_zero();
-
 					// Force goes to fex as this force is calculated ouside of ludwig_colloids_update
 					force[X] = kt * reunit * pc->Esub[X] * (pc->s.q0 - pc->s.q1);
 					force[Y] = kt * reunit * pc->Esub[Y] * (pc->s.q0 - pc->s.q1);
 					force[Z] = kt * reunit * pc->Esub[Z] * (pc->s.q0 - pc->s.q1);
+					// pc->fex[X] = kt * reunit * pc->Esub[X] * (pc->s.q0 - pc->s.q1);
+					// pc->fex[Y] = kt * reunit * pc->Esub[Y] * (pc->s.q0 - pc->s.q1);
+					// pc->fex[Z] = kt * reunit * pc->Esub[Z] * (pc->s.q0 - pc->s.q1);
+
 
 					/* Translate colloid position to local coordinates */
 					r0[X] = pc->s.r[X] - 1.0 * offset[X];
@@ -884,15 +1159,12 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 					/* Work out which local lattice sites are involved */
 					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
-					// subgrid_get_lattice_index_fn(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
 
 					for (i = i_min; i <= i_max; i++) {
 						for (j = j_min; j <= j_max; j++) {
 							for (k = k_min; k <= k_max; k++) {
 
-								double force_aux[3] = { 0.0, 0.0, 0.0 };      /* force on particle from this lattice site */
-
-								num_nodes++;
+								double force_aux[3] = { 0.0, 0.0, 0.0 };  /* force on particle from this lattice site */
 
 								index = cs_index(cinfo->cs, i, j, k);
 
@@ -902,10 +1174,6 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 								r[Z] = r0[Z] - 1.0 * k;
 
 								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-								// dr = d_idw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
-								// dr = d_isdw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
-								// dr = d_trilinear(r[X]) * d_trilinear(r[Y]) * d_trilinear(r[Z]);
-								// dr = d_pb(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max, subgrid_get_kappa());
 
 								/* Force on particle from electric field at this site index*/
 								force_aux[X] = force[X] * dr;
@@ -918,10 +1186,7 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 							}
 						}
 					}
-					// Sum goes to fex as this force is calculated ouside of ludwig_colloids_update
-					// pc->fex[X] += klein_sum(&force_k[X]);
-					// pc->fex[Y] += klein_sum(&force_k[Y]);
-					// pc->fex[Z] += klein_sum(&force_k[Z]);
+
 					pc->fex[X] += force[X];
 					pc->fex[Y] += force[Y];
 					pc->fex[Z] += force[Z];
@@ -930,7 +1195,8 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 			}
 		}
 	}
-
+	// END VERSION - Peskin
+	
 	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
 
 	/* Now apply all accumulated external electric forces to hydro by index */
@@ -952,7 +1218,7 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 		subgrid_free_distributed_force_t(&force_k_indexed);
 
 	}
-	
+
 	hydro_memcpy(hydro, tdpMemcpyHostToDevice);
 
 	return 0;
@@ -1207,7 +1473,7 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 						psi_t* psi,
 						int step,
 						FILE* fp,
-						pe_t *pe) {
+						pe_t* pe) {
 
 	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
 	int ncell[3];
@@ -1215,6 +1481,7 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 	int nlocal[3], offset[3];
 	double dr;
 	double r[3], r0[3];
+	double phi_node = 0.0;
 	double e[3];           						/* Total electric field */
 	double E_field[3] = { 0.0, 0.0, 0.0 };      /* Electric field on particle from this lattice site */
 	double E_self[3] = { 0.0, 0.0, 0.0 };      	/* Self-field */
@@ -1258,7 +1525,7 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 	/* Use stored kappa value */
 	kappa = subgrid_get_kappa();
 
-	// /* First pass: Set electric field on particles to 0 */
+	// /* Initialize Esub*/
 	// for (ic = 0; ic <= ncell[X] + 1; ic++) {
 	// 	for (jc = 0; jc <= ncell[Y] + 1; jc++) {
 	// 		for (kc = 0; kc <= ncell[Z] + 1; kc++) {
@@ -1272,173 +1539,252 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 	// 				pc->Esub[X] = 0.0;
 	// 				pc->Esub[Y] = 0.0;
 	// 				pc->Esub[Z] = 0.0;
+
 	// 			}
 	// 		}
 	// 	}
 	// }
 
-	/* Second pass: Calculate electric field on particles*/
-	for (ic = 0; ic <= ncell[X] + 1; ic++) {
-		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
-			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+	// /* Second pass: Calculate electric field on particles from Eflied on nodes*/
+	// for (ic = 0; ic <= ncell[X] + 1; ic++) {
+	// 	for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+	// 		for (kc = 0; kc <= ncell[Z] + 1; kc++) {
 
-				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+	// 			colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
 
-				for (; pc; pc = pc->next) {
+	// 			for (; pc; pc = pc->next) {
 
-					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+	// 				if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-					/* METHOD 1: Current method using Peskin weights on local nodes */
-					klein_t E_field_k[3];
-					E_field_k[X] = klein_zero();
-					E_field_k[Y] = klein_zero();
-					E_field_k[Z] = klein_zero();
+	// 				/* METHOD 1: Current method using Peskin weights on local nodes */
+	// 				klein_t E_field_k[3];
+	// 				E_field_k[X] = klein_zero();
+	// 				E_field_k[Y] = klein_zero();
+	// 				E_field_k[Z] = klein_zero();
 
-					/* Translate colloid position to local coordinates */
-					r0[X] = pc->s.r[X] - 1.0 * offset[X];
-					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
-					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+	// 				/* Translate colloid position to local coordinates */
+	// 				r0[X] = pc->s.r[X] - 1.0 * offset[X];
+	// 				r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+	// 				r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
 
-					/* Work out which local lattice sites are involved */
-					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
-					// subgrid_get_lattice_index_fn(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+	// 				/* Work out which local lattice sites are involved */
+	// 				subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+	// 				// subgrid_get_lattice_index_fn(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
 
-					for (i = i_min; i <= i_max; i++) {
-						for (j = j_min; j <= j_max; j++) {
-							for (k = k_min; k <= k_max; k++) {
+	// 				for (i = i_min; i <= i_max; i++) {
+	// 					for (j = j_min; j <= j_max; j++) {
+	// 						for (k = k_min; k <= k_max; k++) {
 
-								index = cs_index(cinfo->cs, i, j, k);
+	// 							index = cs_index(cinfo->cs, i, j, k);
 
-								/* Separation between r0 and the lattice site */
-								r[X] = r0[X] - 1.0 * i;
-								r[Y] = r0[Y] - 1.0 * j;
-								r[Z] = r0[Z] - 1.0 * k;
+	// 							/* Separation between r0 and the lattice site */
+	// 							r[X] = r0[X] - 1.0 * i;
+	// 							r[Y] = r0[Y] - 1.0 * j;
+	// 							r[Z] = r0[Z] - 1.0 * k;
 
-								/*CHANGE INIT - Use Poisson-Boltzmann weight instead of Peskin */
-								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
-								// dr = d_idw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
-								// dr = d_isdw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
-								// dr = d_trilinear(r[X]) * d_trilinear(r[Y]) * d_trilinear(r[Z]);
-								// dr = d_pb(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max, subgrid_get_kappa());
-								/*CHANGE END - Use Poisson-Boltzmann weight instead of Peskin */
+	// 							/*CHANGE INIT - Use Poisson-Boltzmann weight instead of Peskin */
+	// 							dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+	// 							// dr = d_idw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
+	// 							// dr = d_isdw(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max);
+	// 							// dr = d_trilinear(r[X]) * d_trilinear(r[Y]) * d_trilinear(r[Z]);
+	// 							// dr = d_pb(r0, i, j, k, i_min, i_max, j_min, j_max, k_min, k_max, subgrid_get_kappa());
+	// 							/*CHANGE END - Use Poisson-Boltzmann weight instead of Peskin */
 
-								/* Electric field at this lattice site */
-								psi_electric_field(psi, index, e);
+	// 							/* Electric field at this lattice site */
+	// 							psi_electric_field(psi, index, e);
 
-								// pe_info(pe, "campo en el indice %d : Ex=%.20f   Ey=%.20f   Ez=%.20f\n", index, e[X], e[Y], e[Z]);
+	// 							// pe_info(pe, "campo en el indice %d : Ex=%.20f   Ey=%.20f   Ez=%.20f\n", index, e[X], e[Y], e[Z]);
 
-								/* Field on particle from electric field at this site */
-								E_field[X] = e[X] * dr;
-								E_field[Y] = e[Y] * dr;
-								E_field[Z] = e[Z] * dr;
+	// 							/* Field on particle from electric field at this site */
+	// 							E_field[X] = e[X] * dr;
+	// 							E_field[Y] = e[Y] * dr;
+	// 							E_field[Z] = e[Z] * dr;
 
-								/* Add to particle field */
-								klein_add_double(&E_field_k[X], E_field[X]);
-								klein_add_double(&E_field_k[Y], E_field[Y]);
-								klein_add_double(&E_field_k[Z], E_field[Z]);
+	// 							/* Add to particle field */
+	// 							klein_add_double(&E_field_k[X], E_field[X]);
+	// 							klein_add_double(&E_field_k[Y], E_field[Y]);
+	// 							klein_add_double(&E_field_k[Z], E_field[Z]);
 
+	// 						}
+	// 					}
+	// 				}
+
+	// 				pc->Esub[X] = klein_sum(&E_field_k[X]);
+	// 				pc->Esub[Y] = klein_sum(&E_field_k[Y]);
+	// 				pc->Esub[Z] = klein_sum(&E_field_k[Z]);
+
+	// 				// /* METHOD 2: PB method - Direct Coulomb sum over ALL nodes */
+	// 				// klein_t E_PB_k[3];
+	// 				// E_PB_k[X] = klein_zero();
+	// 				// E_PB_k[Y] = klein_zero();
+	// 				// E_PB_k[Z] = klein_zero();
+
+	// 				// /* Particle position in global coordinates */
+	// 				// r_particle_global[X] = pc->s.r[X];
+	// 				// r_particle_global[Y] = pc->s.r[Y];
+	// 				// r_particle_global[Z] = pc->s.r[Z];
+
+	// 				// /* Loop over ALL local lattice sites */
+	// 				// for (i = 1; i <= nlocal[X]; i++) {
+	// 				// 	for (j = 1; j <= nlocal[Y]; j++) {
+	// 				// 		for (k = 1; k <= nlocal[Z]; k++) {
+
+	// 				// 			double E_coulomb[3] = { 0.0, 0.0, 0.0 };
+
+	// 				// 			index = cs_index(cinfo->cs, i, j, k);
+
+	// 				// 			/* Get charge density at this node */
+	// 				// 			psi_rho(psi, index, 0, &rho0);
+	// 				// 			psi_rho(psi, index, 1, &rho1);
+	// 				// 			rho_net = rho0 - rho1;  /* Net charge density at node */
+
+	// 				// 			/* Node position in global coordinates */
+	// 				// 			r_node_global[X] = 1.0 * (i + offset[X]);
+	// 				// 			r_node_global[Y] = 1.0 * (j + offset[Y]);
+	// 				// 			r_node_global[Z] = 1.0 * (k + offset[Z]);
+
+	// 				// 			/* Vector from node to particle */
+	// 				// 			r_ij[X] = r_particle_global[X] - r_node_global[X];
+	// 				// 			r_ij[Y] = r_particle_global[Y] - r_node_global[Y];
+	// 				// 			r_ij[Z] = r_particle_global[Z] - r_node_global[Z];
+
+	// 				// 			dist = sqrt(r_ij[X] * r_ij[X] + r_ij[Y] * r_ij[Y] + r_ij[Z] * r_ij[Z]);
+
+	// 				// 			/* Skip if too close to avoid singularity */
+	// 				// 			if (dist < 0.000001) continue;
+
+	// 				// 			/* Electric field with Debye-Hückel screening (Yukawa potential) */
+	// 				// 			/* E = prefactor * q * exp(-κr) * (1/r² + κ/r) * r_unit */
+	// 				// 			double exp_kr = (kappa > 0.0) ? exp(-kappa * dist) : 1.0;
+	// 				// 			double screening_factor = exp_kr * (1.0 / dist + kappa) / dist;
+
+	// 				// 			E_coulomb[X] = prefactor * rho_net * r_ij[X] * screening_factor;
+	// 				// 			E_coulomb[Y] = prefactor * rho_net * r_ij[Y] * screening_factor;
+	// 				// 			E_coulomb[Z] = prefactor * rho_net * r_ij[Z] * screening_factor;
+
+	// 				// 			/* Accumulate field contribution using Klein summation */
+	// 				// 			klein_add_double(&E_PB_k[X], E_coulomb[X]);
+	// 				// 			klein_add_double(&E_PB_k[Y], E_coulomb[Y]);
+	// 				// 			klein_add_double(&E_PB_k[Z], E_coulomb[Z]);
+
+	// 				// 		}
+	// 				// 	}
+	// 				// }
+
+	// 				// /* Store PB field in temporary array for output */
+	// 				// pc->fc0[X] = klein_sum(&E_PB_k[X]);
+	// 				// pc->fc0[Y] = klein_sum(&E_PB_k[Y]);
+	// 				// pc->fc0[Z] = klein_sum(&E_PB_k[Z]);
+
+	// 				/* CHANGE INIT - Moved fprintf to after colloid_sums_halo to avoid writing halo particles */
+	// 				// // /* Write data for each particle */
+	// 				// char string[256];
+	// 				// double Emod = sqrt(pc->Esub[X] * pc->Esub[X] + pc->Esub[Y] * pc->Esub[Y] + pc->Esub[Z] * pc->Esub[Z]);
+	// 				// // sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e;%.15e; %.15e;%.15e\n", step, pc->s.index,  Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z], E_self[X], E_self[Y], E_self[Z]);
+	// 				// sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e\n", step, pc->s.index, Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z]);
+	// 				// for (i = 0;i < strlen(string);i++)if (string[i] == '.')string[i] = ',';
+	// 				// fprintf(fp, "%s", string);
+	// 				/* CHANGE END */
+
+	// 				// /* NUEVO: Calcular el autocampo de la partícula */
+	// 				// if (subgrid_compute_self_field_single_particle(pc, cinfo, psi, E_self) == 0) {
+
+	// 				// 	/* Write data for each particle */
+	// 				// 	char string[256];
+	// 				// 	double Emod = sqrt(pc->Esub[X]*pc->Esub[X] + pc->Esub[Y]*pc->Esub[Y] + pc->Esub[Z]*pc->Esub[Z]);
+	// 				// 	sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e;%.15e; %.15e;%.15e\n", step, pc->s.index,  Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z], E_self[X], E_self[Y], E_self[Z]);
+	// 				// 	for (i = 0;i < strlen(string);i++)if (string[i] == '.')string[i] = ',';
+	// 				// 	fprintf(fp, "%s", string);
+
+	// 				// 	/* Restar el autocampo del campo total */
+	// 				// 	pc->Esub[X] -= E_self[X];
+	// 				// 	pc->Esub[Y] -= E_self[Y];
+	// 				// 	pc->Esub[Z] -= E_self[Z];
+
+	// 				// }
+
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// INIT VERSION - Peskin all
+	{
+		/* Second pass: Calculate electric field on particles from Phi on nodes*/
+		for (ic = 0; ic <= ncell[X] + 1; ic++) {
+			for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+				for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+					colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+					for (; pc; pc = pc->next) {
+
+						if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+						/* METHOD 1: Current method using Peskin weights on local nodes */
+						klein_t E_field_k[3];
+						E_field_k[X] = klein_zero();
+						E_field_k[Y] = klein_zero();
+						E_field_k[Z] = klein_zero();
+
+						/* Translate colloid position to local coordinates */
+						r0[X] = pc->s.r[X] - 1.0 * offset[X];
+						r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+						r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+						/* Work out which local lattice sites are involved */
+						subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
+
+						for (i = i_min; i <= i_max; i++) {
+							for (j = j_min; j <= j_max; j++) {
+								for (k = k_min; k <= k_max; k++) {
+
+									index = cs_index(cinfo->cs, i, j, k);
+
+									/* Separation between r0 and the lattice site */
+									r[X] = r0[X] - 1.0 * i;
+									r[Y] = r0[Y] - 1.0 * j;
+									r[Z] = r0[Z] - 1.0 * k;
+
+									dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+									/* Electric field at this lattice site */
+									psi_psi(psi, index, &phi_node);
+
+									// pe_info(pe, "campo en el indice %d : Ex=%.20f   Ey=%.20f   Ez=%.20f\n", index, e[X], e[Y], e[Z]);
+
+									/* Electric field at this lattice site */
+									psi_electric_field(psi, index, e);
+
+									// pe_info(pe, "campo en el indice %d : Ex=%.20f   Ey=%.20f   Ez=%.20f\n", index, e[X], e[Y], e[Z]);
+
+									/* Field on particle from electric field at this site */
+									E_field[X] = e[X] * dr;
+									E_field[Y] = e[Y] * dr;
+									E_field[Z] = e[Z] * dr;
+									// E_field[X] = phi_node * d_peskin_derivative(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+									// E_field[Y] = phi_node * d_peskin(r[X]) * d_peskin_derivative(r[Y]) * d_peskin(r[Z]);
+									// E_field[Z] = phi_node * d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin_derivative(r[Z]);
+									
+									/* Add to particle field */
+									klein_add_double(&E_field_k[X], E_field[X]);
+									klein_add_double(&E_field_k[Y], E_field[Y]);
+									klein_add_double(&E_field_k[Z], E_field[Z]);
+
+								}
 							}
 						}
+
+						pc->Esub[X] = klein_sum(&E_field_k[X]);
+						pc->Esub[Y] = klein_sum(&E_field_k[Y]);
+						pc->Esub[Z] = klein_sum(&E_field_k[Z]);
+
 					}
-
-					pc->Esub[X] = klein_sum(&E_field_k[X]);
-					pc->Esub[Y] = klein_sum(&E_field_k[Y]);
-					pc->Esub[Z] = klein_sum(&E_field_k[Z]);
-
-					// /* METHOD 2: PB method - Direct Coulomb sum over ALL nodes */
-					// klein_t E_PB_k[3];
-					// E_PB_k[X] = klein_zero();
-					// E_PB_k[Y] = klein_zero();
-					// E_PB_k[Z] = klein_zero();
-
-					// /* Particle position in global coordinates */
-					// r_particle_global[X] = pc->s.r[X];
-					// r_particle_global[Y] = pc->s.r[Y];
-					// r_particle_global[Z] = pc->s.r[Z];
-
-					// /* Loop over ALL local lattice sites */
-					// for (i = 1; i <= nlocal[X]; i++) {
-					// 	for (j = 1; j <= nlocal[Y]; j++) {
-					// 		for (k = 1; k <= nlocal[Z]; k++) {
-
-					// 			double E_coulomb[3] = { 0.0, 0.0, 0.0 };
-
-					// 			index = cs_index(cinfo->cs, i, j, k);
-
-					// 			/* Get charge density at this node */
-					// 			psi_rho(psi, index, 0, &rho0);
-					// 			psi_rho(psi, index, 1, &rho1);
-					// 			rho_net = rho0 - rho1;  /* Net charge density at node */
-
-					// 			/* Node position in global coordinates */
-					// 			r_node_global[X] = 1.0 * (i + offset[X]);
-					// 			r_node_global[Y] = 1.0 * (j + offset[Y]);
-					// 			r_node_global[Z] = 1.0 * (k + offset[Z]);
-
-					// 			/* Vector from node to particle */
-					// 			r_ij[X] = r_particle_global[X] - r_node_global[X];
-					// 			r_ij[Y] = r_particle_global[Y] - r_node_global[Y];
-					// 			r_ij[Z] = r_particle_global[Z] - r_node_global[Z];
-
-					// 			dist = sqrt(r_ij[X] * r_ij[X] + r_ij[Y] * r_ij[Y] + r_ij[Z] * r_ij[Z]);
-
-					// 			/* Skip if too close to avoid singularity */
-					// 			if (dist < 0.000001) continue;
-
-					// 			/* Electric field with Debye-Hückel screening (Yukawa potential) */
-					// 			/* E = prefactor * q * exp(-κr) * (1/r² + κ/r) * r_unit */
-					// 			double exp_kr = (kappa > 0.0) ? exp(-kappa * dist) : 1.0;
-					// 			double screening_factor = exp_kr * (1.0 / dist + kappa) / dist;
-
-					// 			E_coulomb[X] = prefactor * rho_net * r_ij[X] * screening_factor;
-					// 			E_coulomb[Y] = prefactor * rho_net * r_ij[Y] * screening_factor;
-					// 			E_coulomb[Z] = prefactor * rho_net * r_ij[Z] * screening_factor;
-
-					// 			/* Accumulate field contribution using Klein summation */
-					// 			klein_add_double(&E_PB_k[X], E_coulomb[X]);
-					// 			klein_add_double(&E_PB_k[Y], E_coulomb[Y]);
-					// 			klein_add_double(&E_PB_k[Z], E_coulomb[Z]);
-
-					// 		}
-					// 	}
-					// }
-
-					// /* Store PB field in temporary array for output */
-					// pc->fc0[X] = klein_sum(&E_PB_k[X]);
-					// pc->fc0[Y] = klein_sum(&E_PB_k[Y]);
-					// pc->fc0[Z] = klein_sum(&E_PB_k[Z]);
-
-					/* CHANGE INIT - Moved fprintf to after colloid_sums_halo to avoid writing halo particles */
-					// // /* Write data for each particle */
-					// char string[256];
-					// double Emod = sqrt(pc->Esub[X] * pc->Esub[X] + pc->Esub[Y] * pc->Esub[Y] + pc->Esub[Z] * pc->Esub[Z]);
-					// // sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e;%.15e; %.15e;%.15e\n", step, pc->s.index,  Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z], E_self[X], E_self[Y], E_self[Z]);
-					// sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e\n", step, pc->s.index, Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z]);
-					// for (i = 0;i < strlen(string);i++)if (string[i] == '.')string[i] = ',';
-					// fprintf(fp, "%s", string);
-					/* CHANGE END */
-
-					// /* NUEVO: Calcular el autocampo de la partícula */
-					// if (subgrid_compute_self_field_single_particle(pc, cinfo, psi, E_self) == 0) {
-
-					// 	/* Write data for each particle */
-					// 	char string[256];
-					// 	double Emod = sqrt(pc->Esub[X]*pc->Esub[X] + pc->Esub[Y]*pc->Esub[Y] + pc->Esub[Z]*pc->Esub[Z]);
-					// 	sprintf(string, "%d;%d;%.15e;%.15e; %.15e;%.15e;%.15e; %.15e;%.15e\n", step, pc->s.index,  Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z], E_self[X], E_self[Y], E_self[Z]);
-					// 	for (i = 0;i < strlen(string);i++)if (string[i] == '.')string[i] = ',';
-					// 	fprintf(fp, "%s", string);
-
-					// 	/* Restar el autocampo del campo total */
-					// 	pc->Esub[X] -= E_self[X];
-					// 	pc->Esub[Y] -= E_self[Y];
-					// 	pc->Esub[Z] -= E_self[Z];
-
-					// }
-
 				}
 			}
 		}
 	}
+	// END VERSION - Peskin all
 
 	colloid_sums_halo(cinfo, COLLOID_SUM_ELECTRIC_FIELD);
 
@@ -1457,12 +1803,13 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 					/* Write data for each particle - including both methods */
 					char string[512];
 					double Emod = sqrt(pc->Esub[X] * pc->Esub[X] + pc->Esub[Y] * pc->Esub[Y] + pc->Esub[Z] * pc->Esub[Z]);
-					double Emod_PB = sqrt(pc->fc0[X] * pc->fc0[X] + pc->fc0[Y] * pc->fc0[Y] + pc->fc0[Z] * pc->fc0[Z]);
+					// double Emod_PB = sqrt(pc->fc0[X] * pc->fc0[X] + pc->fc0[Y] * pc->fc0[Y] + pc->fc0[Z] * pc->fc0[Z]);
 					/* Format: step;index;Emod_Peskin;Ex_Peskin;Ey_Peskin;Ez_Peskin;Emod_PB;Ex_PB;Ey_PB;Ez_PB */
+					// sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
 					sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
 							step, pc->s.index,
-							Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z],
-							Emod_PB, pc->fc0[X], pc->fc0[Y], pc->fc0[Z]);
+							Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z]);
+					// Emod_PB, pc->fc0[X], pc->fc0[Y], pc->fc0[Z]);
 					for (i = 0; i < strlen(string); i++) if (string[i] == '.') string[i] = ',';
 					fprintf(fp, "%s", string);
 				}
@@ -1490,6 +1837,9 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
  *  Then: F = q_particle * E_total
  *
  *  Sum goes to fex as this force is calculated outside of ludwig_colloids_update.
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !!!!    Necesita repensarse para incluir imagens periodicas en todas las direcciones posibles
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *****************************************************************************/
 int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo,
 									 map_t* map,
@@ -1523,6 +1873,8 @@ int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo,
 
 	if (cinfo->nsubgrid == 0) return 0;
 
+	int n, ntotal[3];
+	cs_ntotal(cinfo->cs, ntotal);
 	cs_nlocal(cinfo->cs, nlocal);
 	cs_nlocal_offset(cinfo->cs, offset);
 	cs_cart_comm(cinfo->cs, &comm);
@@ -1599,6 +1951,8 @@ int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo,
 								r_ij[Y] = r_particle_global[Y] - r_node_global[Y];
 								r_ij[Z] = r_particle_global[Z] - r_node_global[Z];
 
+								double dist2 = r_ij[X] * r_ij[X] + r_ij[Y] * r_ij[Y] + r_ij[Z] * r_ij[Z];
+
 								dist = sqrt(r_ij[X] * r_ij[X] + r_ij[Y] * r_ij[Y] + r_ij[Z] * r_ij[Z]);
 
 								/* Skip if too close to avoid singularity */
@@ -1607,12 +1961,23 @@ int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo,
 								/* Electric field with Debye-Hückel screening (Yukawa potential) */
 								/* E = prefactor * q * exp(-κr) * (1/r² + κ/r) * r_unit */
 								/* For κ=0, this reduces to standard Coulomb */
-								double exp_kr = (kappa > 0.0) ? exp(-kappa * dist) : 1.0;
-								double screening_factor = exp_kr * (1.0 / dist + kappa) / dist;
+								// double exp_kr = (kappa > 0.0) ? exp(-kappa * dist) : 1.0;
+								// double screening_factor = exp_kr * (1.0 / dist + kappa) / dist;
 
-								E_coulomb[X] = prefactor * rho_net * r_ij[X] * screening_factor;
-								E_coulomb[Y] = prefactor * rho_net * r_ij[Y] * screening_factor;
-								E_coulomb[Z] = prefactor * rho_net * r_ij[Z] * screening_factor;
+								// E_coulomb[X] = prefactor * rho_net * r_ij[X] * screening_factor;
+								// E_coulomb[Y] = prefactor * rho_net * r_ij[Y] * screening_factor;
+								// E_coulomb[Z] = prefactor * rho_net * r_ij[Z] * screening_factor;
+
+								// // Fuerza con Coulomb porque esta fuera de equilibrio el sistema
+								double factor = (1.0 / dist2);
+								for (int n = 1; n < 10; n++)
+								{
+									factor += 2.0 / (2 * (n * dist) * (n * dist) + dist2);
+								}
+
+								E_coulomb[X] = prefactor * rho_net * r_ij[X] * factor;
+								E_coulomb[Y] = prefactor * rho_net * r_ij[Y] * factor;
+								E_coulomb[Z] = prefactor * rho_net * r_ij[Z] * factor;
 
 								/* Accumulate field contribution using Klein summation */
 								klein_add_double(&E_total_k[X], E_coulomb[X]);
@@ -1734,24 +2099,24 @@ int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo,
 	}
 	/*CHANGE END - Write electric field data to file */
 
-	/* Apply accumulated electric forces to hydro by index */
-	/* This distributes reaction forces using Yukawa/Debye-Hückel weights */
-	if (force_k_indexed != NULL) {
-		for (int idx = 0; idx < (force_k_indexed)->count; idx++) {
+	// /* Apply accumulated electric forces to hydro by index */
+	// /* This distributes reaction forces using Yukawa/Debye-Hückel weights */
+	// if (force_k_indexed != NULL) {
+	// 	for (int idx = 0; idx < (force_k_indexed)->count; idx++) {
 
-			distributed_force_klein_entry_t* entry = (force_k_indexed)->entries[idx];
+	// 		distributed_force_klein_entry_t* entry = (force_k_indexed)->entries[idx];
 
-			double new_force[3];
-			new_force[X] = klein_sum(entry->force[X]);
-			new_force[Y] = klein_sum(entry->force[Y]);
-			new_force[Z] = klein_sum(entry->force[Z]);
+	// 		double new_force[3];
+	// 		new_force[X] = klein_sum(entry->force[X]);
+	// 		new_force[Y] = klein_sum(entry->force[Y]);
+	// 		new_force[Z] = klein_sum(entry->force[Z]);
 
-			hydro_f_local_add(hydro, entry->cs_index, new_force);
+	// 		hydro_f_local_add(hydro, entry->cs_index, new_force);
 
-		}
+	// 	}
 
-		subgrid_free_distributed_force_t(&force_k_indexed);
-	}
+	// 	subgrid_free_distributed_force_t(&force_k_indexed);
+	// }
 
 	// /*CHANGE INIT - Momentum conservation correction */
 	// /* Calculate total force on all particles and apply correction to fluid */
@@ -1991,6 +2356,290 @@ void subgrid_get_lattice_index_fn(double r0[3], int nlocal[3], int* i_min, int* 
 	*k_max = imin(nlocal[Z], (int)ceil(r0[Z]));
 
 }
+
+/*CHANGE INIT - 20260117 Short-range corrections Level 1: Self-field
+ * See docs/SHORT_RANGE_CORRECTIONS_ANALYSIS.md Section 7, Level 1.
+ *
+ * This corrects the self-field: the electric field that a particle
+ * generates on itself through its distributed charge on the mesh.
+ * Without this correction, the particle "feels" its own charge.
+ */
+
+ /*****************************************************************************
+  *
+  *  subgrid_shortrange_set_level
+  *
+  *  Set the short-range correction level.
+  *  0 = none, 1 = self-field, 2 = +PP, 3 = +PN, etc.
+  *
+  *****************************************************************************/
+void subgrid_shortrange_set_level(int level) {
+	if (level >= SHORTRANGE_LEVEL_NONE && level <= SHORTRANGE_LEVEL_5_CONSERV) {
+		shortrange_level_ = (shortrange_level_t)level;
+	}
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_shortrange_get_level
+ *
+ *  Get the current short-range correction level.
+ *
+ *****************************************************************************/
+int subgrid_shortrange_get_level(void) {
+	return (int)shortrange_level_;
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_shortrange_level1
+ *
+ *  Level 1 correction: Self-field only (Alternative A)
+ *
+ *  DISABLED 20260118: This approach does not conserve momentum because:
+ *  - The mesh field (used by Nernst-Planck for fluid forces) is not modified
+ *  - Only the particle force is corrected
+ *  - The fluid sees the original field with self-field, particle sees corrected
+ *  - This creates a force imbalance
+ *
+ *  For momentum conservation, use Level 3 (PN correction) instead.
+ *
+ *****************************************************************************/
+int subgrid_shortrange_level1(colloids_info_t* cinfo, psi_t* psi, hydro_t* hydro) {
+
+	/* DISABLED - does not conserve momentum
+	 * The self-field correction cannot be applied without also modifying
+	 * the mesh field that Nernst-Planck uses. Since modifying the mesh
+	 * is expensive, we skip Level 1 and use Level 3 (PN) instead.
+	 */
+	(void)cinfo;
+	(void)psi;
+	(void)hydro;
+
+	return 0;
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_shortrange_level3_pn
+ *
+ *  Level 3 correction: Particle-Node (PN) short-range forces
+ *
+ *  CHANGE 20260118: New approach for momentum conservation.
+ *
+ *  Instead of adding force to fex (which gets distributed by Peskin later),
+ *  we now:
+ *  1. Calculate the electric field from each node charge to the particle
+ *  2. Add that field to pc->Esub (so particle force comes through normal mechanism)
+ *  3. Apply the reaction force directly to the fluid node (Newton III)
+ *
+ *  This ensures momentum conservation because:
+ *  - Particle feels F = q_p * E_correction via Esub
+ *  - Fluid node feels -F directly via hydro_f_local_add
+ *
+ *  The short-range kernel is erf(kappa*r)/r^2, which captures the part
+ *  of the Coulomb interaction that the mesh doesn't resolve well.
+ *
+ *  Arguments:
+ *    cinfo - colloid info structure
+ *    psi   - electrokinetics psi structure (for charge density)
+ *    hydro - hydrodynamics structure (for applying forces to fluid)
+ *
+ *****************************************************************************/
+int subgrid_shortrange_level3_pn(colloids_info_t* cinfo, psi_t* psi, hydro_t* hydro) {
+
+	double prefactor;
+	double kappa_E = SHORTRANGE_KAPPA_E;
+	double kt, eunit;
+	int ncell[3];
+	int nlocal[3], offset[3];
+	int ic, jc, kc;
+	int di, dj, dk;
+	int i0, j0, k0;
+	int index;
+	colloid_t* pc;
+
+	assert(cinfo);
+	assert(psi);
+	assert(hydro);
+
+	if (cinfo->nsubgrid == 0) return 0;
+
+	prefactor = shortrange_coulomb_prefactor(psi);
+
+	/* Get kT and eunit for field/force conversion */
+	psi_unit_charge(psi, &eunit);
+	psi_beta(psi, &kt);
+	kt = 1.0 / kt;  /* Convert beta to kT */
+
+	cs_nlocal(cinfo->cs, nlocal);
+	cs_nlocal_offset(cinfo->cs, offset);
+	colloids_info_ncell(cinfo, ncell);
+
+	/* Loop over all particles */
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					/* Net charge of this particle */
+					double q_p = pc->s.q0 - pc->s.q1;
+
+					if (fabs(q_p) < 1.0e-12) continue;  /* Skip uncharged particles */
+
+					/* Klein sums for field correction at particle */
+					klein_t E_corr_k[3];
+					E_corr_k[X] = klein_zero();
+					E_corr_k[Y] = klein_zero();
+					E_corr_k[Z] = klein_zero();
+
+					/* Particle position in local coordinates */
+					double r0[3];
+					r0[X] = pc->s.r[X] - 1.0 * offset[X];
+					r0[Y] = pc->s.r[Y] - 1.0 * offset[Y];
+					r0[Z] = pc->s.r[Z] - 1.0 * offset[Z];
+
+					/* Base index for short-range support */
+					i0 = (int)floor(r0[X]);
+					j0 = (int)floor(r0[Y]);
+					k0 = (int)floor(r0[Z]);
+
+					/* Loop over nearby nodes within cutoff */
+					/* Using same range as Peskin for simplicity (-1 to +2) */
+					for (di = -1; di <= 2; di++) {
+						for (dj = -1; dj <= 2; dj++) {
+							for (dk = -1; dk <= 2; dk++) {
+
+								int node_i = i0 + di;
+								int node_j = j0 + dj;
+								int node_k = k0 + dk;
+
+								/* Check bounds */
+								if (node_i < 1 || node_i > nlocal[X]) continue;
+								if (node_j < 1 || node_j > nlocal[Y]) continue;
+								if (node_k < 1 || node_k > nlocal[Z]) continue;
+
+								/* Separation vector: node -> particle (for field direction) */
+								double r_np[3];
+								r_np[X] = r0[X] - (double)node_i;
+								r_np[Y] = r0[Y] - (double)node_j;
+								r_np[Z] = r0[Z] - (double)node_k;
+
+								double dist = sqrt(r_np[X] * r_np[X] +
+												   r_np[Y] * r_np[Y] +
+												   r_np[Z] * r_np[Z]);
+
+								/* Skip if too close (singularity) or beyond cutoff */
+								if (dist < 0.01) continue;
+								if (dist > SHORTRANGE_RC) continue;
+
+								/* Get charge density at this node */
+								index = cs_index(cinfo->cs, node_i, node_j, node_k);
+								double rho0, rho1;
+								psi_rho(psi, index, 0, &rho0);
+								psi_rho(psi, index, 1, &rho1);
+								double q_node = rho0 - rho1;  /* Net charge at node */
+
+								/* Electric field at particle position from node charge:
+								 * E = prefactor * q_node * erf(kappa*r)/r^2 * r_hat
+								 *
+								 * r_np/dist is unit vector from node to particle
+								 * Field points away from positive charge (outward)
+								 */
+								double kernel = shortrange_erf_kernel(dist, kappa_E);
+								double E_mag = prefactor * q_node * kernel;
+
+								double E_from_node[3];
+								E_from_node[X] = E_mag * r_np[X] / dist;
+								E_from_node[Y] = E_mag * r_np[Y] / dist;
+								E_from_node[Z] = E_mag * r_np[Z] / dist;
+
+								/* Accumulate field correction at particle */
+								klein_add_double(&E_corr_k[X], E_from_node[X]);
+								klein_add_double(&E_corr_k[Y], E_from_node[Y]);
+								klein_add_double(&E_corr_k[Z], E_from_node[Z]);
+
+								/* Force on particle from this field: F_p = q_p * E
+								 * Newton III reaction on fluid node: F_node = -F_p = -q_p * E
+								 *
+								 * Convert to lattice force units for fluid
+								 */
+								double F_on_node[3];
+								F_on_node[X] = -q_p * E_from_node[X] * kt / eunit;
+								F_on_node[Y] = -q_p * E_from_node[Y] * kt / eunit;
+								F_on_node[Z] = -q_p * E_from_node[Z] * kt / eunit;
+
+								/* Apply reaction force to fluid node */
+								hydro_f_local_add(hydro, index, F_on_node);
+							}
+						}
+					}
+
+					/* Add field correction to Esub
+					 * The particle force will come from: F = q_p * (Esub_mesh + E_correction)
+					 * through the normal mechanism in subgrid_on_velocity
+					 */
+					pc->Esub[X] += klein_sum(&E_corr_k[X]);
+					pc->Esub[Y] += klein_sum(&E_corr_k[Y]);
+					pc->Esub[Z] += klein_sum(&E_corr_k[Z]);
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_shortrange_corrections
+ *
+ *  Main entry point for short-range corrections.
+ *  Calls the appropriate level based on shortrange_level_.
+ *
+ *  CHANGE 20260118: Level 1 disabled (doesn't conserve momentum).
+ *  Level 3 (PN) now implements particle-node short-range forces with
+ *  proper Newton III pairs to conserve momentum.
+ *
+ *****************************************************************************/
+int subgrid_shortrange_corrections(colloids_info_t* cinfo, psi_t* psi,
+									hydro_t* hydro) {
+
+	switch (shortrange_level_) {
+	case SHORTRANGE_LEVEL_NONE:
+		return 0;
+
+	case SHORTRANGE_LEVEL_1_SELF:
+		/* Level 1 disabled - doesn't conserve momentum */
+		return subgrid_shortrange_level1(cinfo, psi, hydro);  /* Returns 0, does nothing */
+
+	case SHORTRANGE_LEVEL_2_PP:
+		/* Level 2: PP only (to be implemented) */
+		return 0;  /* Not implemented yet */
+
+	case SHORTRANGE_LEVEL_3_PN:
+		/* Level 3: Particle-Node short-range forces */
+		return subgrid_shortrange_level3_pn(cinfo, psi, hydro);
+
+	case SHORTRANGE_LEVEL_4_P3M:
+		/* Level 4: P3M with reference function (to be implemented) */
+		return subgrid_shortrange_level3_pn(cinfo, psi, hydro);  /* Fallback to Level 3 */
+
+	case SHORTRANGE_LEVEL_5_CONSERV:
+		/* Level 5: Full conservation (to be implemented) */
+		return subgrid_shortrange_level3_pn(cinfo, psi, hydro);  /* Fallback to Level 3 */
+
+	default:
+		return -1;
+	}
+}
+
+/*CHANGE END - 20260117 Short-range corrections Level 1 */
 
 /*CHANGE END - Subgrid charge */
 
@@ -2272,7 +2921,13 @@ double d_peskin(double r) {
 	double rmod;
 	double delta = 0.0;
 
-	rmod = fabs(r);
+	/*CHANGE INIT - 20260418 Scale Peskin kernel with drange_ to support variable stencil width.
+	 * drange_=1 (original, support=2): s=1, no scaling, identical to original.
+	 * drange_=2 (support=4): r mapped to r/2, result divided by 2 to preserve partition-of-unity. */
+	// rmod = fabs(r);
+	double s = (drange_+1.0)/2.0;  /* Scale factor for mapping r to r/s */
+	rmod = fabs(r / s);
+	/*CHANGE END - 20260418 Scale Peskin kernel with drange_ */
 
 	if (rmod <= 1.0) {
 		delta = 0.125 * (3.0 - 2.0 * rmod + sqrt(1.0 + 4.0 * rmod - 4.0 * rmod * rmod));
@@ -2281,7 +2936,42 @@ double d_peskin(double r) {
 		delta = 0.125 * (5.0 - 2.0 * rmod - sqrt(-7.0 + 12.0 * rmod - 4.0 * rmod * rmod));
 	}
 
-	return delta;
+	/*CHANGE INIT - 20260418 Scale Peskin kernel with drange_ */
+	// return delta;
+	return delta / s;
+	/*CHANGE END - 20260418 Scale Peskin kernel with drange_ */
+}
+
+/*****************************************************************************
+ *
+ *  d_peskin_derivative
+ *
+ *  Derivative of the Peskin delta function.
+ *
+ * dx += d_peskin_derivative(dx) * d_peskin(dy) * d_peskin(dz)
+ * dy += d_peskin(dx) * d_peskin_derivative(dy) * d_peskin(dz)
+ * dz += d_peskin(dx) * d_peskin(dy) * d_peskin_derivative(dz)
+ *****************************************************************************/
+double d_peskin_derivative(double x) {
+
+	double r = fabs(x/drange_);
+	double sign;
+	double val = 0.0;
+
+	if (x > 0.0) sign = 1.0;
+	else if (x < 0.0) sign = -1.0;
+	else sign = 0.0;
+
+	if (r <= 1.0) {
+		double tmp = sqrt(1.0 + 4.0 * r - 4.0 * r * r);
+		val = 0.125 * (-2.0 + (4.0 - 8.0 * r) / (2.0 * tmp));
+	}
+	else if (r <= 2.0) {
+		double tmp = sqrt(-7.0 + 12.0 * r - 4.0 * r * r);
+		val = 0.125 * (-2.0 - (12.0 - 8.0 * r) / (2.0 * tmp));
+	}
+
+	return val * sign;
 }
 
 /*****************************************************************************
@@ -2836,4 +3526,472 @@ void subgrid_set_kappa(double kappa) {
 	kappa_pb_ = kappa;
 	kappa_initialized_ = 1;
 }
+
+/*CHANGE INIT - Peskin scatter kernel on GPU */
+
+/* Flat structure to pass particle data to GPU kernel */
+typedef struct {
+	double rx, ry, rz;  /* local-domain position (offset already subtracted) */
+	double q0, q1;
+} peskin_particle_t;
+
+#ifdef __NVCC__
+#include <cuda_runtime.h>
+
+__device__ static double d_peskin_gpu(double r) {
+	double rmod = fabs(r);
+	if (rmod <= 1.0)
+		return 0.125 * (3.0 - 2.0 * rmod + sqrt(1.0 + 4.0 * rmod - 4.0 * rmod * rmod));
+	if (rmod <= 2.0)
+		return 0.125 * (5.0 - 2.0 * rmod - sqrt(-7.0 + 12.0 * rmod - 4.0 * rmod * rmod));
+	return 0.0;
+}
+
+/*****************************************************************************
+ *
+ *  peskin_scatter_nodes_kernel
+ *
+ *  Each thread = one interior LB node from psi_src.
+ *  Scatters its charge to the Peskin neighbourhood in rho_dst via atomicAdd.
+ *  SOA layout: rho->data[nsites*species + index]
+ *  Ludwig index stride (Z fastest):
+ *    str_z=1, str_y=nz+2*nhalo, str_x=str_y*(ny+2*nhalo)
+ *    index(i,j,k) = str_x*(nhalo+i-1) + str_y*(nhalo+j-1) + (nhalo+k-1)
+ *
+ *****************************************************************************/
+__global__ void peskin_scatter_nodes_kernel(
+	const double* __restrict__ rho_src,
+	double* rho_dst,
+	int nx, int ny, int nz, int nhalo, int nsites)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (tid >= nx * ny * nz) return;
+
+	int kc = tid % nz + 1;
+	int jc = (tid / nz) % ny + 1;
+	int ic = tid / (nz * ny) + 1;
+
+	int str_z = 1;
+	int str_y = nz + 2 * nhalo;
+	int str_x = str_y * (ny + 2 * nhalo);
+
+	int src_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + (nhalo + kc - 1);
+	double rho0 = rho_src[nsites * 0 + src_idx];
+	double rho1 = rho_src[nsites * 1 + src_idx];
+
+	int i_min = max(1, ic - 1);  int i_max = min(nx, ic + 1);
+	int j_min = max(1, jc - 1);  int j_max = min(ny, jc + 1);
+	int k_min = max(1, kc - 1);  int k_max = min(nz, kc + 1);
+
+	for (int i = i_min; i <= i_max; i++) {
+		double wx = d_peskin_gpu((double)(ic - i));
+		for (int j = j_min; j <= j_max; j++) {
+			double wy = d_peskin_gpu((double)(jc - j));
+			for (int k = k_min; k <= k_max; k++) {
+				double dr = wx * wy * d_peskin_gpu((double)(kc - k));
+				int dst = str_x * (nhalo + i - 1) + str_y * (nhalo + j - 1) + (nhalo + k - 1);
+				atomicAdd(&rho_dst[nsites * 0 + dst], rho0 * dr);
+				atomicAdd(&rho_dst[nsites * 1 + dst], rho1 * dr);
+			}
+		}
+	}
+}
+
+/*****************************************************************************
+ *
+ *  peskin_scatter_particles_kernel
+ *
+ *  Each thread = one subgrid particle.
+ *  Scatters q0/q1 to the Peskin neighbourhood in rho_dst via atomicAdd.
+ *
+ *****************************************************************************/
+__global__ void peskin_scatter_particles_kernel(
+	const peskin_particle_t* __restrict__ particles,
+	int                                    nparticles,
+	double* rho_dst,
+	int nx, int ny, int nz, int nhalo, int nsites)
+{
+	int pid = blockIdx.x * blockDim.x + threadIdx.x;
+	if (pid >= nparticles) return;
+
+	double rx = particles[pid].rx;
+	double ry = particles[pid].ry;
+	double rz = particles[pid].rz;
+	double q0 = particles[pid].q0;
+	double q1 = particles[pid].q1;
+
+	int str_z = 1;
+	int str_y = nz + 2 * nhalo;
+	int str_x = str_y * (ny + 2 * nhalo);
+
+	int i_min = max(0, (int)floor(rx - 1.0));
+	int i_max = min(nx + 1, (int)ceil(rx + 1.0));
+	int j_min = max(0, (int)floor(ry - 1.0));
+	int j_max = min(ny + 1, (int)ceil(ry + 1.0));
+	int k_min = max(0, (int)floor(rz - 1.0));
+	int k_max = min(nz + 1, (int)ceil(rz + 1.0));
+
+	for (int i = i_min; i <= i_max; i++) {
+		double wx = d_peskin_gpu(rx - i);
+		for (int j = j_min; j <= j_max; j++) {
+			double wy = d_peskin_gpu(ry - j);
+			for (int k = k_min; k <= k_max; k++) {
+				double dr = wx * wy * d_peskin_gpu(rz - k);
+				int dst = str_x * (nhalo + i - 1) + str_y * (nhalo + j - 1) + (nhalo + k - 1);
+				atomicAdd(&rho_dst[nsites * 0 + dst], q0 * dr);
+				atomicAdd(&rho_dst[nsites * 1 + dst], q1 * dr);
+			}
+		}
+	}
+}
+
+#endif /* __NVCC__ */
+
+/*****************************************************************************
+ *
+ *  subgrid_peskin_scatter_rho_buf
+ *
+ *  Peskin scatter of fluid nodes + subgrid particles into a plain double[]
+ *  buffer (rho_smooth, already zeroed by caller, size = nsites * nk).
+ *  No second psi_t needed — allocates a temporary GPU buffer internally.
+ *
+ *  On entry:  psi_src->rho host data is valid; rho_smooth is zeroed.
+ *  On exit:   rho_smooth contains the Peskin-smoothed charge densities.
+ *
+ *****************************************************************************/
+/*CHANGE INIT - subgrid_peskin_scatter_rho_buf */
+int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo,
+                                    psi_t* psi_src,
+                                    double* rho_smooth, int ndata)
+{
+	assert(cinfo);
+	assert(psi_src);
+	assert(rho_smooth);
+
+#ifdef __NVCC__
+
+	int nlocal[3], offset[3], nhalo;
+	cs_nlocal(psi_src->cs, nlocal);
+	cs_nlocal_offset(psi_src->cs, offset);
+	cs_nhalo(psi_src->cs, &nhalo);
+
+	int nx = nlocal[X], ny = nlocal[Y], nz = nlocal[Z];
+	int nsites = psi_src->nsites;
+
+	/* Upload psi_src->rho to device */
+	field_memcpy(psi_src->rho, tdpMemcpyHostToDevice);
+
+	/* Get device pointer for source rho */
+	size_t data_offset = offsetof(field_t, data);
+	double* rho_src_d = NULL;
+	cudaMemcpy(&rho_src_d, (char*)(psi_src->rho->target) + data_offset,
+	           sizeof(double*), cudaMemcpyDeviceToHost);
+
+	/* Allocate zeroed destination buffer on GPU */
+	double* rho_dst_d = NULL;
+	cudaMalloc(&rho_dst_d, (size_t)ndata * sizeof(double));
+	cudaMemset(rho_dst_d, 0, (size_t)ndata * sizeof(double));
+
+	int threads = 256;
+
+	/* Kernel 1: scatter LB-node charges */
+	int n_interior = nx * ny * nz;
+	peskin_scatter_nodes_kernel<<<(n_interior + threads - 1) / threads, threads>>>(
+		rho_src_d, rho_dst_d, nx, ny, nz, nhalo, nsites);
+
+	/* Build flat particle array and scatter on GPU */
+	int ncell[3];
+	colloids_info_ncell(cinfo, ncell);
+
+	int npart = 0;
+	for (int ic = 0; ic <= ncell[X] + 1; ic++)
+		for (int jc = 0; jc <= ncell[Y] + 1; jc++)
+			for (int kc = 0; kc <= ncell[Z] + 1; kc++) {
+				colloid_t* p = NULL;
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
+				for (; p; p = p->next)
+					if (p->s.bc == COLLOID_BC_SUBGRID) npart++;
+			}
+
+	if (npart > 0) {
+		peskin_particle_t* parts_h =
+			(peskin_particle_t*)malloc(npart * sizeof(peskin_particle_t));
+		int idx = 0;
+		for (int ic = 0; ic <= ncell[X] + 1; ic++)
+			for (int jc = 0; jc <= ncell[Y] + 1; jc++)
+				for (int kc = 0; kc <= ncell[Z] + 1; kc++) {
+					colloid_t* p = NULL;
+					colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
+					for (; p; p = p->next) {
+						if (p->s.bc != COLLOID_BC_SUBGRID) continue;
+						parts_h[idx].rx = p->s.r[X] - 1.0 * offset[X];
+						parts_h[idx].ry = p->s.r[Y] - 1.0 * offset[Y];
+						parts_h[idx].rz = p->s.r[Z] - 1.0 * offset[Z];
+						parts_h[idx].q0 = p->s.q0;
+						parts_h[idx].q1 = p->s.q1;
+						idx++;
+					}
+				}
+
+		peskin_particle_t* parts_d = NULL;
+		cudaMalloc(&parts_d, npart * sizeof(peskin_particle_t));
+		cudaMemcpy(parts_d, parts_h, npart * sizeof(peskin_particle_t),
+		           cudaMemcpyHostToDevice);
+
+		/* Kernel 2: scatter particle charges */
+		peskin_scatter_particles_kernel<<<(npart + threads - 1) / threads, threads>>>(
+			parts_d, npart, rho_dst_d, nx, ny, nz, nhalo, nsites);
+
+		cudaFree(parts_d);
+		free(parts_h);
+	}
+
+	cudaDeviceSynchronize();
+
+	/* Download result into host buffer */
+	cudaMemcpy(rho_smooth, rho_dst_d, (size_t)ndata * sizeof(double),
+	           cudaMemcpyDeviceToHost);
+	cudaFree(rho_dst_d);
+
+#else
+	/* CPU fallback */
+	int nlocal[3], offset[3];
+	cs_nlocal(psi_src->cs, nlocal);
+	cs_nlocal_offset(psi_src->cs, offset);
+	int nsites = psi_src->nsites;
+	int nk     = psi_src->nk;
+
+	/* Scatter LB-node charges */
+	for (int i = 1; i <= nlocal[X]; i++) {
+		for (int j = 1; j <= nlocal[Y]; j++) {
+			for (int k = 1; k <= nlocal[Z]; k++) {
+				int src = cs_index(psi_src->cs, i, j, k);
+				double rho0, rho1;
+				psi_rho(psi_src, src, 0, &rho0);
+				psi_rho(psi_src, src, 1, &rho1);
+				int i_min = imax(1, i - 1), i_max = imin(nlocal[X], i + 1);
+				int j_min = imax(1, j - 1), j_max = imin(nlocal[Y], j + 1);
+				int k_min = imax(1, k - 1), k_max = imin(nlocal[Z], k + 1);
+				for (int ii = i_min; ii <= i_max; ii++)
+					for (int jj = j_min; jj <= j_max; jj++)
+						for (int kk = k_min; kk <= k_max; kk++) {
+							double dr = d_peskin(i - ii) * d_peskin(j - jj) * d_peskin(k - kk);
+							int dst = cs_index(psi_src->cs, ii, jj, kk);
+							rho_smooth[addr_rank1(nsites, nk, dst, 0)] += rho0 * dr;
+							rho_smooth[addr_rank1(nsites, nk, dst, 1)] += rho1 * dr;
+						}
+			}
+		}
+	}
+
+	/* Scatter subgrid particle charges */
+	if (cinfo->nsubgrid > 0) {
+		int ncell[3];
+		colloids_info_ncell(cinfo, ncell);
+		for (int ic = 0; ic <= ncell[X] + 1; ic++)
+			for (int jc = 0; jc <= ncell[Y] + 1; jc++)
+				for (int kc = 0; kc <= ncell[Z] + 1; kc++) {
+					colloid_t* p = NULL;
+					colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
+					for (; p; p = p->next) {
+						if (p->s.bc != COLLOID_BC_SUBGRID) continue;
+						double r0[3] = { p->s.r[X] - 1.0*offset[X],
+						                 p->s.r[Y] - 1.0*offset[Y],
+						                 p->s.r[Z] - 1.0*offset[Z] };
+						int i_min = imax(1, (int)floor(r0[X]-1.0));
+						int i_max = imin(nlocal[X], (int)ceil(r0[X]+1.0));
+						int j_min = imax(1, (int)floor(r0[Y]-1.0));
+						int j_max = imin(nlocal[Y], (int)ceil(r0[Y]+1.0));
+						int k_min = imax(1, (int)floor(r0[Z]-1.0));
+						int k_max = imin(nlocal[Z], (int)ceil(r0[Z]+1.0));
+						for (int i = i_min; i <= i_max; i++)
+							for (int j = j_min; j <= j_max; j++)
+								for (int k = k_min; k <= k_max; k++) {
+									double dr = d_peskin(r0[X]-i) * d_peskin(r0[Y]-j) * d_peskin(r0[Z]-k);
+									int dst = cs_index(psi_src->cs, i, j, k);
+									rho_smooth[addr_rank1(nsites, nk, dst, 0)] += p->s.q0 * dr;
+									rho_smooth[addr_rank1(nsites, nk, dst, 1)] += p->s.q1 * dr;
+								}
+					}
+				}
+	}
+#endif
+
+	return 0;
+}
+/*CHANGE END - subgrid_peskin_scatter_rho_buf */
+
+/*****************************************************************************
+ *
+ *  subgrid_peskin_scatter_rho_gpu
+ *
+ *  Distributes onto psi_dst->rho:
+ *    1) Fluid charge from psi_src->rho (LB nodes) via Peskin scatter on GPU
+ *    2) Subgrid particle charges via Peskin scatter on GPU
+ *
+ *  Replaces both the LB-node loop and subgrid_charge_from_particles.
+ *  psi_dst->rho must be zeroed by the caller before this function.
+ *
+ *  On entry:  psi_src->rho is valid on the host; psi_dst->rho is zeroed.
+ *  On exit:   psi_dst->rho is updated on the host.
+ *
+ *****************************************************************************/
+int subgrid_peskin_scatter_rho_gpu(colloids_info_t* cinfo,
+								   psi_t* psi_src, psi_t* psi_dst)
+{
+	assert(cinfo);
+	assert(psi_src);
+	assert(psi_dst);
+
+#ifdef __NVCC__
+
+	int nlocal[3], offset[3], nhalo;
+	cs_nlocal(psi_src->cs, nlocal);
+	cs_nlocal_offset(psi_src->cs, offset);
+	cs_nhalo(psi_src->cs, &nhalo);
+
+	int nx = nlocal[X], ny = nlocal[Y], nz = nlocal[Z];
+	int nsites = psi_src->nsites;
+
+	/* --- Upload rho fields to device --- */
+	field_memcpy(psi_src->rho, tdpMemcpyHostToDevice);
+	field_memcpy(psi_dst->rho, tdpMemcpyHostToDevice);
+
+	size_t data_offset = offsetof(field_t, data);
+	double* rho_src_d = NULL;
+	double* rho_dst_d = NULL;
+	cudaMemcpy(&rho_src_d, (char*)(psi_src->rho->target) + data_offset,
+			   sizeof(double*), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&rho_dst_d, (char*)(psi_dst->rho->target) + data_offset,
+			   sizeof(double*), cudaMemcpyDeviceToHost);
+
+	/* --- Kernel 1: scatter LB-node charges --- */
+	int n_interior = nx * ny * nz;
+	int threads = 256;
+	peskin_scatter_nodes_kernel << <(n_interior + threads - 1) / threads, threads >> > (
+		rho_src_d, rho_dst_d, nx, ny, nz, nhalo, nsites);
+
+	/* --- Build flat particle array on CPU, upload, scatter on GPU --- */
+	int ncell[3];
+	colloids_info_ncell(cinfo, ncell);
+
+	/* Count subgrid particles first to alloc */
+	int npart = 0;
+	for (int ic = 0; ic <= ncell[X] + 1; ic++)
+		for (int jc = 0; jc <= ncell[Y] + 1; jc++)
+			for (int kc = 0; kc <= ncell[Z] + 1; kc++) {
+				colloid_t* p = NULL;
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
+				for (; p; p = p->next)
+					if (p->s.bc == COLLOID_BC_SUBGRID) npart++;
+			}
+
+	if (npart > 0) {
+		peskin_particle_t* parts_h =
+			(peskin_particle_t*)malloc(npart * sizeof(peskin_particle_t));
+
+		int idx = 0;
+		for (int ic = 0; ic <= ncell[X] + 1; ic++)
+			for (int jc = 0; jc <= ncell[Y] + 1; jc++)
+				for (int kc = 0; kc <= ncell[Z] + 1; kc++) {
+					colloid_t* p = NULL;
+					colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
+					for (; p; p = p->next) {
+						if (p->s.bc != COLLOID_BC_SUBGRID) continue;
+						parts_h[idx].rx = p->s.r[X] - 1.0 * offset[X];
+						parts_h[idx].ry = p->s.r[Y] - 1.0 * offset[Y];
+						parts_h[idx].rz = p->s.r[Z] - 1.0 * offset[Z];
+						parts_h[idx].q0 = p->s.q0;
+						parts_h[idx].q1 = p->s.q1;
+						idx++;
+					}
+				}
+
+		peskin_particle_t* parts_d = NULL;
+		cudaMalloc(&parts_d, npart * sizeof(peskin_particle_t));
+		cudaMemcpy(parts_d, parts_h, npart * sizeof(peskin_particle_t),
+				   cudaMemcpyHostToDevice);
+
+		/* --- Kernel 2: scatter particle charges --- */
+		peskin_scatter_particles_kernel << <(npart + threads - 1) / threads, threads >> > (
+			parts_d, npart, rho_dst_d, nx, ny, nz, nhalo, nsites);
+
+		cudaFree(parts_d);
+		free(parts_h);
+	}
+
+	cudaDeviceSynchronize();
+
+	/* Download result back to host */
+	field_memcpy(psi_dst->rho, tdpMemcpyDeviceToHost);
+
+#else
+	/* CPU fallback (compiled without CUDA) */
+	int nlocal[3], offset[3];
+	cs_nlocal(psi_src->cs, nlocal);
+	cs_nlocal_offset(psi_src->cs, offset);
+	const double range = 1.0;
+
+	/* LB nodes */
+	for (int i = 1; i <= nlocal[X]; i++) {
+		for (int j = 1; j <= nlocal[Y]; j++) {
+			for (int k = 1; k <= nlocal[Z]; k++) {
+				int src_idx = cs_index(psi_src->cs, i, j, k);
+				double rho0, rho1;
+				psi_rho(psi_src, src_idx, 0, &rho0);
+				psi_rho(psi_src, src_idx, 1, &rho1);
+				int i_min = imax(1, (int)floor(i - range)), i_max = imin(nlocal[X], (int)ceil(i + range));
+				int j_min = imax(1, (int)floor(j - range)), j_max = imin(nlocal[Y], (int)ceil(j + range));
+				int k_min = imax(1, (int)floor(k - range)), k_max = imin(nlocal[Z], (int)ceil(k + range));
+				for (int ii = i_min; ii <= i_max; ii++)
+					for (int jj = j_min; jj <= j_max; jj++)
+						for (int kk = k_min; kk <= k_max; kk++) {
+							double dr = d_peskin(i - ii) * d_peskin(j - jj) * d_peskin(k - kk);
+							int dst_idx = cs_index(psi_dst->cs, ii, jj, kk);
+							double r0, r1;
+							psi_rho(psi_dst, dst_idx, 0, &r0);
+							psi_rho(psi_dst, dst_idx, 1, &r1);
+							psi_rho_set(psi_dst, dst_idx, 0, r0 + rho0 * dr);
+							psi_rho_set(psi_dst, dst_idx, 1, r1 + rho1 * dr);
+						}
+			}
+		}
+	}
+
+	/* Subgrid particles */
+	if (cinfo->nsubgrid > 0) {
+		int ncell[3];
+		colloids_info_ncell(cinfo, ncell);
+		for (int ic = 0; ic <= ncell[X] + 1; ic++)
+			for (int jc = 0; jc <= ncell[Y] + 1; jc++)
+				for (int kc = 0; kc <= ncell[Z] + 1; kc++) {
+					colloid_t* p = NULL;
+					colloids_info_cell_list_head(cinfo, ic, jc, kc, &p);
+					for (; p; p = p->next) {
+						if (p->s.bc != COLLOID_BC_SUBGRID) continue;
+						double r0[3] = { p->s.r[X] - 1.0 * offset[X],
+										 p->s.r[Y] - 1.0 * offset[Y],
+										 p->s.r[Z] - 1.0 * offset[Z] };
+						int i_min = imax(1, (int)floor(r0[X] - range)), i_max = imin(nlocal[X], (int)ceil(r0[X] + range));
+						int j_min = imax(1, (int)floor(r0[Y] - range)), j_max = imin(nlocal[Y], (int)ceil(r0[Y] + range));
+						int k_min = imax(1, (int)floor(r0[Z] - range)), k_max = imin(nlocal[Z], (int)ceil(r0[Z] + range));
+						for (int i = i_min; i <= i_max; i++)
+							for (int j = j_min; j <= j_max; j++)
+								for (int k = k_min; k <= k_max; k++) {
+									double dr = d_peskin(r0[X] - i) * d_peskin(r0[Y] - j) * d_peskin(r0[Z] - k);
+									int dst_idx = cs_index(psi_dst->cs, i, j, k);
+									double rh0, rh1;
+									psi_rho(psi_dst, dst_idx, 0, &rh0);
+									psi_rho(psi_dst, dst_idx, 1, &rh1);
+									psi_rho_set(psi_dst, dst_idx, 0, rh0 + p->s.q0 * dr);
+									psi_rho_set(psi_dst, dst_idx, 1, rh1 + p->s.q1 * dr);
+								}
+					}
+				}
+	}
+#endif /* __NVCC__ */
+
+	return 0;
+}
+/*CHANGE END - Peskin scatter kernel on GPU */
 /*CHANGE END - Poisson-Boltzmann weight */

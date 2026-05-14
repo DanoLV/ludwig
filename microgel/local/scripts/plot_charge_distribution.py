@@ -182,7 +182,7 @@ class ChargeDistributionPlotter:
         self.num_species = len(species)
 
     def plot_plane(self, plane='xy', position=None, component='net',
-                   species_index=0, show_colorbar=True, output=None):
+                   species_index=0, show_colorbar=True, interpolate=True, output=None):
         """
         Grafica la distribución de carga en un plano 2D
 
@@ -249,14 +249,16 @@ class ChargeDistributionPlotter:
         else:
             raise ValueError("plane debe ser 'xy', 'xz', o 'yz'")
 
-        # Crear meshgrid
-        X, Y = np.meshgrid(x, y, indexing='ij')
-
         # Crear figura
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        # Plot de contorno
-        im = ax.contourf(X, Y, field, levels=20, cmap=cmap)
+        if interpolate:
+            # contourf interpola entre nodos
+            X, Y = np.meshgrid(x, y, indexing='ij')
+            im = ax.contourf(X, Y, field, levels=20, cmap=cmap)
+        else:
+            # pcolormesh muestra el valor exacto de cada nodo sin interpolación
+            im = ax.pcolormesh(x, y, field.T, cmap=cmap, shading='nearest')
 
         if show_colorbar:
             cbar = plt.colorbar(im, ax=ax, label=clabel)
@@ -611,6 +613,8 @@ ESTADÍSTICAS:
                        help='Ángulo azimutal de la vista 3D (default: -60)')
 
     # Argumentos generales
+    parser.add_argument('--no-interp', action='store_true',
+                       help='Usar pcolormesh (sin interpolación, valores exactos por nodo) en lugar de contourf')
     parser.add_argument('--num-species', type=int, default=2,
                        help='Número de especies iónicas (default: 2)')
     parser.add_argument('-o', '--output',
@@ -655,6 +659,7 @@ ESTADÍSTICAS:
             plane=args.plane,
             position=args.position,
             component=args.component,
+            interpolate=not args.no_interp,
             output=args.output
         )
     elif args.mode == 'plane3d':

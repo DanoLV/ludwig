@@ -17,21 +17,21 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
- 
+
 #include "pe.h"
 #include "coords.h"
 #include "psi_init.h"
 
-/*****************************************************************************
- *
- *  psi_init_uniform
- *
- *  Set the charge density for all species to be rho_el everywhere.
- *  The potential is initialised to zero.
- *
- *****************************************************************************/
+ /*****************************************************************************
+  *
+  *  psi_init_uniform
+  *
+  *  Set the charge density for all species to be rho_el everywhere.
+  *  The potential is initialised to zero.
+  *
+  *****************************************************************************/
 
-int psi_init_uniform(psi_t * obj, double rho_el) {
+int psi_init_uniform(psi_t* obj, double rho_el) {
 
   int ic, jc, kc, index;
   int nlocal[3];
@@ -47,13 +47,13 @@ int psi_init_uniform(psi_t * obj, double rho_el) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(obj->cs, ic, jc, kc);
+        index = cs_index(obj->cs, ic, jc, kc);
 
-	psi_psi_set(obj, index, 0.0);
+        psi_psi_set(obj, index, 0.0);
 
-	for (n = 0; n < nk; n++) {
-	  psi_rho_set(obj, index, n, rho_el);
-	}
+        for (n = 0; n < nk; n++) {
+          psi_rho_set(obj, index, n, rho_el);
+        }
 
       }
     }
@@ -77,8 +77,8 @@ int psi_init_uniform(psi_t * obj, double rho_el) {
  *
  *****************************************************************************/
 
-int psi_init_gouy_chapman(psi_t * obj, map_t * map, double rho_el,
-			      double sigma) {
+int psi_init_gouy_chapman(psi_t* obj, map_t* map, double rho_el,
+            double sigma) {
 
   int ic, jc, kc, index;
   int nlocal[3];
@@ -99,18 +99,18 @@ int psi_init_gouy_chapman(psi_t * obj, map_t * map, double rho_el,
   rho_w = sigma;
 
   /* counter charge density */
-  rho_i = rho_w * 2.0 *ltot[Y]*ltot[Z] / (ltot[Y]*ltot[Z]*(ltot[X] - 2.0));
+  rho_i = rho_w * 2.0 * ltot[Y] * ltot[Z] / (ltot[Y] * ltot[Z] * (ltot[X] - 2.0));
 
   /* apply counter charges & electrolyte */
   for (ic = 1; ic <= nlocal[X]; ic++) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(obj->cs, ic, jc, kc);
+        index = cs_index(obj->cs, ic, jc, kc);
 
-	psi_psi_set(obj, index, 0.0);
-	psi_rho_set(obj, index, 0, rho_el);
-	psi_rho_set(obj, index, 1, rho_el + rho_i);
+        psi_psi_set(obj, index, 0.0);
+        psi_rho_set(obj, index, 0, rho_el);
+        psi_rho_set(obj, index, 1, rho_el + rho_i);
 
       }
     }
@@ -122,11 +122,11 @@ int psi_init_gouy_chapman(psi_t * obj, map_t * map, double rho_el,
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(obj->cs, ic, jc, kc);
-	map_status_set(map, index, MAP_BOUNDARY);
+        index = cs_index(obj->cs, ic, jc, kc);
+        map_status_set(map, index, MAP_BOUNDARY);
 
-	psi_rho_set(obj, index, 0, rho_w);
-	psi_rho_set(obj, index, 1, 0.0);
+        psi_rho_set(obj, index, 0, rho_w);
+        psi_rho_set(obj, index, 1, 0.0);
 
       }
     }
@@ -137,11 +137,11 @@ int psi_init_gouy_chapman(psi_t * obj, map_t * map, double rho_el,
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(obj->cs, ic, jc, kc);
-	map_status_set(map, index, MAP_BOUNDARY);
+        index = cs_index(obj->cs, ic, jc, kc);
+        map_status_set(map, index, MAP_BOUNDARY);
 
-	psi_rho_set(obj, index, 0, rho_w);
-	psi_rho_set(obj, index, 1, 0.0);
+        psi_rho_set(obj, index, 0, rho_w);
+        psi_rho_set(obj, index, 1, 0.0);
 
       }
     }
@@ -169,7 +169,7 @@ int psi_init_gouy_chapman(psi_t * obj, map_t * map, double rho_el,
  *
  *****************************************************************************/
 
-int psi_init_liquid_junction(psi_t * obj, double rho_el, double delta_el) {
+int psi_init_liquid_junction(psi_t* obj, double rho_el, double delta_el) {
 
   int ic, jc, kc, index;
   int ntotal[3];
@@ -187,18 +187,18 @@ int psi_init_liquid_junction(psi_t * obj, double rho_el, double delta_el) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(obj->cs, ic, jc, kc);
+        index = cs_index(obj->cs, ic, jc, kc);
 
-	psi_psi_set(obj, index, 0.0);
+        psi_psi_set(obj, index, 0.0);
 
-	if ((1 <= noff[X] + ic) && (noff[X] + ic <= ntotal[X]/2)) {
-	  psi_rho_set(obj, index, 0, rho_el + 0.5*delta_el);
-	  psi_rho_set(obj, index, 1, rho_el + 0.5*delta_el);
-	}
-	else {
-	  psi_rho_set(obj, index, 0, rho_el - 0.5*delta_el);
-	  psi_rho_set(obj, index, 1, rho_el - 0.5*delta_el);
-	}
+        if ((1 <= noff[X] + ic) && (noff[X] + ic <= ntotal[X] / 2)) {
+          psi_rho_set(obj, index, 0, rho_el + 0.5 * delta_el);
+          psi_rho_set(obj, index, 1, rho_el + 0.5 * delta_el);
+        }
+        else {
+          psi_rho_set(obj, index, 0, rho_el - 0.5 * delta_el);
+          psi_rho_set(obj, index, 1, rho_el - 0.5 * delta_el);
+        }
       }
     }
   }
@@ -214,7 +214,7 @@ int psi_init_liquid_junction(psi_t * obj, double rho_el, double delta_el) {
  *
  *****************************************************************************/
 
-int psi_init_sigma(psi_t * psi, map_t * map) {
+int psi_init_sigma(psi_t* psi, map_t* map) {
 
   int ic, jc, kc, index;
   int nlocal[3];
@@ -229,21 +229,21 @@ int psi_init_sigma(psi_t * psi, map_t * map) {
     for (jc = 1; jc <= nlocal[Y]; jc++) {
       for (kc = 1; kc <= nlocal[Z]; kc++) {
 
-	index = cs_index(psi->cs, ic, jc, kc);
-	map_data(map, index, &sigma);
+        index = cs_index(psi->cs, ic, jc, kc);
+        map_data(map, index, &sigma);
 
-	psi_psi_set(psi, index, 0.0);
+        psi_psi_set(psi, index, 0.0);
 
-	if (sigma) {
-	  if (sigma > 0) {
-	    psi_rho_set(psi, index, 0, sigma);
-	    psi_rho_set(psi, index, 1, 0);
-	  }
-	  if (sigma < 0) {
-	    psi_rho_set(psi, index, 0, 0);
-	    psi_rho_set(psi, index, 1, sigma);
-	  }
-	}
+        if (sigma) {
+          if (sigma > 0) {
+            psi_rho_set(psi, index, 0, sigma);
+            psi_rho_set(psi, index, 1, 0);
+          }
+          if (sigma < 0) {
+            psi_rho_set(psi, index, 0, 0);
+            psi_rho_set(psi, index, 1, sigma);
+          }
+        }
 
       }
     }

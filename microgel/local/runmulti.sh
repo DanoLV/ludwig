@@ -139,8 +139,10 @@ modify_line_in_config() {
     sed -i "${line_num}s/.*/${formatted_value}/" "$config_file"
 }
 
-# Function to modify position line (line 40 with x, y, z)
+# Function to modify position line (line 36 with x, y, z)
 # Usage: modify_position_line <x> <y> <z> <config_file>
+# Note: Line numbers updated after NPAD_INT change from 7 to 3
+#       (with NBOND_MAX from 2 to 6, net effect on line numbers is -4)
 modify_position_line() {
     local x=$1
     local y=$2
@@ -150,8 +152,8 @@ modify_position_line() {
     # Format the values in scientific notation with proper spacing
     local formatted_line=$(printf "%24.15e %24.15e %24.15e" $x $y $z)
 
-    # Replace line 40
-    sed -i "40s/.*/${formatted_line}/" "$config_file"
+    # Replace line 36 (was 40 before NPAD_INT/NBOND_MAX changes)
+    sed -i "36s/.*/${formatted_line}/" "$config_file"
 }
 
 # Parse multi-simulation specific arguments first
@@ -352,31 +354,39 @@ cp input $base_dir
 cp config.cds.init.001-001 $base_dir
 cp runbg.sh $base_dir
 cp Ludwig.exe $base_dir
+# Copy PETSc options file if present
+[ -f ".petscrc" ] && cp .petscrc $base_dir/.petscrc
 # cp del.sh $base_dir
+
+# cp ./Eself/*.bin $base_dir/
 
 # Copy files to execute plot
 cp runplot.sh $base_dir/
 cp extract_colloids $base_dir/
-cp coloideacsv.sh $base_dir/
+cp ./scripts/coloideacsv.sh $base_dir/
 
 # Scripts that process raw data (need access to colloids-*.csv and vel-*) stay in root
-cp calculosvel.py $base_dir/
-cp calculosvelfluid.py $base_dir/
-cp calculosvelfluidonly.py $base_dir/
-cp extraer_posicion.py $base_dir/
-cp calculos.py $base_dir/
+cp ./scripts/calculosvel.py $base_dir/
+cp ./scripts/calculosvelfluid.py $base_dir/
+cp ./scripts/calculosvelfluidonly.py $base_dir/
+cp ./scripts/extraer_posicion.py $base_dir/
+cp ./scripts/calculos.py $base_dir/
+cp ./scripts/calc_mui.py $base_dir/
 
 # Plotting scripts (only read processed CSVs) go to plot subdirectory
-cp plotvel.py $base_dir/
-cp plot.py $base_dir/
-cp plot_velocity_field.py $base_dir/
-cp plot_charge_distribution.py $base_dir/
-cp plot_electric_field.py $base_dir/
+cp ./scripts/plotvel.py $base_dir/
+cp ./scripts/plot.py $base_dir/
+cp ./scripts/plot_velocity_field.py $base_dir/
+cp ./scripts/plot_charge_distribution.py $base_dir/
+cp ./scripts/plot_electric_field.py $base_dir/
 # cp plot_electric_field_peskin.py $base_dir/scripts
-cp plotdatos.py $base_dir/
+cp ./scripts/plotdatos.py $base_dir/
 # cp batch_plot_electric_field.py $base_dir/scripts
-cp compare_field_theory.py $base_dir/
+cp ./scripts/compare_field_theory.py $base_dir/
 # cp compare_field_theory_peskin.py $base_dir/scripts
+
+cp ./scripts/plot_*ewald.py $base_dir/
+cp ./scripts/plot_mui*.py $base_dir/
 
 cd $base_dir
 pwd
@@ -572,17 +582,17 @@ for stencil in "${STENCIL_ARRAY[@]}"; do
     cp config.cds.init.001-001 "$temp_config"
 
     # Modify the parameters in the temp config file
-    # Line numbers in the ASCII file:
-    # Lines 1-32: integer values
+    # Line numbers in the ASCII file (after NPAD_INT=3, NBOND_MAX=6 changes):
+    # Lines 1-32: integer values (9 fields + 6 bonds + 1 rng + 6 isfixed + 7 fields + 3 intpad)
     # Lines 33+: double values
-    # Line 40: position r[0] r[1] r[2] (x, y, z on one line)
-    # Line 51: q0 (charge)
-    # Line 58: al parameter
+    # Line 36: position r[0] r[1] r[2] (x, y, z on one line)
+    # Line 47: q0 (charge)
+    # Line 54: al parameter
 
-    # Handle position modification (line 40 contains x, y, z)
+    # Handle position modification (line 36 contains x, y, z)
     if [ -n "$pos_x_val" ] || [ -n "$pos_y_val" ] || [ -n "$pos_z_val" ]; then
-        # Read current position values from line 40
-        current_pos=($(sed -n '40p' "$temp_config"))
+        # Read current position values from line 36
+        current_pos=($(sed -n '36p' "$temp_config"))
 
         # Use provided values or keep current ones
         new_x=${pos_x_val:-${current_pos[0]}}
@@ -592,11 +602,11 @@ for stencil in "${STENCIL_ARRAY[@]}"; do
         modify_position_line "$new_x" "$new_y" "$new_z" "$temp_config"
     fi
 
-    # Modify charge if specified
-    [ -n "$charge" ] && modify_line_in_config 51 "$charge" "$temp_config"
+    # Modify charge if specified (line 47 after structure changes)
+    [ -n "$charge" ] && modify_line_in_config 47 "$charge" "$temp_config"
 
-    # Modify al parameter if specified
-    [ -n "$al" ] && modify_line_in_config 58 "$al" "$temp_config"
+    # Modify al parameter if specified (line 54 after structure changes)
+    [ -n "$al" ] && modify_line_in_config 54 "$al" "$temp_config"
 
     # Replace the original config with modified one
     temp_parallel_config="config.cds.init.001-001-$num"

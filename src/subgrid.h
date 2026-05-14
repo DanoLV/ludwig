@@ -46,12 +46,18 @@ typedef struct distributed_force_klein_s {
 } distributed_force_klein_t;
 
 double d_peskin(double r);
+double d_peskin_derivative(double r);
 double d_trilinear(double r);
+int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_compenzate(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_substract(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 int subgrid_charge_from_particles_restore(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge);
 void subgrid_free_distributed_charge_t(distributed_charge_klein_t** charge);
+void add_charge_to_array(distributed_charge_klein_t** charge_ptr, int cs_index,
+                         double q0_dr, double q1_dr, psi_t* obj);
+int subgrid_peskin_scatter_rho_buf(colloids_info_t* cinfo, psi_t* psi_src, double* rho_smooth, int ndata);
+int subgrid_peskin_scatter_rho_gpu(colloids_info_t* cinfo, psi_t* psi_src, psi_t* psi_dst);
 void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
 void subgrid_get_lattice_index_fn(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
 int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro);
@@ -82,6 +88,20 @@ void subgrid_set_kappa(double kappa);
 int subgrid_add_psi_grad_from_particles(colloids_info_t* cinfo, psi_t* psi,
                                          physics_t* phys);
 /*CHANGE END - Poisson-Boltzmann weight */
+
+/*CHANGE INIT - 20260117 Short-range corrections declarations
+ * See docs/SHORT_RANGE_CORRECTIONS_ANALYSIS.md for full documentation.
+ * CHANGE 20260118: level1 disabled (no momentum conservation)
+ *                  level3_pn implements PN correction with Newton III
+ */
+void subgrid_shortrange_set_level(int level);
+int  subgrid_shortrange_get_level(void);
+int  subgrid_shortrange_level1(colloids_info_t* cinfo, psi_t* psi, hydro_t* hydro);
+int  subgrid_shortrange_level3_pn(colloids_info_t* cinfo, psi_t* psi, hydro_t* hydro);
+int  subgrid_shortrange_corrections(colloids_info_t* cinfo, psi_t* psi,
+                                     hydro_t* hydro);
+/*CHANGE END - 20260117 Short-range corrections declarations */
+
 /*CHANGE END - Subgrid charge */
 
 int subgrid_update(colloids_info_t* cinfo, hydro_t* hydro, int noise_flag);

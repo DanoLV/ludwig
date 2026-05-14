@@ -16,11 +16,15 @@
 BUILD   = parallel
 MODEL   = -D_D3Q19_
 
-# PETSc configuration 
+# PETSc configuration
+# petsc-cuda-hypre: CUDA + hypre con soporte GPU (BoomerAMG en GPU)
+# petsc-cuda:       CUDA sin hypre (anterior, sin --download-hypre)
 HAVE_PETSC = true
-PETSC_INC  = -I/usr/local/petsc-cuda/include 
-PETSC_LIB  = -L/usr/local/petsc-cuda/lib -Xlinker -rpath -Xlinker /usr/local/petsc-cuda/lib -lpetsc 
-# PETSC_LIB  = -L/usr/local/petsc-cuda/lib -lpetsc 
+PETSC_INC  = -I/usr/local/petsc-cuda-hypre/include
+PETSC_LIB  = -L/usr/local/petsc-cuda-hypre/lib -Xlinker -rpath -Xlinker /usr/local/petsc-cuda-hypre/lib -lpetsc
+# PETSC_INC  = -I/usr/local/petsc-cuda/include
+# PETSC_LIB  = -L/usr/local/petsc-cuda/lib -Xlinker -rpath -Xlinker /usr/local/petsc-cuda/lib -lpetsc
+# # PETSC_LIB  = -L/usr/local/petsc-cuda/lib -lpetsc
 
 # # Original CPU-only configuration
 # TARGET  =
@@ -32,14 +36,18 @@ PETSC_LIB  = -L/usr/local/petsc-cuda/lib -Xlinker -rpath -Xlinker /usr/local/pet
 # CUDA configuration for RTX 4070 (sm_89)
 TARGET  = nvcc
 CC      = nvcc
-CFLAGS  = -ccbin=/usr/local/ompi/bin/mpicc \
-			-O3 -DADDR_SOA -DNSIMDVL=4 -DNDEBUG \
-			-arch=sm_89 -x cu -dc
-# # Para Debug
-# CFLAGS = -ccbin=/usr/local/ompi/bin/mpicc \
-#          -O0 -g -G -DADDR_SOA -DNSIMDVL=4 \
-#          -arch=sm_89 -x cu -dc \
-#          -Xcompiler -Wall  # Debug flags
+
+# # Sin Debug
+# CFLAGS  = -ccbin=/usr/local/ompi/bin/mpicc \
+# 			-O3 -DADDR_SOA -DNSIMDVL=4 -DNDEBUG \
+# 			-arch=sm_89 -x cu -dc
+
+# Para Debug
+CFLAGS = -ccbin=/usr/local/ompi/bin/mpicc \
+         -O0 -g -G -DADDR_SOA -DNSIMDVL=4 \
+         -arch=sm_89 -x cu -dc \
+         -Xcompiler -Wall  # Debug flags
+
 AR      = ar
 ARFLAGS = -cr
 LDFLAGS = -arch=sm_89

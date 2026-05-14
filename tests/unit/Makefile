@@ -46,6 +46,11 @@ else
 LIBS = $(BLIBS) $(SRC)/libludwig.a -lm
 endif
 
+# cuFFT is included with CUDA, just need to link
+ifeq ($(TARGET),nvcc)
+LIBS += -lcufft
+endif
+
 #------------------------------------------------------------------------------
 #  Rules
 #------------------------------------------------------------------------------

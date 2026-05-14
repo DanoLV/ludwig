@@ -294,9 +294,23 @@ int psi_options_rt(pe_t * pe, cs_t * cs, rt_t * rt, psi_options_t * popts) {
   {
     opts.psi = field_options_ndata_nhalo(1, cs->param->nhalo);
     opts.rho = field_options_ndata_nhalo(opts.nk, cs->param->nhalo);
+    /*CHANGE INIT - 20251203 Electric field output */
+    opts.efield = field_options_ndata_nhalo(3, cs->param->nhalo);
+    opts.efield_real = field_options_ndata_nhalo(3, cs->param->nhalo);
+    opts.efield_fourier = field_options_ndata_nhalo(3, cs->param->nhalo);
+    opts.psi_real = field_options_ndata_nhalo(1, cs->param->nhalo);
+    opts.psi_fourier = field_options_ndata_nhalo(1, cs->param->nhalo);
+    /*CHANGE END - 20251203 */
 
     io_info_args_rt(rt, RT_FATAL, "psi", IO_INFO_READ_WRITE, &opts.psi.iodata);
     io_info_args_rt(rt, RT_FATAL, "psi", IO_INFO_READ_WRITE, &opts.rho.iodata);
+    /*CHANGE INIT - 20251203 Electric field output */
+    io_info_args_rt(rt, RT_FATAL, "efield", IO_INFO_READ_WRITE, &opts.efield.iodata);
+    io_info_args_rt(rt, RT_FATAL, "efield_real", IO_INFO_READ_WRITE, &opts.efield_real.iodata);
+    io_info_args_rt(rt, RT_FATAL, "efield_fourier", IO_INFO_READ_WRITE, &opts.efield_fourier.iodata);
+    io_info_args_rt(rt, RT_FATAL, "psi_real", IO_INFO_READ_WRITE, &opts.psi_real.iodata);
+    io_info_args_rt(rt, RT_FATAL, "psi_fourier", IO_INFO_READ_WRITE, &opts.psi_fourier.iodata);
+    /*CHANGE END - 20251203 */
 
     if (opts.psi.iodata.input.mode != IO_MODE_MPIIO) {
       pe_fatal(pe, "Electrokinetics i/o must use psi_io_mode mpiio\n");
