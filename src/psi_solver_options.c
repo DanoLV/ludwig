@@ -125,6 +125,9 @@ psi_solver_options_t psi_solver_options_type(psi_poisson_solver_enum_t ptype) {
 
   psi_solver_options_t pso = {
     .psolver     = ptype,
+    /*CHANGE INIT - 20260630 default FFT Laplacian = discrete (matches PETSc) */
+    .fft_laplacian = PSI_FFT_LAPLACIAN_OPT_DISCRETE,
+    /*CHANGE END - 20260630 */
     .maxits      = 10000,
     .verbose     = 0,
     .nfreq       = INT_MAX,

@@ -60,6 +60,11 @@ fe_force_method_enum_t fe_force_method_to_enum(const char * method) {
     imethod = FE_FORCE_METHOD_EWALD_GAUSSIAN;
   }
   /*CHANGE END - Gaussian_Ewald*/
+  /*CHANGE INIT - Gaussian_Ewald_Dual*/
+  else if (strcmp(method, "ewald_gaussian_dual") == 0) {
+    imethod = FE_FORCE_METHOD_EWALD_GAUSSIAN_DUAL;
+  }
+  /*CHANGE END - Gaussian_Ewald_Dual*/
   else if (strcmp(method, "phi_gradmu") == 0) {
     imethod = FE_FORCE_METHOD_PHI_GRADMU;
   }

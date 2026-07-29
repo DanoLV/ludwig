@@ -12,9 +12,15 @@
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
-            "environment": [],
+            "environment": [
+                {
+                    "name": "DEBUGINFOD_URLS",
+                    "value": ""
+                }
+            ],
             "externalConsole": false,
             "MIMode": "gdb",
+            "miDebuggerPath": "${workspaceFolder}/.vscode/gdb-nodebuginfod.sh",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -24,6 +30,16 @@
                 {
                     "description": "Set Disassembly Flavor to Intel",
                     "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "WSL2/GDB15: no lanzar el inferior via shell (evita 'Failed to set controlling terminal')",
+                    "text": "-gdb-set startup-with-shell off",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "GDB15: no preguntar por debuginfod al arrancar (bloquea la sesion esperando respuesta)",
+                    "text": "-gdb-set debuginfod enabled off",
                     "ignoreFailures": true
                 }
             ]

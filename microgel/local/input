@@ -16,7 +16,7 @@ N_cycles 2000
 
 size 16_16_16
 grid 1_1_1
-# N_halo   4
+# N_halo  yes
 
 ##############################################################################
 #
@@ -59,8 +59,8 @@ electrokinetics_init uniform
 electrokinetics_epsilon 1.0e4
 # electrokinetics_init_rho_el 2.0e-3
 electrokinetics_init_rho_el 0.000E+00
-electrokinetics_rel_tol     1.0e-28
-electrokinetics_abs_tol     1.0e-30
+electrokinetics_rel_tol     1.0e-18
+electrokinetics_abs_tol     1.0e-18
 # # electrokinetics_maxits   10000
 # #electrokinetics_diffacc  0
 electrokinetics_multisteps 1
@@ -68,18 +68,40 @@ electrokinetics_solver_stencil 27
 
 electrokinetics_solver_type petsc
 # # electrokinetics_solver_type #petsc sor fft
-fe_force_method ewald_gaussian #phi_gradmu_correction stress_divergence ewald ewald_gaussian
+# electrokinetics_fft_laplacian discrete #discrete analytic    
+
+fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence ewald ewald_gaussian ewald_gaussian_dual
+
+# subgrid_kernel hann # hann peskin4 peskin6
+# subgrid_hann_order 12
+# pm_sr_correction yes
+# # pm_sr_rcut 8
+
+pm_sr_correction  yes      # activa la corrección (sin esto, nada corre)
+pm_sr_sigma       0.3      # ancho Gaussiano de referencia (default 0.7 FIJO)
+# pm_sr_rcut        4.0      # radio de corte (default 2+krange)
+# pm_sr_nvoxel      8        # resolución sub-voxel al construir la tabla
+# pm_sr_nr3d        32       # resolución de la tabla 3D
+subgrid_kernel    hann     # kernel de spread/gather
+subgrid_hann_order 12      # orden Hann (ancho total del soporte)
+
+
+interlacing_mode    0          # 0 = modo normal, 1 = red desplazada
+# interlacing_offset  0.844     # valor fijo, o la palabra: random
+# interlacing_offset  random  
+# interlacing_seed    12345      # solo para random
 
 #Ewald parameters
-ewald_rc 4.0
-ewald_alpha 1.0
-ewald_gaussian_sigma_f 1.2
-ewald_gaussian_sigma_p 1.0
+# ewald_rc 6.0
+# ewald_alpha 1.0
+# ewald_gaussian_sigma 1.0
+# ewald_gaussian_sigma_f 0.0 # ewald_gaussian_sigma_fluid
+# ewald_gaussian_sigma_p 0.5 # ewald_gaussian_sigma_particle
 
 
 ###############################################################################
 #
-#  Colloid parameters
+#  Colloid parameter8
 #
 ###############################################################################
 
@@ -95,7 +117,7 @@ colloid_init     from_file
 
 # bond_harmonic_on 1
 # bond_harmonic_k  5.0e-3
-# bond_harmonic_r0 0.6
+# bond_harmonic_r0 4.0
 
 # angle_harmonic_on 1
 # angle_harmonic_k 1.0e-04

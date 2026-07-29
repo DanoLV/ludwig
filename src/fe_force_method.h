@@ -32,6 +32,9 @@ typedef enum {
   /* CHANGE INIT - Gaussian_Ewald */
   FE_FORCE_METHOD_EWALD_GAUSSIAN,             /* Ewald summation with Gaussian charge distributions */
   /* CHANGE END - Gaussian_Ewald */
+  /* CHANGE INIT - Gaussian_Ewald_Dual */
+  FE_FORCE_METHOD_EWALD_GAUSSIAN_DUAL,        /* Gaussian Ewald with separate σ for particles and fluid */
+  /* CHANGE END - Gaussian_Ewald_Dual */
 } fe_force_method_enum_t;
 
 fe_force_method_enum_t fe_force_method_default(void);

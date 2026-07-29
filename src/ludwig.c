@@ -19,6 +19,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+/*CHANGE INIT - 20260714 for the interlacing random-offset hash */
+#include <stdint.h>
+/*CHANGE END - 20260714 */
 
  /* Coordinate system, general */
 #include "pe.h"
@@ -148,12 +151,34 @@ static int refined_grid_factor_ = 2;     /* Refinement factor (2, 4, 8, etc.) */
 subgrid_kernel_t kernel_g = SUBGRID_KERNEL_PESKIN4; // SUBGRID_KERNEL_PESKIN SUBGRID_KERNEL_BSPLINE4 SUBGRID_KERNEL_BSPLINE6 SUBGRID_KERNEL_KB4
 psi_fft_deconv_t deconv_g = PSI_FFT_DECONV_NONE; // PSI_FFT_DECONV_NONE PSI_FFT_DECONV_PESKIN PSI_FFT_DECONV_BSPLINE4 PSI_FFT_DECONV_BSPLINE6
 /* CHANGE INIT - 20260425 Interlacing mode selector:
- *   -1 = No interlacing, use only Grid A (offset=0.0)
- *   0 = Grid A only (offset=0.0, no interlacing)
+ *   0 = No interlacing, use only Grid A (offset=0.0)
  *   1 = Grid B only (offset=0.5, no interlacing)
  *   2 = Full interlacing: average of Grid A and Grid B */
-static int interlacing_mode_ = -1;
+// static int interlacing_mode_ = 0;
+static int interlacing_mode_ = 0;
 /* CHANGE END - 20260425 */
+/*CHANGE INIT - 20260714 interlacing offset from input + random per-step mode.
+ * Input keys (all optional, defaults below):
+ *   interlacing_mode    0|1        (overrides the static above)
+ *   interlacing_offset  <value> | random
+ *   interlacing_seed    <int>     (used only for "random")            */
+static double interlacing_offset_value_  = 0.5;
+static int    interlacing_offset_random_ = 0;
+static int    interlacing_seed_          = 12345;
+/* Offset used this step; needed after the NP multisteps to transport the
+ * ion charge (evolved in the shifted frame) back to the original frame. */
+static double interlacing_u_step_        = 0.0;
+
+/* Deterministic uniform u in [0,1) from (seed, step): splitmix64 hash.
+ * Reproducible run-to-run and identical on every MPI rank. */
+static double interlacing_random_u(int seed, int step) {
+  uint64_t z = (uint64_t)seed * 0x9E3779B97F4A7C15ULL + (uint64_t)step + 1ULL;
+  z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+  z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+  z = z ^ (z >> 31);
+  return (double)(z >> 11) / (double)(1ULL << 53);
+}
+/*CHANGE END - 20260714 */
 /*CHANGE END - 20260119 FFT Poisson solver */
 
 typedef struct ludwig_s ludwig_t;
@@ -468,6 +493,51 @@ static int ludwig_rt(ludwig_t* ludwig) {
   return 0;
 }
 
+/*CHANGE INIT - 20260710 un-shift psi back to the original frame.
+ * The offset cycle solves Poisson with all charge placed at x + u, so the
+ * resulting potential lives in the shifted frame: Psi(y) = psi_true(y - u).
+ * Downstream consumers (Nernst-Planck, diagnostics) work in the original
+ * frame, so we recover psi_true(i) = Psi(i + u) by linear interpolation in X
+ * (exact index relabelling when u is an integer). Periodic wrap in X. */
+static int interlacing_unshift_psi_x(psi_t* psi, double mesh_offset) {
+
+  int nlocal[3];
+  cs_nlocal(psi->cs, nlocal);
+
+  int    m = (int)floor(mesh_offset);
+  double f = mesh_offset - (double)m;
+
+  double* buf = (double*)malloc((size_t)nlocal[X] * sizeof(double));
+  assert(buf);
+
+  for (int jc = 1; jc <= nlocal[Y]; jc++) {
+    for (int kc = 1; kc <= nlocal[Z]; kc++) {
+
+      for (int ic = 1; ic <= nlocal[X]; ic++) {
+        /* Source nodes ic+m and ic+m+1, wrapped to the interior */
+        int i0 = ic + m;
+        int i1 = i0 + 1;
+        while (i0 < 1) i0 += nlocal[X];
+        while (i0 > nlocal[X]) i0 -= nlocal[X];
+        while (i1 < 1) i1 += nlocal[X];
+        while (i1 > nlocal[X]) i1 -= nlocal[X];
+
+        double p0, p1;
+        psi_psi(psi, cs_index(psi->cs, i0, jc, kc), &p0);
+        psi_psi(psi, cs_index(psi->cs, i1, jc, kc), &p1);
+        buf[ic - 1] = (1.0 - f) * p0 + f * p1;
+      }
+      for (int ic = 1; ic <= nlocal[X]; ic++) {
+        psi_psi_set(psi, cs_index(psi->cs, ic, jc, kc), buf[ic - 1]);
+      }
+    }
+  }
+
+  free(buf);
+  return 0;
+}
+/*CHANGE END - 20260710 */
+
 /*CHANGE INIT - 20260425 Interlacing: one full scatter/Poisson/force cycle */
 /******************************************************************************
 * interlacing_one_grid
@@ -521,20 +591,67 @@ static int interlacing_one_grid(ludwig_t* lud,
     // pc->s.r[Z] += mesh_offset;
   }
 
-  /* Scatter fluid into auxiliary buffer with mesh_offset,
-   * then copy to psi->rho and add particle charge on top.
-   * Keep rho_fluid_offset alive — needed by fluid gather after Poisson. */
+  /* CHANGE 20260710b: SPECTRAL fluid transfer to the shifted grid.
+   * The trilinear transfer was exact at integer offsets but attenuates
+   * high-k modes at fractional ones (it kills the Nyquist mode completely
+   * at u = 0.5), artificially widening the screening cloud: at u = 0.5 the
+   * steady particle force even flipped sign vs mode 0 at the same effective
+   * sub-cell offset (validated numerically). The Fourier phase shift
+   * e^{-ik.u} is an EXACT unitary translation for every mode (and an exact
+   * relabelling at integer u): no smoothing artefact at any offset.
+   * The particle keeps the production kernel (argument `kernel`). */
+  /* Old trilinear transfer:
   int rho_buf_n = lud->psi->nsites * lud->psi->nk;
   double* rho_buf = (double*)calloc(rho_buf_n, sizeof(double));
-  double* rho_fluid_offset = (double*)malloc(rho_buf_n * sizeof(double));
-  subgrid_scatter_fluid_offset(lud->collinfo, lud->psi, kernel, mesh_offset,
+  subgrid_scatter_fluid_offset(lud->collinfo, lud->psi,
+                                SUBGRID_KERNEL_TRILINEAR, mesh_offset,
                                 rho_buf, rho_buf_n);
-  memcpy(rho_fluid_offset, rho_buf, rho_buf_n * sizeof(double));
   memcpy(lud->psi->rho->data, rho_buf, rho_buf_n * sizeof(double));
   free(rho_buf);
+  */
+  double* rho_fluid_shifted = NULL;
+  {
+    int nsites_sh = lud->psi->nsites;
+    /* CHANGE 20260715b: transport the (stable, original-frame) fluid cloud to
+     * frame u to build the Poisson source. rho is restored from rho_saved at
+     * the end of the cycle, so this shifted copy does not propagate — only
+     * feeds this step's solve and fluid force.
+     * CHANGE 20260715d: skip the FFT entirely for u=0 (grid A = exact mode 0,
+     * bit-for-bit; avoids the FFT round-trip rounding). */
+    if (mesh_offset != 0.0) {
+      psi_fft_shift_field_keepnyq(lud->psi, &lud->psi->rho->data[0 * nsites_sh],
+                                  mesh_offset, 0.0, 0.0);
+      psi_fft_shift_field_keepnyq(lud->psi, &lud->psi->rho->data[1 * nsites_sh],
+                                  mesh_offset, 0.0, 0.0);
+    }
+    /* Keep a fluid-only copy of the SHIFTED charge: the pointwise fluid
+     * force below must use rho' WITHOUT the particle contribution (the
+     * particle force is handled by subgrid_update_forces_electrokinetics,
+     * exactly as in mode 0 where rho is restored after the solve). */
+    rho_fluid_shifted = (double*)malloc((size_t)rho_ndata * sizeof(double));
+    memcpy(rho_fluid_shifted, lud->psi->rho->data,
+           (size_t)rho_ndata * sizeof(double));
+  }
 
   distributed_charge_klein_t* charge_sg = NULL;
   subgrid_charge_from_particles(lud->collinfo, lud->psi, &charge_sg, kernel);
+
+  /* CHANGE 20260714: band-limit the Poisson source for FRACTIONAL offsets.
+   * The particle's scattered charge has content in the Nyquist-x plane,
+   * which a fractional un-shift of psi must destroy (there is no half-cell
+   * translation of the (-1)^i mode). Killing that plane in the SOURCE keeps
+   * every field of the cycle inside the band-limited subspace |mx| < nx/2,
+   * where the spectral shift is exactly unitary for any u: the -u un-shift
+   * of psi for NP then loses nothing, eliminating the artificial per-step
+   * pumping of the ion cloud. Physically this is a one-plane band-limit of
+   * the kernel, identical for every offset (no delta-dependent bias).
+   * Integer offsets skip this (everything is exact by relabelling). */
+  if (mesh_offset != floor(mesh_offset)) {
+    int nsites_bl = lud->psi->nsites;
+    psi_fft_kill_nyquist(lud->psi, &lud->psi->rho->data[0 * nsites_bl], 1, 0, 0);
+    psi_fft_kill_nyquist(lud->psi, &lud->psi->rho->data[1 * nsites_bl], 1, 0, 0);
+  }
+
   psi_halo_rho(lud->psi);
 
   /* Restore particle positions */
@@ -567,11 +684,15 @@ static int interlacing_one_grid(ludwig_t* lud,
   /* Poisson solve */
   lud->poisson->impl->solve(lud->poisson, step);
 
-  /* Restore rho to fluid-only-offset distribution before fluid gather:
-   * psi_force_gradmu_offset must see the same fluid charge used for scatter,
-   * so the gather is the exact adjoint of the scatter. */
-  memcpy(lud->psi->rho->data, rho_fluid_offset, rho_buf_n * sizeof(double));
-  free(rho_fluid_offset);
+  /* CHANGE 20260710c: do NOT spectrally shift psi before the particle force.
+   * The fractional spectral shift necessarily kills the Nyquist plane
+   * (cos(pi*u) = 0 at u = 0.5), and psi contains the particle's own sharp
+   * spread: removing that plane leaves a residual field at the particle of
+   * ~1e-3 solver units -> spurious force ~1e-8 (observed). Rule: the
+   * spectral shift may only touch SMOOTH consumers (fluid rho, fluid force
+   * field, psi for NP) — never the field the particle force is read from.
+   * The particle force is therefore evaluated in the SHIFTED frame, where
+   * psi is untouched and the gather at r+u is exact. */
 
   subgrid_free_distributed_charge_t(&charge_sg);
 
@@ -583,16 +704,50 @@ static int interlacing_one_grid(ludwig_t* lud,
     TIMER_stop(TIMER_HALO_LATTICE);
   }
 
-  /* Sync psi and update all halos needed by force calculation
-   * (matches psi_halo_psi/psijump/rho sequence in the original multistep loop) */
+  /* Restore rho to the SHIFTED FLUID-ONLY state (drop the particle charge)
+   * before the fluid force, matching the mode-0 restore-after-solve. */
+  memcpy(lud->psi->rho->data, rho_fluid_shifted,
+         (size_t)rho_ndata * sizeof(double));
+  free(rho_fluid_shifted);
+  rho_fluid_shifted = NULL;
+
+  /* Sync psi' (shifted frame) and halos. */
   psi_halo_psi(lud->psi);
   psi_halo_psijump(lud->psi);
   psi_halo_rho(lud->psi);
   field_memcpy(lud->psi->psi, tdpMemcpyHostToDevice);
 
-  /* psi_force_gradmu with mesh_offset (adjoint of fluid scatter) */
-  psi_force_gradmu_offset(lud->psi, lud->fe, lud->phi,
-                lud->hydro, lud->map, lud->collinfo, kernel, mesh_offset);
+  /* CHANGE 20260710c: fluid force computed POINTWISE in the shifted frame,
+   * F'(i) = rho'(i) * E'(i), captured as a delta and translated back to the
+   * original frame with the spectral shift. The force field is smooth and
+   * its k=0 mode is invariant under the phase shift, so the TOTAL fluid
+   * force (momentum) is conserved exactly; the Nyquist loss is a tiny,
+   * zero-mean, distributed redistribution — no systematic particle bias. */
+  {
+    int fn = lud->hydro->nsite;
+    size_t fbytes = (size_t)3 * fn * sizeof(double);
+    double* f0 = (double*)malloc(fbytes);
+    memcpy(f0, lud->hydro->force->data, fbytes);
+
+    psi_force_gradmu(lud->psi, lud->fe, lud->phi,
+                     lud->hydro, lud->map, lud->collinfo, kernel);
+
+    /* CHANGE 20260715d: for u=0 the fluid force is already in the original
+     * frame (mode 0); skip the delta extraction and shift entirely. */
+    if (mesh_offset != 0.0) {
+      /* delta = force - f0, per component (SOA planes of size nsite) */
+      for (int ia = 0; ia < 3; ia++) {
+        double* plane = &lud->hydro->force->data[(size_t)ia * fn];
+        double* base  = &f0[(size_t)ia * fn];
+        for (int is = 0; is < fn; is++) plane[is] -= base[is];
+        /* translate the delta force field back to the original frame with
+         * KEEPNYQ (unitary; k=0 invariant -> momentum exact). */
+        psi_fft_shift_field_keepnyq(lud->psi, plane, -mesh_offset, 0.0, 0.0);
+        for (int is = 0; is < fn; is++) plane[is] += base[is];
+      }
+    }
+    free(f0);
+  }
 
   TIMER_start(TIMER_HALO_LATTICE);
   psi_halo_psi(lud->psi);
@@ -607,8 +762,9 @@ static int interlacing_one_grid(ludwig_t* lud,
 
   psi_zero_mean(lud->psi);
 
-  /* Particle force: shift particle to offset position for gather,
-   * so E field is evaluated at the same grid-relative position as the scatter. */
+  /* CHANGE 20260710c: particle field gather in the SHIFTED frame (exact):
+   * particle at r+u reads psi' — no spectral operation involved. The
+   * reaction is then distributed at the TRUE position r (original frame). */
   colloid_t* pc2 = NULL;
   colloids_info_local_head(lud->collinfo, &pc2);
   for (; pc2 != NULL; pc2 = pc2->nextlocal) {
@@ -618,11 +774,21 @@ static int interlacing_one_grid(ludwig_t* lud,
   }
 
   subgrid_update_Esub(lud->collinfo, lud->psi, step, fp, lud->pe, kernel);
-  subgrid_update_forces_electrokinetics(lud->collinfo, lud->map,
-                                        lud->phys, lud->psi, lud->hydro,
-                                        kernel);
 
-  /* Restore particle positions after gather */
+  /*DIAG 20260715e: Esub of the particle in this grid (u = mesh_offset). Grid
+   * B (u=0.5) in the 2-grid should match grid-B-alone (~2e-13 -> Esub ~ ?).
+   * If it does not, the field the particle senses is contaminated by grid A. */
+  {
+    static int desub = 0;
+    if (desub++ < 12) {
+      colloid_t* pd = NULL;
+      colloids_info_local_head(lud->collinfo, &pd);
+      if (pd)
+        printf("[Esub] step=%d u=%.3f Esub_x=%+.6e\n",
+               step, mesh_offset, pd->Esub[X]);
+    }
+  }
+
   colloids_info_local_head(lud->collinfo, &pc2);
   for (; pc2 != NULL; pc2 = pc2->nextlocal) {
     pc2->s.r[X] -= mesh_offset;
@@ -630,6 +796,23 @@ static int interlacing_one_grid(ludwig_t* lud,
     // pc2->s.r[Z] -= mesh_offset;
   }
 
+  subgrid_update_forces_electrokinetics(lud->collinfo, lud->map,
+                                        lud->phys, lud->psi, lud->hydro,
+                                        kernel);
+
+  /* CHANGE 20260715d: un-shift psi to the original frame and restore rho.
+   * For u=0 (grid A) this is exact mode 0 with no FFT. For grid B (u=0.5)
+   * the caller discards this psi/rho anyway (only grid B's FORCES are used,
+   * NP runs on grid A's psi), so the un-shift here is only for consistency. */
+  if (mesh_offset != 0.0) {
+    psi_fft_shift_field(lud->psi, lud->psi->psi->data, -mesh_offset, 0.0, 0.0);
+  }
+  memcpy(lud->psi->rho->data, rho_saved, rho_ndata * sizeof(double));
+
+  psi_halo_psi(lud->psi);
+  psi_halo_rho(lud->psi);
+  field_memcpy(lud->psi->psi, tdpMemcpyHostToDevice);
+  field_memcpy(lud->psi->rho, tdpMemcpyHostToDevice);
 
   return 0;
 }
@@ -650,7 +833,14 @@ void ludwig_run(const char* inputfile) {
   double  fzero[3] = { 0.0, 0.0, 0.0 };
   double  uzero[3] = { 0.0, 0.0, 0.0 };
   int     im, multisteps;
-  int	  flag;
+  int	    flag;
+  /* CHANGE INIT - EWALD*/
+  int     flag_ewald = -1;  /* Using Ewald solver */
+  /* CHANGE END - EWALD*/
+  /*CHANGE INIT - 20260625 PM short-range correction tables */
+  pm_sr_table_t* pm_sr_radial = NULL;
+  pm_sr_table_t* pm_sr_3d = NULL;
+  /*CHANGE END - 20260625 */
 
   ludwig_t* ludwig = NULL;
   MPI_Comm comm;
@@ -696,6 +886,74 @@ void ludwig_run(const char* inputfile) {
   rt_info(ludwig->rt);
 
   ludwig_rt(ludwig);
+
+  /*CHANGE INIT - 20260629 select subgrid kernel from input file */
+  {
+    char kstr[BUFSIZ];
+    if (rt_string_parameter(ludwig->rt, "subgrid_kernel", kstr, BUFSIZ) == 1) {
+      if      (strcmp(kstr, "peskin4")  == 0) kernel_g = SUBGRID_KERNEL_PESKIN4;
+      else if (strcmp(kstr, "peskin6")  == 0) kernel_g = SUBGRID_KERNEL_PESKIN6;
+      else if (strcmp(kstr, "bspline4") == 0) kernel_g = SUBGRID_KERNEL_BSPLINE4;
+      else if (strcmp(kstr, "bspline6") == 0) kernel_g = SUBGRID_KERNEL_BSPLINE6;
+      else if (strcmp(kstr, "kb4")      == 0) kernel_g = SUBGRID_KERNEL_KB4;
+      /*CHANGE INIT - 20260630 Hann spread/gather kernel */
+      else if (strcmp(kstr, "hann")     == 0) kernel_g = SUBGRID_KERNEL_HANN;
+      /*CHANGE END - 20260630 */
+      else pe_fatal(ludwig->pe,
+                    "Unknown subgrid_kernel '%s' (use peskin4|peskin6|bspline4|bspline6|kb4|hann)\n",
+                    kstr);
+      pe_info(ludwig->pe, "Subgrid kernel set from input: %s\n", kstr);
+    }
+    /*CHANGE INIT - 20260630 Hann kernel order (n = support width) from input.
+     * n must be a positive integer: partition of unity holds for any integer n
+     * (the FT of the truncated raised cosine has zeros at all non-zero integer
+     * frequencies). Odd n is allowed; it just makes the number of active nodes
+     * vary between n and n-1 with the sub-grid offset (even n gives a more
+     * uniform stencil). rt_int_parameter rejects non-integer values by parsing. */
+    {
+      int hann_n = 0;
+      if (rt_int_parameter(ludwig->rt, "subgrid_hann_order", &hann_n) == 1) {
+        if (hann_n <= 0) {
+          pe_info(ludwig->pe, "subgrid_hann_order: %d\n", hann_n);
+          pe_fatal(ludwig->pe,
+                   "subgrid_hann_order must be a positive integer. "
+                   "Please check and try again!\n");
+        }
+        subgrid_set_hann_order((double) hann_n);
+        pe_info(ludwig->pe, "Hann kernel order set from input: %d\n", hann_n);
+      }
+    }
+    /*CHANGE END - 20260630 */
+  }
+  /*CHANGE END - 20260629 */
+
+  /*CHANGE INIT - 20260714 interlacing configuration from input */
+  {
+    int iv;
+    char ostr[BUFSIZ];
+    if (rt_int_parameter(ludwig->rt, "interlacing_mode", &iv) == 1) {
+      if (iv != 0 && iv != 1)
+        pe_fatal(ludwig->pe, "interlacing_mode must be 0 or 1\n");
+      interlacing_mode_ = iv;
+      pe_info(ludwig->pe, "Interlacing mode set from input: %d\n", iv);
+    }
+    if (rt_string_parameter(ludwig->rt, "interlacing_offset", ostr, BUFSIZ) == 1) {
+      if (strcmp(ostr, "random") == 0) {
+        interlacing_offset_random_ = 1;
+        pe_info(ludwig->pe, "Interlacing offset: RANDOM per step (X axis)\n");
+      }
+      else {
+        interlacing_offset_value_ = atof(ostr);
+        pe_info(ludwig->pe, "Interlacing offset set from input: %g\n",
+                interlacing_offset_value_);
+      }
+    }
+    if (rt_int_parameter(ludwig->rt, "interlacing_seed", &iv) == 1) {
+      interlacing_seed_ = iv;
+      pe_info(ludwig->pe, "Interlacing random seed: %d\n", iv);
+    }
+  }
+  /*CHANGE END - 20260714 */
 
   statvel.print_vol_flux = rt_switch(ludwig->rt, "stats_vel_print_vol_flux");
 
@@ -754,13 +1012,18 @@ void ludwig_run(const char* inputfile) {
   if (fp == NULL) {
     fp = fopen("./proceced_data/particle_Esub.csv", "w");
     if (fp != NULL) {
-      // fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;Eself_X;Eself_Y;Eself_Z\n");
-      fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z;EmodPB;EPB_X;EPB_Y;EPB_Z\n");
+      fprintf(fp, "# Step;Index;Emod;Esub_X;Esub_Y;Esub_Z\n");
+      fflush(fp);
+      pe_info(ludwig->pe, "particle_Esub.csv: created new file\n");
+    }
+    else {
+      pe_info(ludwig->pe, "WARNING: could not open particle_Esub.csv for writing\n");
     }
   }
   else {
     fclose(fp);
     fp = fopen("./proceced_data/particle_Esub.csv", "a");
+    pe_info(ludwig->pe, "particle_Esub.csv: appending to existing file\n");
   }
 
   // subgrid_set_kb4_beta(5.5);
@@ -773,7 +1036,20 @@ void ludwig_run(const char* inputfile) {
     ewald_charge_set_cinfo(ewald, ludwig->collinfo);
     ewald_charge_set_map(ewald, ludwig->map);
     ewald_charge_set_hydro(ewald, ludwig->hydro);
-    psi_solver_ewald_gaussian_set_fp((psi_solver_ewald_gaussian_t*)ludwig->poisson, fp);
+    /*CHANGE INIT - 20260610 dual solver writes to ewald_charge_forces.csv, not particle_Esub.csv */
+    {
+      int psi_method = 0;
+      psi_force_method(ludwig->psi, &psi_method);
+      if (psi_method == PSI_FORCE_EWALD_GAUSSIAN_DUAL) {
+        psi_solver_ewald_gaussian_dual_set_fp(
+            (psi_solver_ewald_gaussian_dual_t*)ludwig->poisson, fpforce);
+      }
+      else {
+        psi_solver_ewald_gaussian_set_fp(
+            (psi_solver_ewald_gaussian_t*)ludwig->poisson, fp);
+      }
+    }
+    /*CHANGE END - 20260610 */
     // /* INICIALIZACIÓN EWALD charge */
     // char description[BUFSIZ];
     // int n;
@@ -834,7 +1110,90 @@ void ludwig_run(const char* inputfile) {
   }
   /*CHANGE END - 20260512 */
 
+  psi_force_method(ludwig->psi, &flag);
+  if (flag == PSI_FORCE_EWALD || flag == PSI_FORCE_EWALD_GAUSSIAN ||
+            flag == PSI_FORCE_EWALD_GAUSSIAN_DUAL) {
+    flag_ewald = 1;
+    pe_info(ludwig->pe, "Using Ewald solver\n");
+  }
+  else {
+    flag_ewald = 0;
+    pe_info(ludwig->pe, "Using non-Ewald solver\n");
+  }
+
   // CHANGE END - Subgrid charge debug data
+
+  /*CHANGE INIT - 20260625 PM short-range correction tables */
+  /* Enabled by "pm_sr_correction yes" in the input file. When disabled the
+   * tables are not built (pm_sr_radial stays NULL), so the correction calls
+   * in the time loop, all guarded by "if (pm_sr_radial)", become no-ops. */
+  if (ludwig->psi && rt_switch(ludwig->rt, "pm_sr_correction")) {
+    int psolver = ludwig->psi->solver.psolver;
+    if (psolver == PSI_POISSON_SOLVER_PETSC ||
+        psolver == PSI_POISSON_SOLVER_FFT) {
+
+      double epsilon = 0.0, beta = 0.0;
+      psi_epsilon(ludwig->psi, &epsilon);
+      psi_beta(ludwig->psi, &beta);
+      /* The PM solver Green function is G = beta/(4*pi*epsilon*r), i.e. the
+       * potential of a unit charge carries a factor beta (see
+       * psi_fft_pn_correct_potential_hockney: G_Coulomb = beta/(epsilon*r)).
+       * To produce 1/(4*pi*epsilon_eff*r) == beta/(4*pi*epsilon*r) the table
+       * must use epsilon_eff = epsilon/beta. */
+      double epsilon_eff = epsilon / beta;
+
+      /* Kernel range from subgrid_get_range: 1 for Peskin4/Bspline4/KB4,
+       * 2 for Peskin6/Bspline6. The scatter loop spans [-krange, krange+1]. */
+      int krange = subgrid_get_range(kernel_g);
+
+      /* Defaults (override from input below).
+       * CHANGE 20260724: sigma is now FIXED at 0.7, no longer 0.7*krange.
+       * The Gaussian is the physical reference charge shape (the particle's
+       * own size), which does not change just because a wider spread kernel
+       * is used. With sigma proportional to krange the reference needed
+       * r_cut ~ 3.5*sigma = 2.45*krange to converge to point Coulomb, while
+       * the default r_cut = 2+krange fell short for wide kernels: for hann12
+       * (krange=6, sigma=4.2) E_gauss/E_coul at r_cut=8 was only 0.70, so
+       * delta_E(r_cut) != 0 and the truncation produced a large step in the
+       * field (observed: jump at r=8, ~65% error inside). With sigma fixed,
+       * r_cut = 2+krange >= 4 always satisfies r_cut >= 2.9*sigma. */
+      double pm_sr_sigma = 0.7;
+      double pm_sr_rcut  = (double)(2 + krange);
+      int    pm_sr_nvoxel = 8;   /* sub-voxel resolution for PM estimate */
+      int    pm_sr_nr3d   = 32;  /* nr for 3D table: resolution per axis */
+
+      /* Optional overrides from the input file (same style as ewald_*). */
+      {
+        double v;
+        int    iv;
+        if (rt_double_parameter(ludwig->rt, "pm_sr_sigma", &v) == 1) pm_sr_sigma = v;
+        if (rt_double_parameter(ludwig->rt, "pm_sr_rcut",  &v) == 1) pm_sr_rcut  = v;
+        if (rt_int_parameter(ludwig->rt, "pm_sr_nvoxel", &iv) == 1)  pm_sr_nvoxel = iv;
+        if (rt_int_parameter(ludwig->rt, "pm_sr_nr3d",   &iv) == 1)  pm_sr_nr3d   = iv;
+      }
+
+      pe_info(ludwig->pe, "\n");
+      pe_info(ludwig->pe, "Building PM short-range correction tables\n");
+      pe_info(ludwig->pe, "  kernel half-support (krange) = %d\n", krange);
+      pe_info(ludwig->pe, "  sigma   = %.4g\n", pm_sr_sigma);
+      pe_info(ludwig->pe, "  r_cut   = %.4g\n", pm_sr_rcut);
+      pe_info(ludwig->pe, "  n_voxel = %d\n", pm_sr_nvoxel);
+      pe_info(ludwig->pe, "  nr (3D) = %d\n", pm_sr_nr3d);
+
+      if (pm_sr_table_build_radial(pm_sr_sigma, pm_sr_rcut,
+        pm_sr_nvoxel, epsilon_eff, kernel_g,
+        &pm_sr_radial) != 0)
+        pe_fatal(ludwig->pe, "pm_sr_table_build_radial failed\n");
+
+      if (pm_sr_table_build_3d(pm_sr_sigma, pm_sr_rcut,
+        pm_sr_nr3d, pm_sr_nvoxel, epsilon_eff, kernel_g,
+        &pm_sr_3d) != 0)
+        pe_fatal(ludwig->pe, "pm_sr_table_build_3d failed\n");
+
+      pe_info(ludwig->pe, "PM short-range correction tables built.\n");
+    }
+  }
+  /*CHANGE END - 20260625 PM short-range correction tables */
 
   while (physics_control_next_step(ludwig->phys)) {
 
@@ -935,154 +1294,196 @@ void ludwig_run(const char* inputfile) {
       //   printf("[rho_saved_col] step=%d total_Q_net=%.6e\n", step, q0_tot);
       // }
 
-      if (interlacing_mode_ == -1)
-      {
+      // if (interlacing_mode_ == -1)
+      // {
 
-        // Deberia llamar a  ewald_charge_sum_full_gpu si configure bien el input
-        // TIMER_start(TIMER_ELECTRO_POISSON);
-        // ludwig->poisson->impl->solve(ludwig->poisson, step);
-        // TIMER_stop(TIMER_ELECTRO_POISSON);
+      //   /*Solve using Ewald Sum using point charges o gaussian distribution*/
+      //   psi_force_method(ludwig->psi, &flag);
+      //   if (flag == PSI_FORCE_EWALD || flag == PSI_FORCE_EWALD_GAUSSIAN ||
+      //       flag == PSI_FORCE_EWALD_GAUSSIAN_DUAL) {
+      //     ludwig->poisson->impl->solve(ludwig->poisson, step);
+      //   }
 
-        /*Solve using Ewald Sum*/
-        psi_force_method(ludwig->psi, &flag);
-        if (flag == PSI_FORCE_EWALD || flag == PSI_FORCE_EWALD_GAUSSIAN) {
+      //   /* // ///////////// Codigos de prueba para resolver con ewald con cargas puntuales o gausianas
+
+      //   // Deberia llamar a  ewald_charge_sum_full_gpu si configure bien el input
+      //   // TIMER_start(TIMER_ELECTRO_POISSON);
+      //   // ludwig->poisson->impl->solve(ludwig->poisson, step);
+      //   // TIMER_stop(TIMER_ELECTRO_POISSON);
+
+      //   // ///////////// CALCULA EWALD Y FUERZAS EN CADA PASO, GUARDA EN ARCHIVO PARA VERIFICACIÓN DE POISSON
+      //   // ewald_charge_sum_full_gpu(ewald, fpforce, self_table);
+      //   // if (is_config_step() || step == 1) {
+      //   //   ewald_charge_sum_full_gpu_poisson_force(ewald, fpforce, self_table, step);
+      //   // }
+      //   // ///////////// CALCULA EWALD Y FUERZAS EN CADA PASO, GUARDA EN ARCHIVO PARA VERIFICACIÓN DE POISSON
+
+      //   ///////////// CALCULA EWALD CON GAUSIANAS
+      //   // ewald_charge_sum_full_gaussian_gpu(ewald, fpforce, ewald_gauss_sigma);
+      //   ///////////// CALCULA EWALD CON GAUSIANAS
+
+      //      // ///////////// Codigos de prueba para resolver con ewald con cargas puntuales o gausianas*/
+
+      // }
+      // else if (interlacing_mode_ == 0) {
+      if (interlacing_mode_ == 0) {
+
+        if (flag_ewald == 0) { /* Solve POISSON using a grid based method */
+
+          int rho_ndata = ludwig->psi->nsites * ludwig->psi->nk;
+          double* rho_saved = (double*)malloc(rho_ndata * sizeof(double));
+          memcpy(rho_saved, ludwig->psi->rho->data, rho_ndata * sizeof(double));
+
+          /* --- Original path: scatter + Poisson only, forces calculated below --- */
+          // distributed_charge_klein_t* charge = NULL;
+          distributed_charge_klein_t* charge_sg = NULL;
+          // Si se distribuye la carga de la grilla usando un kernel
+          // subgrid_charge_from_grid(ludwig->collinfo, ludwig->psi, &charge, kernel_g);
+          subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge_sg, kernel_g);
+          psi_halo_rho(ludwig->psi);
+
+          /* Solve POISSON using a grid based method (PETSc, FFT, etc)*/
+          TIMER_start(TIMER_ELECTRO_POISSON);
           ludwig->poisson->impl->solve(ludwig->poisson, step);
+          TIMER_stop(TIMER_ELECTRO_POISSON);
+
+          // subgrid_free_distributed_charge_t(&charge);
+          subgrid_free_distributed_charge_t(&charge_sg);
+          memcpy(ludwig->psi->rho->data, rho_saved, rho_ndata * sizeof(double));
+          free(rho_saved);
+
+
         }
+        else {
 
-        // ///////////// CALCULA EWALD Y FUERZAS EN CADA PASO, GUARDA EN ARCHIVO PARA VERIFICACIÓN DE POISSON
-        // ewald_charge_sum_full_gpu(ewald, fpforce, self_table);
-        // if (is_config_step() || step == 1) {
-        //   ewald_charge_sum_full_gpu_poisson_force(ewald, fpforce, self_table, step);
-        // }
-        // ///////////// CALCULA EWALD Y FUERZAS EN CADA PASO, GUARDA EN ARCHIVO PARA VERIFICACIÓN DE POISSON
-
-        ///////////// CALCULA EWALD CON GAUSIANAS 
-        // ewald_charge_sum_full_gaussian_gpu(ewald, fpforce, ewald_gauss_sigma);
-        ///////////// CALCULA EWALD CON GAUSIANAS 
-      }
-      else if (interlacing_mode_ == 0) {
-
-        int rho_ndata = ludwig->psi->nsites * ludwig->psi->nk;
-        double* rho_saved = (double*)malloc(rho_ndata * sizeof(double));
-        memcpy(rho_saved, ludwig->psi->rho->data, rho_ndata * sizeof(double));
-
-        /* --- Original path: scatter + Poisson only, forces calculated below --- */
-        distributed_charge_klein_t* charge = NULL;
-        distributed_charge_klein_t* charge_sg = NULL;
-        subgrid_charge_from_grid(ludwig->collinfo, ludwig->psi, &charge, kernel_g);
-        subgrid_charge_from_particles(ludwig->collinfo, ludwig->psi, &charge_sg, kernel_g);
-        psi_halo_rho(ludwig->psi);
-
-        TIMER_start(TIMER_ELECTRO_POISSON);
-        ludwig->poisson->impl->solve(ludwig->poisson, step);
-        TIMER_stop(TIMER_ELECTRO_POISSON);
-
-        // subgrid_free_distributed_charge_t(&charge);
-        subgrid_free_distributed_charge_t(&charge_sg);
-        memcpy(ludwig->psi->rho->data, rho_saved, rho_ndata * sizeof(double));
-        free(rho_saved);
+          /* Solve POISSON using EWALD based method*/
+          TIMER_start(TIMER_ELECTRO_POISSON);
+          ludwig->poisson->impl->solve(ludwig->poisson, step);
+          TIMER_stop(TIMER_ELECTRO_POISSON);
+        }
 
       }
       else {
 
+        /*CHANGE INIT - 20260715d DETERMINISTIC 2-grid interlacing.
+         * Grid A at u=0 (= exact mode 0: no FFT shift; its psi feeds NP, so
+         * the ion cloud is perfectly stable). Grid B at u=0.5 (spectral).
+         * Forces are AVERAGED F = 1/2(F_A + F_B) on BOTH fluid and particle
+         * BEFORE the fluid integrates them: the u=0.5 grid cancels the first
+         * (dominant) pinning harmonic deterministically. Unlike the random
+         * shift, the applied force is the SAME smooth 1/2(F_A+F_B) every step
+         * -> no decorrelated kicks -> the fluid reaches a steady balance
+         * (no injected diffusion). NP uses grid A's psi only (mode 0). */
         int rho_ndata = ludwig->psi->nsites * ludwig->psi->nk;
         double* rho_saved = (double*)malloc(rho_ndata * sizeof(double));
         memcpy(rho_saved, ludwig->psi->rho->data, rho_ndata * sizeof(double));
 
-        /* --- Interlacing path: two full scatter/Poisson/force cycles --- */
         int il_flag = 0;
         psi_force_method(ludwig->psi, &il_flag);
 
         int force_ndata = ludwig->hydro->nsite * NHDIM;
         int n_local_colloids = 0;
         colloids_info_nlocal(ludwig->collinfo, &n_local_colloids);
-        double mesh_offset_A = 1.0;
-        double mesh_offset_B = 0.0; /* TEST: both grids identical, result must equal mode 0 */
 
-        /* Grid A (or Grid B only when mode==1) */
+        const double mesh_offset_A = 0.0;   /* grid A = mode 0 */
+        const double mesh_offset_B = 0.5;   /* grid B = staggered */
+
+        /* --- Grid A (u=0): exact mode 0. Leaves psi/rho for NP. --- */
         TIMER_start(TIMER_ELECTRO_POISSON);
         interlacing_one_grid(ludwig, rho_saved, rho_ndata, mesh_offset_A,
                              kernel_g, step, fp, il_flag);
         TIMER_stop(TIMER_ELECTRO_POISSON);
 
-        /* DIAG: print total force on fluid and particle after interlacing_one_grid */
+        /* Save grid-A forces (fluid field + particle fex), then reset the
+         * force accumulators so grid B starts clean. psi/rho are preserved
+         * (grid A's, in the original frame) for NP below. */
+        double* force_A = (double*)malloc(force_ndata * sizeof(double));
+        hydro_memcpy(ludwig->hydro, tdpMemcpyDeviceToHost);
+        memcpy(force_A, ludwig->hydro->force->data, force_ndata * sizeof(double));
+        double (*pc_force_A)[3] = NULL;
+        if (n_local_colloids > 0)
+          pc_force_A = (double(*)[3])malloc(n_local_colloids * 3 * sizeof(double));
+        {
+          int ip = 0; colloid_t* pc = NULL;
+          colloids_info_local_head(ludwig->collinfo, &pc);
+          for (; pc != NULL; pc = pc->nextlocal, ip++) {
+            pc_force_A[ip][X] = pc->fex[X];
+            pc_force_A[ip][Y] = pc->fex[Y];
+            pc_force_A[ip][Z] = pc->fex[Z];
+            pc->fex[X] = 0.0; pc->fex[Y] = 0.0; pc->fex[Z] = 0.0;
+          }
+        }
+        { const double fz[3] = {0.0,0.0,0.0}; hydro_f_zero(ludwig->hydro, fz); }
+        hydro_memcpy(ludwig->hydro, tdpMemcpyHostToDevice);
+
+        /* Snapshot grid-A psi/rho (for NP) before grid B overwrites them. */
+        double* psiA = (double*)malloc(ludwig->psi->nsites * sizeof(double));
+        double* rhoA = (double*)malloc(rho_ndata * sizeof(double));
+        memcpy(psiA, ludwig->psi->psi->data, ludwig->psi->nsites * sizeof(double));
+        memcpy(rhoA, ludwig->psi->rho->data, rho_ndata * sizeof(double));
+
+        /* --- Grid B (u=0.5): staggered. Only its FORCES are used. --- */
+        TIMER_start(TIMER_ELECTRO_POISSON);
+        interlacing_one_grid(ludwig, rho_saved, rho_ndata, mesh_offset_B,
+                             kernel_g, step, fp, il_flag);
+        TIMER_stop(TIMER_ELECTRO_POISSON);
+
+        /* Average forces: F = 1/2(F_A + F_B) on fluid and particle. */
+        hydro_memcpy(ludwig->hydro, tdpMemcpyDeviceToHost);
+        for (int idx = 0; idx < force_ndata; idx++)
+          ludwig->hydro->force->data[idx] =
+            0.5 * (force_A[idx] + ludwig->hydro->force->data[idx]);
+        {
+          int ip = 0; colloid_t* pc = NULL;
+          colloids_info_local_head(ludwig->collinfo, &pc);
+          for (; pc != NULL; pc = pc->nextlocal, ip++) {
+            /*DIAG 20260715e: separate fex of A and B before averaging */
+            static int dfc = 0;
+            if (dfc++ < 8)
+              printf("[fexAB] step=%d fexA_x=%+.6e fexB_x=%+.6e\n",
+                     step, pc_force_A[ip][X], pc->fex[X]);
+            pc->fex[X] = 0.5 * (pc_force_A[ip][X] + pc->fex[X]);
+            pc->fex[Y] = 0.5 * (pc_force_A[ip][Y] + pc->fex[Y]);
+            pc->fex[Z] = 0.5 * (pc_force_A[ip][Z] + pc->fex[Z]);
+          }
+        }
+        free(force_A);
+        if (pc_force_A) free(pc_force_A);
+
+        /* Restore grid-A psi/rho for NP (grid B left its own). */
+        memcpy(ludwig->psi->psi->data, psiA, ludwig->psi->nsites * sizeof(double));
+        memcpy(ludwig->psi->rho->data, rhoA, rho_ndata * sizeof(double));
+        free(psiA); free(rhoA);
+        psi_halo_psi(ludwig->psi);
+        psi_halo_rho(ludwig->psi);
+        field_memcpy(ludwig->psi->psi, tdpMemcpyHostToDevice);
+        field_memcpy(ludwig->psi->rho, tdpMemcpyHostToDevice);
+
+        /* DIAG: momentum + averaged forces */
         {
           static int diag_il_count = 0;
-          if (diag_il_count++ < 2) {
-            int nlocal_d[3];
-            cs_nlocal(ludwig->psi->cs, nlocal_d);
-            double ffluid[3] = { 0.0, 0.0, 0.0 };
-            hydro_memcpy(ludwig->hydro, tdpMemcpyDeviceToHost);
-            for (int ic_d = 1; ic_d <= nlocal_d[X]; ic_d++)
-              for (int jc_d = 1; jc_d <= nlocal_d[Y]; jc_d++)
-                for (int kc_d = 1; kc_d <= nlocal_d[Z]; kc_d++) {
-                  int idx_d = cs_index(ludwig->psi->cs, ic_d, jc_d, kc_d);
-                  double f[3];
-                  hydro_f_local(ludwig->hydro, idx_d, f);
-                  ffluid[X] += f[X]; ffluid[Y] += f[Y]; ffluid[Z] += f[Z];
-                }
-            double fpart[3] = { 0.0, 0.0, 0.0 };
+          if (diag_il_count++ < 4) {
+            double fpart[3] = {0,0,0};
             colloid_t* pc_d = NULL;
             colloids_info_local_head(ludwig->collinfo, &pc_d);
             for (; pc_d != NULL; pc_d = pc_d->nextlocal) {
-              fpart[X] += pc_d->fex[X]; fpart[Y] += pc_d->fex[Y]; fpart[Z] += pc_d->fex[Z];
+              fpart[X]+=pc_d->fex[X]; fpart[Y]+=pc_d->fex[Y]; fpart[Z]+=pc_d->fex[Z];
             }
-            printf("[IL_DIAG] step=%d offset_A=%.3f ffluid=(%+.6e,%+.6e,%+.6e) fpart=(%+.6e,%+.6e,%+.6e) ftot=(%+.6e,%+.6e,%+.6e)\n",
-                   step, mesh_offset_A,
-                   ffluid[X], ffluid[Y], ffluid[Z],
-                   fpart[X], fpart[Y], fpart[Z],
-                   ffluid[X] + fpart[X], ffluid[Y] + fpart[Y], ffluid[Z] + fpart[Z]);
+            int nl[3]; cs_nlocal(ludwig->psi->cs, nl);
+            double ff[3]={0,0,0};
+            for (int ic=1;ic<=nl[X];ic++) for(int jc=1;jc<=nl[Y];jc++) for(int kc=1;kc<=nl[Z];kc++){
+              double f[3]; hydro_f_local(ludwig->hydro, cs_index(ludwig->psi->cs,ic,jc,kc), f);
+              ff[X]+=f[X]; ff[Y]+=f[Y]; ff[Z]+=f[Z];
+            }
+            printf("[IL2] step=%d ffluid_x=%+.6e fpart_x=%+.6e ftot_x=%+.6e\n",
+                   step, ff[X], fpart[X], ff[X]+fpart[X]);
           }
         }
 
-        // if (interlacing_mode_ == 2) {
-
-        //   /* Save Grid A results */
-        //   double* force_A = (double*)malloc(force_ndata * sizeof(double));
-        //   double (*pc_force_A)[3] = NULL;
-        //   if (n_local_colloids > 0)
-        //     pc_force_A = (double(*)[3])malloc(n_local_colloids * 3 * sizeof(double));
-
-        //   memcpy(force_A, ludwig->hydro->force->data, force_ndata * sizeof(double));
-        //   {
-        //     int ip = 0; colloid_t* pc = NULL;
-        //     colloids_info_local_head(ludwig->collinfo, &pc);
-        //     for (; pc != NULL; pc = pc->nextlocal, ip++) {
-        //       pc_force_A[ip][X] = pc->fex[X];
-        //       pc_force_A[ip][Y] = pc->fex[Y];
-        //       pc_force_A[ip][Z] = pc->fex[Z];
-        //       pc->fex[X] = 0.0; pc->fex[Y] = 0.0; pc->fex[Z] = 0.0;
-        //     }
-        //   }
-        //   { const double fz[3] = {0.0,0.0,0.0}; hydro_f_zero(ludwig->hydro, fz); }
-
-        //   /* Grid B */
-        //   TIMER_start(TIMER_ELECTRO_POISSON);
-        //   interlacing_one_grid(ludwig, rho_saved, rho_ndata, mesh_offset_B,
-        //                        kernel_g, step, fp, il_flag);
-        //   TIMER_stop(TIMER_ELECTRO_POISSON);
-
-        //   /* Average */
-        //   for (int idx = 0; idx < force_ndata; idx++)
-        //     ludwig->hydro->force->data[idx] =
-        //       0.5*(force_A[idx] + ludwig->hydro->force->data[idx]);
-        //   free(force_A);
-        //   {
-        //     int ip = 0; colloid_t* pc = NULL;
-        //     colloids_info_local_head(ludwig->collinfo, &pc);
-        //     for (; pc != NULL; pc = pc->nextlocal, ip++) {
-        //       pc->fex[X] = 0.5*(pc_force_A[ip][X] + pc->fex[X]);
-        //       pc->fex[Y] = 0.5*(pc_force_A[ip][Y] + pc->fex[Y]);
-        //       pc->fex[Z] = 0.5*(pc_force_A[ip][Z] + pc->fex[Z]);
-        //     }
-        //   }
-        //   if (pc_force_A) free(pc_force_A);
-        // }
-
-        /* Restore rho and sync force to device */
-        // memcpy(ludwig->psi->rho->data, rho_saved, rho_ndata * sizeof(double));
-        // if (ludwig->hydro) field_memcpy(ludwig->hydro->force, tdpMemcpyHostToDevice);
+        free(rho_saved);
+        if (ludwig->hydro) field_memcpy(ludwig->hydro->force, tdpMemcpyHostToDevice);
       }
+      /*CHANGE END - 20260715d */
       /*CHANGE END - 20260425 Interlacing */
 
       if (ludwig->hydro) {
@@ -1140,6 +1541,40 @@ void ludwig_run(const char* inputfile) {
             //   ludwig->poisson->impl->solve(ludwig->poisson, step);
             // }
             /* CHANGE END - Ewald*/
+
+            /*CHANGE INIT - Update particle field before correctin phi*/
+            subgrid_update_Esub(ludwig->collinfo,
+                              ludwig->psi,
+                              step,
+                              fp,
+                              ludwig->pe,
+                              kernel_g);
+
+            /*CHANGE END - Update particle field before correctin phi*/
+            /*CHANGE INIT - 20260625 PM short-range phi correction (option C step 2) */
+            /* subgrid_update_Esub (above) read the ORIGINAL phi_PM so the
+             * particle force is computed without the correction. Now correct
+             * psi->psi so all NP multisteps use the corrected potential. The
+             * explicit force correction is applied later by
+             * pm_sr_apply_force_correction. */
+            /* CHANGE 20260724: use the 3D table (captures the kernel's cubic
+             * anisotropy) instead of the radial one — the radial table gave
+             * directional scatter at short range (r<2) that no sigma choice
+             * could remove. Guard on pm_sr_radial still gates "is the
+             * correction enabled" (both tables are built together). */
+            /* TEST 20260724: pm_sr_correct_phi DISABLED. Hypothesis: forcing
+             * psi to the (near-point) Gaussian reference over-elevates phi for
+             * NP -> NP over-accumulates counter-charge -> phi and rho EXCEED
+             * DH near the particle. With this off, NP resolves the screening
+             * self-consistently from the PM potential; E stays corrected via
+             * pm_sr_apply_force_correction. Expected: phi/rho return to DH,
+             * E unchanged. */
+            /*
+            if (pm_sr_radial && interlacing_mode_ == 0 && flag_ewald == 0)
+              pm_sr_correct_phi(ludwig->collinfo, ludwig->psi, pm_sr_3d, NULL);
+            */
+            /*CHANGE END - 20260625 */
+
           }
           /* CHANGE END - 20260425 */
 
@@ -1244,6 +1679,10 @@ void ludwig_run(const char* inputfile) {
 
       }
 
+      /* CHANGE 20260715b: no post-NP transport. interlacing_one_grid now
+       * returns psi and rho already in the ORIGINAL frame, and NP above ran
+       * in that fixed frame — the cloud is stable and u-independent. */
+
       TIMER_start(TIMER_HALO_LATTICE);
       psi_halo_psi(ludwig->psi);
       psi_halo_psijump(ludwig->psi);
@@ -1273,27 +1712,46 @@ void ludwig_run(const char* inputfile) {
       if (ludwig->psi) {
         /* Force in electrokinetic models is computed above */
         /*CHANGE INIT - Subgrid charge */
-        /* CHANGE INIT - 20260425 Interlacing:
-         * mode 0: executed here (original path).
-         * mode 1/2: already called inside interlacing_one_grid(). */
-        if (interlacing_mode_ == -1) {
+        if (flag_ewald == 1) {
+          // if (interlacing_mode_ == -1) {
 
           colloid_sums_halo(ludwig->collinfo, COLLOID_SUM_ELECTRIC_FIELD);
-
-          subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map,
-                                                ludwig->phys, ludwig->psi,
-                                                ludwig->hydro, kernel_g);
-        }
-        if (interlacing_mode_ == 0) {
-          subgrid_update_Esub(ludwig->collinfo,
-                              ludwig->psi,
+          subgrid_print_Esub(ludwig->collinfo,
                               step,
-                              fp,
-                              ludwig->pe,
-                              kernel_g);
+                              fp);
+          subgrid_update_forces_electrokinetics_ewald(ludwig->collinfo, ludwig->map,
+                                                ludwig->phys, ludwig->psi,
+                                                ludwig->hydro,
+                                                kernel_g);
+          // subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map,
+          //                                       ludwig->phys, ludwig->psi,
+          //                                       ludwig->hydro, kernel_g);
+        }
+        /* CHANGE 20260710: guard with interlacing_mode_ == 0. In mode != 0
+         * interlacing_one_grid has ALREADY applied the particle force and its
+         * fluid reaction; running this block again double-counted them. */
+        else if (flag_ewald == 0 && interlacing_mode_ == 0) {
+          // subgrid_update_Esub(ludwig->collinfo,
+          //                     ludwig->psi,
+          //                     step,
+          //                     fp,
+          //                     ludwig->pe,
+          //                     kernel_g);
           subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map,
                                                 ludwig->phys, ludwig->psi,
                                                 ludwig->hydro, kernel_g);
+
+          /*CHANGE INIT - 20260625 PM short-range force/field correction */
+          /* All uncorrected forces (fluid + particle) are computed above using
+           * E_PM. Now apply the tabulated short-range correction as a Newton-III
+           * force pair (dF on particle, -dF on the corresponding node), and
+           * correct the stored fields for diagnostics. Momentum is conserved. */
+          /* CHANGE 20260724: 3D table (directional, no short-range scatter). */
+          if (pm_sr_radial)
+            pm_sr_apply_force_correction(ludwig->collinfo, ludwig->map,
+                                         ludwig->psi, ludwig->hydro,
+                                         pm_sr_3d, kernel_g);
+          /*CHANGE END - 20260625 */
         }
         /* CHANGE END - 20260425 Interlacing */
         /*CHANGE END - Subgrid charge */
@@ -2566,6 +3024,17 @@ int free_energy_init_rt(ludwig_t* ludwig) {
         break;
       }
                                          /*CHANGE END - Gaussian_Ewald*/
+      /*CHANGE INIT - Gaussian_Ewald_Dual*/
+      case FE_FORCE_METHOD_EWALD_GAUSSIAN_DUAL: {
+        char str_ewald_rc_gd[BUFSIZ];
+        double ewald_rc_gd;
+        n = rt_string_parameter(rt, "ewald_rc", str_ewald_rc_gd, BUFSIZ);
+        ewald_rc_gd = atof(str_ewald_rc_gd);
+        nhalo = (ceil(ewald_rc_gd) > 3) ? (int)ceil(ewald_rc_gd) : 3;
+        psi_method = PSI_FORCE_EWALD_GAUSSIAN_DUAL;
+        break;
+      }
+                                              /*CHANGE END - Gaussian_Ewald_Dual*/
       case FE_FORCE_METHOD_STRESS_DIVERGENCE:
         nhalo = 2;
         psi_method = PSI_FORCE_DIVERGENCE;
@@ -2574,6 +3043,46 @@ int free_energy_init_rt(ludwig_t* ludwig) {
         pe_fatal(pe, "electrokinetic: force_method not available\n");
       }
     }
+
+    /*CHANGE INIT - 20260630 grow nhalo to cover the subgrid kernel support.
+     * The particle<->mesh scatter/gather reads/writes halo nodes up to
+     * krange = subgrid_get_range(kernel) deep. nhalo must be >= krange or the
+     * coupling accesses stale/incorrect halo data (silently wrong results).
+     * The kernel (and Hann order) are read here, before cs_nhalo_set, and set
+     * into the globals kernel_g / subgrid_hann_order_ so this and the later
+     * parse in ludwig_run() are consistent. */
+    {
+      char kstr[BUFSIZ] = { 0 };
+      if (rt_string_parameter(rt, "subgrid_kernel", kstr, BUFSIZ) == 1) {
+        if      (strcmp(kstr, "peskin4")  == 0) kernel_g = SUBGRID_KERNEL_PESKIN4;
+        else if (strcmp(kstr, "peskin6")  == 0) kernel_g = SUBGRID_KERNEL_PESKIN6;
+        else if (strcmp(kstr, "bspline4") == 0) kernel_g = SUBGRID_KERNEL_BSPLINE4;
+        else if (strcmp(kstr, "bspline6") == 0) kernel_g = SUBGRID_KERNEL_BSPLINE6;
+        else if (strcmp(kstr, "kb4")      == 0) kernel_g = SUBGRID_KERNEL_KB4;
+        else if (strcmp(kstr, "hann")     == 0) kernel_g = SUBGRID_KERNEL_HANN;
+        else pe_fatal(pe,
+              "Unknown subgrid_kernel '%s' (use peskin4|peskin6|bspline4|bspline6|kb4|hann)\n",
+              kstr);
+      }
+      if (kernel_g == SUBGRID_KERNEL_HANN) {
+        int hann_n = 0;
+        if (rt_int_parameter(rt, "subgrid_hann_order", &hann_n) == 1) {
+          if (hann_n <= 0) {
+            pe_info(pe, "subgrid_hann_order: %d\n", hann_n);
+            pe_fatal(pe, "subgrid_hann_order must be a positive integer. "
+                         "Please check and try again!\n");
+          }
+          subgrid_set_hann_order((double) hann_n);
+        }
+      }
+      int krange = subgrid_get_range(kernel_g);
+      if (krange > nhalo) {
+        pe_info(pe, "Increasing halo width to %d to cover subgrid kernel "
+                    "(krange = %d)\n", krange, krange);
+        nhalo = krange;
+      }
+    }
+    /*CHANGE END - 20260630 */
 
     cs_nhalo_set(cs, nhalo);
     coords_init_rt(pe, rt, cs);
@@ -2654,15 +3163,35 @@ int free_energy_init_rt(ludwig_t* ludwig) {
 
         ewald_charge_info(ewald);  /* Opcional: mostrar parámetros */
 
-        /*CHANGE INIT - Gaussian_Ewald: read sigma from input if present */
+        /*CHANGE INIT - Gaussian_Ewald: read sigma from input if present.
+         * Single-sigma mode key:  ewald_gaussian_sigma */
         double ewald_gauss_sigma = 1.0;  /* default Gaussian width σ (lattice units) */
         {
           char str_sigma[BUFSIZ];
-          if (rt_string_parameter(ludwig->rt, "ewald_gaussian_sigma_f",str_sigma, BUFSIZ) == 1) {
+          if (rt_string_parameter(ludwig->rt, "ewald_gaussian_sigma",
+            str_sigma, BUFSIZ) == 1) {
             ewald_gauss_sigma = atof(str_sigma);
           }
         }
         /*CHANGE END - Gaussian_Ewald */
+
+        /*CHANGE INIT - Gaussian_Ewald_Dual: per-species sigmas
+         * Input keys: ewald_gaussian_sigma_p (particle) and
+         *             ewald_gaussian_sigma_f (fluid). Defaults to ewald_gauss_sigma. */
+        double ewald_gauss_sigma_p = ewald_gauss_sigma;
+        double ewald_gauss_sigma_f = ewald_gauss_sigma;
+        {
+          char str_sigma_dual[BUFSIZ];
+          if (rt_string_parameter(ludwig->rt, "ewald_gaussian_sigma_p",
+            str_sigma_dual, BUFSIZ) == 1) {
+            ewald_gauss_sigma_p = atof(str_sigma_dual);
+          }
+          if (rt_string_parameter(ludwig->rt, "ewald_gaussian_sigma_f",
+            str_sigma_dual, BUFSIZ) == 1) {
+            ewald_gauss_sigma_f = atof(str_sigma_dual);
+          }
+        }
+        /*CHANGE END - Gaussian_Ewald_Dual */
 
         // /* excl created and initialized in ludwig_rt() — use ludwig->excl directly */
         // excl = ludwig->excl;
@@ -2683,7 +3212,19 @@ int free_energy_init_rt(ludwig_t* ludwig) {
         int ewald_psi_method_int = 0;
         psi_force_method(ludwig->psi, &ewald_psi_method_int);
         psi_force_method_enum_t ewald_psi_method = (psi_force_method_enum_t)ewald_psi_method_int;
-        if (ewald_psi_method == PSI_FORCE_EWALD_GAUSSIAN) {
+        if (ewald_psi_method == PSI_FORCE_EWALD_GAUSSIAN_DUAL) {
+          pe_info(pe,
+                  "electrokinetics_solver_type: ewald_gaussian_dual "
+                  "(sigma_p=%.4g sigma_f=%.4g)\n",
+                  ewald_gauss_sigma_p, ewald_gauss_sigma_f);
+          psi_solver_ewald_gaussian_dual_t* gauss_dual_solver = NULL;
+          psi_solver_ewald_gaussian_dual_create(ewald, NULL,
+                                                ewald_gauss_sigma_p,
+                                                ewald_gauss_sigma_f,
+                                                &gauss_dual_solver);
+          ludwig->poisson = (psi_solver_t*)gauss_dual_solver;
+        }
+        else if (ewald_psi_method == PSI_FORCE_EWALD_GAUSSIAN) {
           pe_info(pe, "electrokinetics_solver_type: ewald_gaussian (sigma=%.4g)\n",
                   ewald_gauss_sigma);
           psi_solver_ewald_gaussian_t* gauss_solver = NULL;
@@ -2705,18 +3246,25 @@ int free_energy_init_rt(ludwig_t* ludwig) {
         /*CHANGE INIT - 20260119 FFT Poisson solver */
         static psi_solver_fft_t* fft_solver_ = NULL;
 
-        /* Use discrete Laplacian for consistency with the FD stencil used elsewhere */
-        // ifail = psi_solver_fft_create_opt(ludwig->psi, PSI_FFT_LAPLACIAN_DISCRETE, &fft_solver_);
+        /*CHANGE INIT - 20260630 select FFT variant by solver_type
+         * solver_type "fft" (not ewald) => solve the full Poisson equation
+         * with the discrete 27-point stencil, consistent with the FD stencil
+         * used elsewhere and directly comparable to the PETSc solver.
+         * The Ewald reciprocal-only path (create_ewald) is kept commented for
+         * reference: it returns only the long-range tail and therefore gives a
+         * smaller potential/velocity unless the short-range term is added. */
+        ifail = psi_solver_fft_create_opt(ludwig->psi, PSI_FFT_LAPLACIAN_DISCRETE, &fft_solver_);
         // ifail = psi_solver_fft_create_opt(ludwig->psi, PSI_FFT_LAPLACIAN_ANALYTIC, &fft_solver_);
         // ifail = psi_solver_fft_create_hockney(ludwig->psi, PSI_FFT_LAPLACIAN_DISCRETE,
         //                                       0.001,  /* shape_a */
         //                                       10,    /* n_alias_max */
         //                                       &fft_solver_);
-        ifail = psi_solver_fft_create_ewald(ludwig->psi, PSI_FFT_LAPLACIAN_ANALYTIC,
-                                            1.0,                    /* alpha */
-                                            6.0,                    /* rcut */
-                                            deconv_g, /* deconv kernel */
-                                            &fft_solver_);
+        // ifail = psi_solver_fft_create_ewald(ludwig->psi, PSI_FFT_LAPLACIAN_ANALYTIC,
+        //                                     1.0,                    /* alpha */
+        //                                     6.0,                    /* rcut */
+        //                                     deconv_g, /* deconv kernel */
+        //                                     &fft_solver_);
+        /*CHANGE END - 20260630 */
 
         if (ifail != 0) {
           pe_info(pe, "FFT Poisson solver initialisation failed\n");
@@ -2922,6 +3470,11 @@ int free_energy_init_rt(ludwig_t* ludwig) {
         psi_force_method_set(ludwig->psi, PSI_FORCE_EWALD_GAUSSIAN);
         break;
         /*CHANGE END - Gaussian_Ewald*/
+        /*CHANGE INIT - Gaussian_Ewald_Dual*/
+      case FE_FORCE_METHOD_EWALD_GAUSSIAN_DUAL:
+        psi_force_method_set(ludwig->psi, PSI_FORCE_EWALD_GAUSSIAN_DUAL);
+        break;
+        /*CHANGE END - Gaussian_Ewald_Dual*/
       case FE_FORCE_METHOD_STRESS_DIVERGENCE:
         psi_force_method_set(ludwig->psi, PSI_FORCE_DIVERGENCE);
         break;

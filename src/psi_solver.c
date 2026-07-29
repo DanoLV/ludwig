@@ -62,7 +62,15 @@ int psi_solver_create(psi_t * psi, psi_solver_t ** solver) {
   case (PSI_POISSON_SOLVER_FFT):
     {
       psi_solver_fft_t * fft = NULL;
-      ifail = psi_solver_fft_create(psi, &fft);
+      /*CHANGE INIT - 20260630 FFT Laplacian variant selectable from input via
+       * electrokinetics_fft_laplacian (default discrete = matches PETSc).
+       * ANALYTIC uses continuum k^2 and differs from PETSc by O(h^2). */
+      psi_fft_laplacian_t lap = PSI_FFT_LAPLACIAN_DISCRETE;
+      if (psi->solver.fft_laplacian == PSI_FFT_LAPLACIAN_OPT_ANALYTIC) {
+        lap = PSI_FFT_LAPLACIAN_ANALYTIC;
+      }
+      ifail = psi_solver_fft_create_opt(psi, lap, &fft);
+      /*CHANGE END - 20260630 */
       if (ifail == 0) *solver = (psi_solver_t *) fft;
     }
     break;

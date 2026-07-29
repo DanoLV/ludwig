@@ -38,4 +38,8 @@ microgel/local/input para sistema original con 2 bonds por coloide/*
 microgel/local/Eself
 microgel/local/Blibliografia
 microgel/local/Pruebas
-microgel/local/Ewald*/
+microgel/local/EW*/
+microgel/local/dimero/
+microgel/local/test*/
+microgel/local/PM*/
+microgel/local/PETS*/

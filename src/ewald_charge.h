@@ -153,6 +153,19 @@ int ewald_charge_sum_full_gaussian_gpu(ewald_charge_t * ewald, FILE * fp,
                                        double sigma);
 /* CHANGE END - Gaussian_Ewald */
 
+/* CHANGE INIT - Gaussian_Ewald_Dual - dual-sigma Gaussian Ewald sum
+ * Each particle is a Gaussian of width sigma_p; each fluid node is a Gaussian of
+ * width sigma_f. Pair interactions use sigma_eff = sqrt(sigma_i^2 + sigma_j^2):
+ *   particle-particle : sqrt(2) * sigma_p
+ *   fluid-fluid       : sqrt(2) * sigma_f
+ *   particle-fluid    : sqrt(sigma_p^2 + sigma_f^2)
+ * In Fourier space, structure factor multiplies each charge by exp(-k^2 sigma^2/4)
+ * (form factor of the individual Gaussian).
+ */
+int ewald_charge_sum_full_gaussian_dual_gpu(ewald_charge_t * ewald, FILE * fp,
+                                            double sigma_p, double sigma_f);
+/* CHANGE END - Gaussian_Ewald_Dual */
+
 /*CHANGE INIT - 20260212 New ewald_charge_sum_FFT_full_gpu using cuFFT for Fourier-space*/
 /* GPU-accelerated FFT version: hybrid FFT lattice + direct particle loops */
 int ewald_charge_sum_FFT_full_gpu(ewald_charge_t * ewald, FILE * fp);

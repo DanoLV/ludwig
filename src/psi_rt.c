@@ -260,6 +260,27 @@ int psi_options_rt(pe_t* pe, cs_t* cs, rt_t* rt, psi_options_t* popts) {
     }
   }
 
+  /*CHANGE INIT - 20260630 FFT Laplacian variant selectable from input.
+   * electrokinetics_fft_laplacian = discrete (default, matches PETSc) | analytic */
+  {
+    char lstr[BUFSIZ] = { 0 };
+    if (rt_string_parameter(rt, "electrokinetics_fft_laplacian", lstr, BUFSIZ)) {
+      if (strcmp(lstr, "discrete") == 0) {
+        opts.solver.fft_laplacian = PSI_FFT_LAPLACIAN_OPT_DISCRETE;
+      }
+      else if (strcmp(lstr, "analytic") == 0) {
+        opts.solver.fft_laplacian = PSI_FFT_LAPLACIAN_OPT_ANALYTIC;
+      }
+      else {
+        pe_info(pe, "electrokinetics_fft_laplacian: %s\n", lstr);
+        pe_info(pe, "is not recognised (use 'discrete' or 'analytic')\n");
+        pe_fatal(pe, "Please check and try again!\n");
+      }
+      pe_info(pe, "electrokinetics_fft_laplacian: %s\n", lstr);
+    }
+  }
+  /*CHANGE END - 20260630 */
+
   /* Stencil must be available. */
   if (rt_int_parameter(rt, "electrokinetics_solver_stencil",
     &opts.solver.nstencil)) {

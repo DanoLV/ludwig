@@ -591,7 +591,8 @@ def plot_psi(distances_total, psi_total,
              show_error_inf=True, show_error_dir=True,
              particle_radius=0.0, only_error_dh_per_rad=False,
              gaussian_source=False, sigma=1.0,
-             gaussian_error=False, gaussian_error_periodic=False):
+             gaussian_error=False, gaussian_error_periodic=False,
+             show_gaussian_dh_inf=True):
 
     L = float(grid_size[0])
 
@@ -709,7 +710,7 @@ def plot_psi(distances_total, psi_total,
     # CHANGE END - DHFiniteRadius
 
     # CHANGE INIT - GaussianDH - Curva teórica gaussiana-DH en panel 1
-    if gaussian_source and psi_gauss_dh is not None:
+    if gaussian_source and psi_gauss_dh is not None and show_gaussian_dh_inf:
         if kappa > 0:
             label_gauss = (f'Gauss-DH (σ={sigma:.2f}, λ_D={1.0/kappa:.2f}, κ={kappa:.3f})')
         else:
@@ -1033,6 +1034,8 @@ Ejemplos:
                         help='Mostrar el error relativo vs la teoría gaussiana-DH periódica '
                              'en el panel 2. Requiere --gaussian-source y --show-dh-periodic. '
                              'Usa --dh-periodic-shells para el número de capas.')
+    parser.add_argument('--no-gaussian-dh-inf', action='store_true', default=False,
+                        help='No graficar la curva gaussiana-DH sistema infinito (no periódica).')
     # CHANGE END - GaussianDH
 
     parser.add_argument('--linear', action='store_true', default=False,
@@ -1265,7 +1268,8 @@ Ejemplos:
              gaussian_source=args.gaussian_source,
              sigma=args.sigma,
              gaussian_error=args.gaussian_error,
-             gaussian_error_periodic=args.gaussian_error_periodic)
+             gaussian_error_periodic=args.gaussian_error_periodic,
+             show_gaussian_dh_inf=not args.no_gaussian_dh_inf)
 
     if args.csv is not None:
         csv_base, csv_ext = os.path.splitext(args.csv)

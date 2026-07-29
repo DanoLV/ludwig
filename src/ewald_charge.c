@@ -8951,6 +8951,14 @@ __global__ void ewald_structure_factor_particle_kernel_gaussian(
 __device__ __constant__ double d_gauss_sigma;   /* Gaussian width σ */
 __device__ __constant__ double d_gauss_eta;     /* Ewald splitting η */
 
+/* CHANGE INIT - Gaussian_Ewald_Dual - per-species widths and precomputed σ_eff for pair interactions */
+__device__ __constant__ double d_gauss_sigma_p;     /* Particle Gaussian width σ_p */
+__device__ __constant__ double d_gauss_sigma_f;     /* Fluid node Gaussian width σ_f */
+__device__ __constant__ double d_gauss_sigma_eff_pp; /* sqrt(2)·σ_p — particle-particle pair */
+__device__ __constant__ double d_gauss_sigma_eff_ff; /* sqrt(2)·σ_f — fluid-fluid pair */
+__device__ __constant__ double d_gauss_sigma_eff_pf; /* sqrt(σ_p²+σ_f²) — particle-fluid pair */
+/* CHANGE END - Gaussian_Ewald_Dual */
+
 __global__ void ewald_potential_real_particle_kernel_gaussian(
     double* __restrict__ psi_data,
     const double* __restrict__ particle_r,
@@ -9487,6 +9495,785 @@ __global__ void ewald_particle_field_real_kernel_gaussian(
   fex_data[3 * p + 2] += q_p * E_real[2] * kt / d_eunit;
 }
 
+/* =========================================================================
+ * CHANGE INIT - Gaussian_Ewald_Dual — Dual-sigma kernels (Paso 3)
+ *
+ * Each kernel below is the analogue of its "_gaussian" counterpart but uses
+ * the appropriate σ_eff for the pair type:
+ *   *_pp suffix → particle-particle pair → d_gauss_sigma_eff_pp
+ *   *_ff suffix → fluid-fluid pair       → d_gauss_sigma_eff_ff
+ *   *_pf suffix → particle-fluid pair    → d_gauss_sigma_eff_pf
+ *
+ * The Ewald splitting parameter η (d_gauss_eta) is shared across all pairs.
+ * ========================================================================= */
+
+/*CHANGE INIT - 20260611 Macro for dphi_dr with sigma->0 limit guard
+ * Used by all _dual real-space kernels. When sigma<1e-14 (point charge limit):
+ *   dg_sig = d/dr[1/r] = -1/r^2  (Coulomb)
+ * otherwise use the standard Gaussian derivative formula.
+ * DPHI_DR_DUAL(dphi_dr_, sigma_, dist_, r2_, r_inv_) sets dphi_dr_ given
+ * the four precomputed values. The dist<1e-5 Taylor branch is also guarded.
+ */
+#define DPHI_DR_DUAL(dphi_dr_, sigma_, dist_, r2_, r_inv_)                     \
+  do {                                                                          \
+    if ((sigma_) < 1.0e-14) {                                                  \
+      double u_eta_ = d_gauss_eta * (dist_);                                   \
+      double dg_eta_ = (2.0 * d_gauss_eta / sqrt(M_PI))                       \
+                         * exp(-u_eta_ * u_eta_) * (r_inv_)                   \
+                       - erf(u_eta_) / (r2_);                                  \
+      (dphi_dr_) = -1.0 / (r2_) - dg_eta_;                                    \
+    } else if ((dist_) < 1.0e-5) {                                             \
+      double inv_s3_ = 1.0 / ((sigma_) * (sigma_) * (sigma_));                \
+      double eta3_   = d_gauss_eta * d_gauss_eta * d_gauss_eta;               \
+      (dphi_dr_) = -(4.0 / (3.0 * sqrt(M_PI))) * (inv_s3_ - eta3_) * (dist_);\
+    } else {                                                                    \
+      double u_sig_ = (dist_) / (sigma_);                                      \
+      double u_eta_ = d_gauss_eta * (dist_);                                   \
+      double dg_sig_ = (2.0 / (sqrt(M_PI) * (sigma_)))                        \
+                         * exp(-u_sig_ * u_sig_) * (r_inv_)                   \
+                       - erf(u_sig_) / (r2_);                                  \
+      double dg_eta_ = (2.0 * d_gauss_eta / sqrt(M_PI))                       \
+                         * exp(-u_eta_ * u_eta_) * (r_inv_)                   \
+                       - erf(u_eta_) / (r2_);                                  \
+      (dphi_dr_) = dg_sig_ - dg_eta_;                                          \
+    }                                                                           \
+  } while (0)
+/*CHANGE END - 20260611 */
+
+/* φ(node) from particles — particle-fluid pair → σ_eff_pf */
+__global__ void ewald_potential_real_particle_kernel_dual_pf(
+    double* __restrict__ psi_data,
+    const double* __restrict__ particle_r,
+    const double* __restrict__ particle_q,
+    int nparticles,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double r_local[3] = { (double)ic, (double)jc, (double)kc };
+  double phi_real = 0.0;
+  double sigma = d_gauss_sigma_eff_pf;
+
+  for (int p = 0; p < nparticles; p++) {
+    double q_p = particle_q[p];
+    if (fabs(q_p) < 1.0e-14) continue;
+
+    double r_p[3];
+    r_p[0] = particle_r[3 * p + 0] - (double)d_noffset[0];
+    r_p[1] = particle_r[3 * p + 1] - (double)d_noffset[1];
+    r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
+
+    double dr[3] = { r_local[0] - r_p[0], r_local[1] - r_p[1], r_local[2] - r_p[2] };
+    double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+    if (dist < d_ewald_rc) {
+      double phi_diff;
+      /*CHANGE INIT - 20260611 sigma->0 guard for _pf potential */
+      if (sigma < 1.0e-14) {
+        double u_eta = d_gauss_eta * dist;
+        phi_diff = 1.0 / dist - erf(u_eta) / dist;
+      } else if (dist < 1.0e-6) {
+        /*CHANGE END - 20260611 */
+        phi_diff = (2.0 / sqrt(M_PI)) * (1.0 / sigma - d_gauss_eta);
+      } else {
+        phi_diff = erf(dist / sigma) / dist - erf(d_gauss_eta * dist) / dist;
+      }
+      phi_real += q_p * phi_diff / (4.0 * M_PI * d_epsilon);
+    }
+  }
+
+  psi_data[ludwig_idx] += d_beta * d_eunit * phi_real;
+}
+
+/* φ(node) from other fluid nodes — fluid-fluid pair → σ_eff_ff */
+__global__ void ewald_potential_real_lattice_kernel_dual_ff(
+    double* __restrict__ psi_data,
+    const double* __restrict__ rho_data,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double phi_real = 0.0;
+  double sigma = d_gauss_sigma_eff_ff;
+
+  for (int di = -irc; di <= irc; di++) {
+    int i2 = ic + di;
+    if (i2 < 1 - nhalo || i2 > d_nlocal[0] + nhalo) continue;
+    for (int dj = -irc; dj <= irc; dj++) {
+      int j2 = jc + dj;
+      if (j2 < 1 - nhalo || j2 > d_nlocal[1] + nhalo) continue;
+      for (int dk = -irc; dk <= irc; dk++) {
+        int k2 = kc + dk;
+        if (k2 < 1 - nhalo || k2 > d_nlocal[2] + nhalo) continue;
+        if (di == 0 && dj == 0 && dk == 0) continue;
+
+        int ludwig_idx2 = str_x * (nhalo + i2 - 1) + str_y * (nhalo + j2 - 1) + str_z * (nhalo + k2 - 1);
+        double rho0_2 = rho_data[nsites * 0 + ludwig_idx2];
+        double rho1_2 = rho_data[nsites * 1 + ludwig_idx2];
+        double q_node = rho0_2 - rho1_2;
+        if (fabs(q_node) < 1.0e-14) continue;
+
+        double dist = sqrt((double)(di * di + dj * dj + dk * dk));
+        if (dist < d_ewald_rc) {
+          double phi_diff;
+          /*CHANGE INIT - 20260611 Handle sigma_ff=0 limit: erf(r/0)/r -> 1/r */
+          if (sigma < 1.0e-14) {
+            phi_diff = 1.0 / dist - erf(d_gauss_eta * dist) / dist;
+          } else if (dist < 1.0e-6) {
+            /*CHANGE END - 20260611 */
+            phi_diff = (2.0 / sqrt(M_PI)) * (1.0 / sigma - d_gauss_eta);
+          } else {
+            phi_diff = erf(dist / sigma) / dist - erf(d_gauss_eta * dist) / dist;
+          }
+          phi_real += q_node * phi_diff / (4.0 * M_PI * d_epsilon);
+        }
+      }
+    }
+  }
+
+  psi_data[ludwig_idx] += d_beta * d_eunit * phi_real;
+}
+
+/* F(node) from particles — particle-fluid pair → σ_eff_pf */
+__global__ void ewald_force_real_particle_kernel_dual_pf(
+    double* __restrict__ force_data,
+    const double* __restrict__ rho_data,
+    const double* __restrict__ particle_r,
+    const double* __restrict__ particle_q,
+    int nparticles,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double rho0 = rho_data[nsites * 0 + ludwig_idx];
+  double rho1 = rho_data[nsites * 1 + ludwig_idx];
+  double q1 = rho0 - rho1;
+
+  double r_local[3] = { (double)ic, (double)jc, (double)kc };
+  double F_real[3] = { 0.0, 0.0, 0.0 };
+  double sigma = d_gauss_sigma_eff_pf;
+
+  for (int p = 0; p < nparticles; p++) {
+    double q_p = particle_q[p];
+    if (fabs(q_p) < 1.0e-14) continue;
+
+    double r_p[3];
+    r_p[0] = particle_r[3 * p + 0] - (double)d_noffset[0];
+    r_p[1] = particle_r[3 * p + 1] - (double)d_noffset[1];
+    r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
+
+    double dr[3] = { r_local[0] - r_p[0], r_local[1] - r_p[1], r_local[2] - r_p[2] };
+    double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+    if (dist < d_ewald_rc) {
+      double r2 = dist * dist;
+      double r_inv = (dist > 1.0e-10) ? 1.0 / dist : 0.0;
+      double dphi_dr;
+      DPHI_DR_DUAL(dphi_dr, sigma, dist, r2, r_inv);
+      double F_mag = q1 * q_p * (-dphi_dr) / (4.0 * M_PI * d_epsilon);
+      F_real[0] += F_mag * dr[0] * r_inv;
+      F_real[1] += F_mag * dr[1] * r_inv;
+      F_real[2] += F_mag * dr[2] * r_inv;
+    }
+  }
+
+  atomicAdd(&force_data[3 * ludwig_idx + 0], F_real[0]);
+  atomicAdd(&force_data[3 * ludwig_idx + 1], F_real[1]);
+  atomicAdd(&force_data[3 * ludwig_idx + 2], F_real[2]);
+}
+
+/* E(node) from particles — particle-fluid pair → σ_eff_pf */
+__global__ void ewald_efield_real_particle_kernel_dual_pf(
+    double* __restrict__ efield_data,
+    const double* __restrict__ particle_r,
+    const double* __restrict__ particle_q,
+    int nparticles,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double r_local[3] = { (double)ic, (double)jc, (double)kc };
+  double E_real[3] = { 0.0, 0.0, 0.0 };
+  double sigma = d_gauss_sigma_eff_pf;
+
+  for (int p = 0; p < nparticles; p++) {
+    double q_p = particle_q[p];
+    if (fabs(q_p) < 1.0e-14) continue;
+
+    double r_p[3];
+    r_p[0] = particle_r[3 * p + 0] - (double)d_noffset[0];
+    r_p[1] = particle_r[3 * p + 1] - (double)d_noffset[1];
+    r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
+
+    double dr[3] = { r_local[0] - r_p[0], r_local[1] - r_p[1], r_local[2] - r_p[2] };
+    double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+    if (dist < d_ewald_rc) {
+      double r2 = dist * dist;
+      double r_inv = (dist > 1.0e-10) ? 1.0 / dist : 0.0;
+      double dphi_dr;
+      DPHI_DR_DUAL(dphi_dr, sigma, dist, r2, r_inv);
+      /* Match efield_real_particle_kernel_gaussian: no beta·eunit factor here.
+       * The field stored is the physical E divided by 4πε. */
+      double E_mag = q_p * (-dphi_dr) / (4.0 * M_PI * d_epsilon);
+      E_real[0] += E_mag * dr[0] * r_inv;
+      E_real[1] += E_mag * dr[1] * r_inv;
+      E_real[2] += E_mag * dr[2] * r_inv;
+    }
+  }
+
+  atomicAdd(&efield_data[3 * ludwig_idx + 0], E_real[0]);
+  atomicAdd(&efield_data[3 * ludwig_idx + 1], E_real[1]);
+  atomicAdd(&efield_data[3 * ludwig_idx + 2], E_real[2]);
+}
+
+/* E(node) from other fluid nodes — fluid-fluid pair → σ_eff_ff */
+__global__ void ewald_efield_real_lattice_kernel_dual_ff(
+    double* __restrict__ efield_data,
+    const double* __restrict__ rho_data,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double E_real[3] = { 0.0, 0.0, 0.0 };
+  double sigma = d_gauss_sigma_eff_ff;
+
+  for (int di = -irc; di <= irc; di++) {
+    int i2 = ic + di;
+    if (i2 < 1 - nhalo || i2 > d_nlocal[0] + nhalo) continue;
+    for (int dj = -irc; dj <= irc; dj++) {
+      int j2 = jc + dj;
+      if (j2 < 1 - nhalo || j2 > d_nlocal[1] + nhalo) continue;
+      for (int dk = -irc; dk <= irc; dk++) {
+        int k2 = kc + dk;
+        if (k2 < 1 - nhalo || k2 > d_nlocal[2] + nhalo) continue;
+        if (di == 0 && dj == 0 && dk == 0) continue;
+
+        int ludwig_idx2 = str_x * (nhalo + i2 - 1) + str_y * (nhalo + j2 - 1) + str_z * (nhalo + k2 - 1);
+        double rho0_2 = rho_data[nsites * 0 + ludwig_idx2];
+        double rho1_2 = rho_data[nsites * 1 + ludwig_idx2];
+        double q_node = rho0_2 - rho1_2;
+        if (fabs(q_node) < 1.0e-14) continue;
+
+        double dr[3] = { -(double)di, -(double)dj, -(double)dk };
+        double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+        if (dist < d_ewald_rc) {
+          double r2 = dist * dist;
+          double r_inv = (dist > 1.0e-10) ? 1.0 / dist : 0.0;
+          double dphi_dr;
+          DPHI_DR_DUAL(dphi_dr, sigma, dist, r2, r_inv);
+          double E_mag = q_node * (-dphi_dr) / (4.0 * M_PI * d_epsilon);
+          E_real[0] += E_mag * dr[0] * r_inv;
+          E_real[1] += E_mag * dr[1] * r_inv;
+          E_real[2] += E_mag * dr[2] * r_inv;
+        }
+      }
+    }
+  }
+
+  atomicAdd(&efield_data[3 * ludwig_idx + 0], E_real[0]);
+  atomicAdd(&efield_data[3 * ludwig_idx + 1], E_real[1]);
+  atomicAdd(&efield_data[3 * ludwig_idx + 2], E_real[2]);
+}
+
+/*CHANGE INIT - 20260611 Force on fluid nodes from lattice nodes — fluid-fluid pair → σ_eff_ff */
+/* F(node) from lattice nodes — fluid-fluid pair → σ_eff_ff
+ *
+ * Analogous to ewald_force_real_particle_kernel_dual_pf but for node-node pairs.
+ * F_mag = q_receiver * q_source * (-dphi_dr) / (4π·ε)
+ * Uses sigma = σ_eff_ff = √2 · σ_f.
+ * When σ_f = 0: dg_sig = -1/r² (Coulomb limit, same as efield_real_lattice_dual_ff).
+ */
+__global__ void ewald_force_real_lattice_kernel_dual_ff(
+    double* __restrict__ force_data,
+    const double* __restrict__ rho_data,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double rho0 = rho_data[nsites * 0 + ludwig_idx];
+  double rho1 = rho_data[nsites * 1 + ludwig_idx];
+  double q1 = rho0 - rho1;
+  if (fabs(q1) < 1.0e-14) return;
+
+  double F_real[3] = { 0.0, 0.0, 0.0 };
+  double sigma = d_gauss_sigma_eff_ff;
+
+  for (int di = -irc; di <= irc; di++) {
+    int i2 = ic + di;
+    if (i2 < 1 - nhalo || i2 > d_nlocal[0] + nhalo) continue;
+    for (int dj = -irc; dj <= irc; dj++) {
+      int j2 = jc + dj;
+      if (j2 < 1 - nhalo || j2 > d_nlocal[1] + nhalo) continue;
+      for (int dk = -irc; dk <= irc; dk++) {
+        int k2 = kc + dk;
+        if (k2 < 1 - nhalo || k2 > d_nlocal[2] + nhalo) continue;
+        if (di == 0 && dj == 0 && dk == 0) continue;
+
+        int ludwig_idx2 = str_x * (nhalo + i2 - 1) + str_y * (nhalo + j2 - 1) + str_z * (nhalo + k2 - 1);
+        double rho0_2 = rho_data[nsites * 0 + ludwig_idx2];
+        double rho1_2 = rho_data[nsites * 1 + ludwig_idx2];
+        double q_node = rho0_2 - rho1_2;
+        if (fabs(q_node) < 1.0e-14) continue;
+
+        double dr[3] = { -(double)di, -(double)dj, -(double)dk };
+        double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+        if (dist < d_ewald_rc) {
+          double r2 = dist * dist;
+          double r_inv = (dist > 1.0e-10) ? 1.0 / dist : 0.0;
+          double dphi_dr;
+          DPHI_DR_DUAL(dphi_dr, sigma, dist, r2, r_inv);
+          double F_mag = q1 * q_node * (-dphi_dr) / (4.0 * M_PI * d_epsilon);
+          F_real[0] += F_mag * dr[0] * r_inv;
+          F_real[1] += F_mag * dr[1] * r_inv;
+          F_real[2] += F_mag * dr[2] * r_inv;
+        }
+      }
+    }
+  }
+
+  atomicAdd(&force_data[3 * ludwig_idx + 0], F_real[0]);
+  atomicAdd(&force_data[3 * ludwig_idx + 1], F_real[1]);
+  atomicAdd(&force_data[3 * ludwig_idx + 2], F_real[2]);
+}
+/*CHANGE END - 20260611 */
+
+/* E on particles — two contributions:
+ *   from fluid nodes  → particle-fluid pair → σ_eff_pf
+ *   from other parts  → particle-particle pair → σ_eff_pp
+ */
+__global__ void ewald_particle_field_real_kernel_dual(
+    double* __restrict__ Esub_data,
+    double* __restrict__ fex_data,
+    const double* __restrict__ particle_r,
+    const double* __restrict__ particle_q,
+    const double* __restrict__ rho_data,
+    int nparticles,
+    int nsites,
+    int nhalo,
+    int irc) {
+
+  int p = blockIdx.x * blockDim.x + threadIdx.x;
+  if (p >= nparticles) return;
+
+  double q_p = particle_q[p];
+  double r_p[3];
+  r_p[0] = particle_r[3 * p + 0] - (double)d_noffset[0];
+  r_p[1] = particle_r[3 * p + 1] - (double)d_noffset[1];
+  r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
+
+  int i0 = (int)floor(r_p[0]);
+  int j0 = (int)floor(r_p[1]);
+  int k0 = (int)floor(r_p[2]);
+
+  double E_real[3] = { 0.0, 0.0, 0.0 };
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+
+  /* Field from lattice nodes — σ_eff_pf */
+  {
+    double sigma = d_gauss_sigma_eff_pf;
+    for (int di = -irc; di <= irc + 1; di++) {
+      for (int dj = -irc; dj <= irc + 1; dj++) {
+        for (int dk = -irc; dk <= irc + 1; dk++) {
+          int ni = i0 + di;
+          int nj = j0 + dj;
+          int nk_idx = k0 + dk;
+          if (ni < 1 || ni > d_nlocal[0]) continue;
+          if (nj < 1 || nj > d_nlocal[1]) continue;
+          if (nk_idx < 1 || nk_idx > d_nlocal[2]) continue;
+
+          int ludwig_idx = str_x * (nhalo + ni - 1) + str_y * (nhalo + nj - 1) + str_z * (nhalo + nk_idx - 1);
+          double rho0 = rho_data[nsites * 0 + ludwig_idx];
+          double rho1 = rho_data[nsites * 1 + ludwig_idx];
+          double q_node = rho0 - rho1;
+          if (fabs(q_node) < 1.0e-14) continue;
+
+          double dr[3] = { r_p[0] - (double)ni, r_p[1] - (double)nj, r_p[2] - (double)nk_idx };
+          double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+          if (dist < d_ewald_rc) {
+            double r2 = dist * dist;
+            double r_inv = (dist > 1.0e-10) ? 1.0 / dist : 0.0;
+            double dphi_dr;
+            DPHI_DR_DUAL(dphi_dr, sigma, dist, r2, r_inv);
+            double E_mag = d_beta * d_eunit * (-dphi_dr) / (4.0 * M_PI * d_epsilon);
+            E_real[0] += q_node * E_mag * dr[0] * r_inv;
+            E_real[1] += q_node * E_mag * dr[1] * r_inv;
+            E_real[2] += q_node * E_mag * dr[2] * r_inv;
+          }
+        }
+      }
+    }
+  }
+
+  /* Field from other particles — σ_eff_pp */
+  {
+    double sigma = d_gauss_sigma_eff_pp;
+    for (int p2 = 0; p2 < nparticles; p2++) {
+      if (p2 == p) continue;
+      double q_p2 = particle_q[p2];
+      if (fabs(q_p2) < 1.0e-14) continue;
+
+      double r_p2[3];
+      r_p2[0] = particle_r[3 * p2 + 0] - (double)d_noffset[0];
+      r_p2[1] = particle_r[3 * p2 + 1] - (double)d_noffset[1];
+      r_p2[2] = particle_r[3 * p2 + 2] - (double)d_noffset[2];
+
+      double dr[3] = { r_p[0] - r_p2[0], r_p[1] - r_p2[1], r_p[2] - r_p2[2] };
+      double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+
+      if (dist < d_ewald_rc) {
+        double r2 = dist * dist;
+        double r_inv = (dist > 1.0e-10) ? 1.0 / dist : 0.0;
+        double dphi_dr;
+        DPHI_DR_DUAL(dphi_dr, sigma, dist, r2, r_inv);
+        double E_mag = d_beta * d_eunit * (-dphi_dr) / (4.0 * M_PI * d_epsilon);
+        E_real[0] += q_p2 * E_mag * dr[0] * r_inv;
+        E_real[1] += q_p2 * E_mag * dr[1] * r_inv;
+        E_real[2] += q_p2 * E_mag * dr[2] * r_inv;
+      }
+    }
+  }
+
+  Esub_data[3 * p + 0] += E_real[0];
+  Esub_data[3 * p + 1] += E_real[1];
+  Esub_data[3 * p + 2] += E_real[2];
+
+  double kt = 1.0 / d_beta;
+  fex_data[3 * p + 0] += q_p * E_real[0] * kt / d_eunit;
+  fex_data[3 * p + 1] += q_p * E_real[1] * kt / d_eunit;
+  fex_data[3 * p + 2] += q_p * E_real[2] * kt / d_eunit;
+}
+
+/* CHANGE END - Gaussian_Ewald_Dual (Paso 3) */
+
+/* =========================================================================
+ * CHANGE INIT - Gaussian_Ewald_Dual (Paso 3b) — Fourier kernels with receiver form factor
+ *
+ * The structure factor S(k) is built with f_p(k) for particle charges and
+ * f_f(k) for lattice charges (Paso 3 already does this).  But when computing
+ * the field/potential AT a node or AT a particle, we must also multiply by
+ * the RECEIVER form factor: f_f(k) for a node receiver, f_p(k) for a particle
+ * receiver. Without this, momentum conservation breaks whenever σ_p ≠ σ_f.
+ *
+ * In the single-sigma case (σ_p = σ_f = σ), f_p = f_f = exp(-k²σ²/4); the
+ * existing kernels still produce correct physics because S(k) already
+ * contains f² and Gk·S(k) gives the right per-receiver field.  But with
+ * different sigmas the asymmetry is real.
+ * ========================================================================= */
+
+__global__ void ewald_potential_fourier_kernel_dual(
+    double* __restrict__ psi_data,
+    const double* __restrict__ Sk_sin,
+    const double* __restrict__ Sk_cos,
+    const double* __restrict__ kvec,
+    const double* __restrict__ Gk,
+    const double* __restrict__ fk_recv,   /* receiver form factor — f_f for nodes */
+    const int* __restrict__ kz_arr,
+    int nktot,
+    int nsites,
+    int nhalo) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double rx = (double)(d_noffset[0] + ic);
+  double ry = (double)(d_noffset[1] + jc);
+  double rz = (double)(d_noffset[2] + kc);
+
+  double phi_fourier = 0.0;
+
+  for (int kn = 0; kn < nktot; kn++) {
+    double kx = kvec[3 * kn + 0];
+    double ky = kvec[3 * kn + 1];
+    double kz_val = kvec[3 * kn + 2];
+
+    double kr = kx * rx + ky * ry + kz_val * rz;
+    double sinkr = sin(kr);
+    double coskr = cos(kr);
+
+    double factor = (kz_arr[kn] > 0) ? 2.0 : 1.0;
+    phi_fourier += factor * Gk[kn] * fk_recv[kn]
+      * (Sk_cos[kn] * coskr + Sk_sin[kn] * sinkr);
+  }
+
+  double phi_dipole = d_dipole_prefactor * (d_M_dipole[0] * rx + d_M_dipole[1] * ry + d_M_dipole[2] * rz);
+
+  psi_data[ludwig_idx] = d_beta * d_eunit * (phi_fourier + phi_dipole);
+}
+
+__global__ void ewald_efield_fourier_kernel_dual(
+    double* __restrict__ efield_data,
+    const double* __restrict__ Sk_sin,
+    const double* __restrict__ Sk_cos,
+    const double* __restrict__ kvec,
+    const double* __restrict__ Gk,
+    const double* __restrict__ fk_recv,   /* f_f for nodes */
+    const int* __restrict__ kz_arr,
+    int nktot,
+    int nsites,
+    int nhalo) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double rx = (double)(d_noffset[0] + ic);
+  double ry = (double)(d_noffset[1] + jc);
+  double rz = (double)(d_noffset[2] + kc);
+
+  double E_fourier[3] = { 0.0, 0.0, 0.0 };
+
+  for (int kn = 0; kn < nktot; kn++) {
+    double kx = kvec[3 * kn + 0];
+    double ky = kvec[3 * kn + 1];
+    double kz_val = kvec[3 * kn + 2];
+
+    double kr = kx * rx + ky * ry + kz_val * rz;
+    double sinkr = sin(kr);
+    double coskr = cos(kr);
+
+    double factor = (kz_arr[kn] > 0) ? 2.0 : 1.0;
+    double im_part = Sk_sin[kn] * coskr - Sk_cos[kn] * sinkr;
+    double w = factor * Gk[kn] * fk_recv[kn];
+
+    E_fourier[0] -= w * kx * im_part;
+    E_fourier[1] -= w * ky * im_part;
+    E_fourier[2] -= w * kz_val * im_part;
+  }
+
+  E_fourier[0] += d_E_dipole[0];
+  E_fourier[1] += d_E_dipole[1];
+  E_fourier[2] += d_E_dipole[2];
+
+  efield_data[3 * ludwig_idx + 0] = E_fourier[0];
+  efield_data[3 * ludwig_idx + 1] = E_fourier[1];
+  efield_data[3 * ludwig_idx + 2] = E_fourier[2];
+}
+
+__global__ void ewald_force_fourier_kernel_dual(
+    double* __restrict__ force_data,
+    const double* __restrict__ rho_data,
+    const double* __restrict__ Sk_sin,
+    const double* __restrict__ Sk_cos,
+    const double* __restrict__ kvec,
+    const double* __restrict__ Gk,
+    const double* __restrict__ fk_recv,   /* f_f for nodes */
+    const int* __restrict__ kz_arr,
+    int nktot,
+    int nsites,
+    int nhalo) {
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int ntotal = d_nlocal[0] * d_nlocal[1] * d_nlocal[2];
+  if (idx >= ntotal) return;
+
+  int kc = idx % d_nlocal[2] + 1;
+  int jc = (idx / d_nlocal[2]) % d_nlocal[1] + 1;
+  int ic = idx / (d_nlocal[2] * d_nlocal[1]) + 1;
+
+  int str_z = 1;
+  int str_y = (d_nlocal[2] + 2 * nhalo);
+  int str_x = str_y * (d_nlocal[1] + 2 * nhalo);
+  int ludwig_idx = str_x * (nhalo + ic - 1) + str_y * (nhalo + jc - 1) + str_z * (nhalo + kc - 1);
+
+  double rho0 = rho_data[nsites * 0 + ludwig_idx];
+  double rho1 = rho_data[nsites * 1 + ludwig_idx];
+  double q1 = rho0 - rho1;
+
+  double rx = (double)(d_noffset[0] + ic);
+  double ry = (double)(d_noffset[1] + jc);
+  double rz = (double)(d_noffset[2] + kc);
+
+  double F_fourier[3] = { 0.0, 0.0, 0.0 };
+
+  for (int kn = 0; kn < nktot; kn++) {
+    double kx = kvec[3 * kn + 0];
+    double ky = kvec[3 * kn + 1];
+    double kz_val = kvec[3 * kn + 2];
+
+    double kr = kx * rx + ky * ry + kz_val * rz;
+    double sinkr = sin(kr);
+    double coskr = cos(kr);
+
+    double factor = (kz_arr[kn] > 0) ? 2.0 : 1.0;
+    double im_part = Sk_sin[kn] * coskr - Sk_cos[kn] * sinkr;
+    double w = factor * q1 * Gk[kn] * fk_recv[kn];
+
+    F_fourier[0] += w * kx * im_part;
+    F_fourier[1] += w * ky * im_part;
+    F_fourier[2] += w * kz_val * im_part;
+  }
+
+  F_fourier[0] += q1 * d_E_dipole[0];
+  F_fourier[1] += q1 * d_E_dipole[1];
+  F_fourier[2] += q1 * d_E_dipole[2];
+
+  atomicAdd(&force_data[3 * ludwig_idx + 0], F_fourier[0]);
+  atomicAdd(&force_data[3 * ludwig_idx + 1], F_fourier[1]);
+  atomicAdd(&force_data[3 * ludwig_idx + 2], F_fourier[2]);
+}
+
+__global__ void ewald_particle_field_fourier_kernel_dual(
+    double* __restrict__ Esub_data,
+    double* __restrict__ fex_data,
+    const double* __restrict__ particle_r,
+    const double* __restrict__ particle_q,
+    const double* __restrict__ Sk_sin,
+    const double* __restrict__ Sk_cos,
+    const double* __restrict__ kvec,
+    const double* __restrict__ Gk,
+    const double* __restrict__ fk_recv,   /* f_p for particles */
+    const int* __restrict__ kz_arr,
+    int nparticles,
+    int nktot) {
+
+  int p = blockIdx.x * blockDim.x + threadIdx.x;
+  if (p >= nparticles) return;
+
+  double q_p = particle_q[p];
+  double rx = particle_r[3 * p + 0];
+  double ry = particle_r[3 * p + 1];
+  double rz = particle_r[3 * p + 2];
+
+  double E_fourier[3] = { 0.0, 0.0, 0.0 };
+
+  for (int kn = 0; kn < nktot; kn++) {
+    double kx = kvec[3 * kn + 0];
+    double ky = kvec[3 * kn + 1];
+    double kz_val = kvec[3 * kn + 2];
+
+    double kr = kx * rx + ky * ry + kz_val * rz;
+    double sinkr = sin(kr);
+    double coskr = cos(kr);
+
+    double factor = (kz_arr[kn] > 0) ? 2.0 : 1.0;
+    double im_part = Sk_sin[kn] * coskr - Sk_cos[kn] * sinkr;
+    double w = factor * d_beta * d_eunit * Gk[kn] * fk_recv[kn];
+
+    E_fourier[0] += w * kx * im_part;
+    E_fourier[1] += w * ky * im_part;
+    E_fourier[2] += w * kz_val * im_part;
+  }
+
+  E_fourier[0] += d_beta * d_eunit * d_E_dipole[0];
+  E_fourier[1] += d_beta * d_eunit * d_E_dipole[1];
+  E_fourier[2] += d_beta * d_eunit * d_E_dipole[2];
+
+  Esub_data[3 * p + 0] = E_fourier[0];
+  Esub_data[3 * p + 1] = E_fourier[1];
+  Esub_data[3 * p + 2] = E_fourier[2];
+
+  double kt = 1.0 / d_beta;
+  fex_data[3 * p + 0] = q_p * E_fourier[0] * kt / d_eunit;
+  fex_data[3 * p + 1] = q_p * E_fourier[1] * kt / d_eunit;
+  fex_data[3 * p + 2] = q_p * E_fourier[2] * kt / d_eunit;
+}
+
+/* CHANGE END - Gaussian_Ewald_Dual (Paso 3b) */
+
 #endif /* __NVCC__ (kernels) */
 
 /*****************************************************************************
@@ -9729,100 +10516,109 @@ int ewald_charge_sum_full_gaussian_gpu(ewald_charge_t* ewald, FILE* fp,
   cudaMemcpy(Sk_sin_d, Sk_sin_h, nk_actual * sizeof(double), cudaMemcpyHostToDevice);
   cudaMemcpy(Sk_cos_d, Sk_cos_h, nk_actual * sizeof(double), cudaMemcpyHostToDevice);
 
-  /* ========================================================================
-   * Dipole moment (identical to standard version — geometry unchanged)
-   * ======================================================================== */
+  // /* ========================================================================
+  //  * Dipole moment (identical to standard version — geometry unchanged)
+  //  * ======================================================================== */
 
-  kahan_t M_dipole[3] = { kahan_zero(), kahan_zero(), kahan_zero() };
-  kahan_t Q_total_k = kahan_zero();
+  // kahan_t M_dipole[3] = { kahan_zero(), kahan_zero(), kahan_zero() };
+  // kahan_t Q_total_k = kahan_zero();
 
-  if (nparticles > 0) {
-    for (int p = 0; p < nparticles; p++) {
-      double q = particle_q_h[p];
-      kahan_add_double(&M_dipole[X], q * particle_r_h[3 * p + 0]);
-      kahan_add_double(&M_dipole[Y], q * particle_r_h[3 * p + 1]);
-      kahan_add_double(&M_dipole[Z], q * particle_r_h[3 * p + 2]);
-      kahan_add_double(&Q_total_k, q);
-    }
-  }
+  // if (nparticles > 0) {
+  //   for (int p = 0; p < nparticles; p++) {
+  //     double q = particle_q_h[p];
+  //     kahan_add_double(&M_dipole[X], q * particle_r_h[3 * p + 0]);
+  //     kahan_add_double(&M_dipole[Y], q * particle_r_h[3 * p + 1]);
+  //     kahan_add_double(&M_dipole[Z], q * particle_r_h[3 * p + 2]);
+  //     kahan_add_double(&Q_total_k, q);
+  //   }
+  // }
 
-  if ((ewald->sources & EWALD_SOURCE_LATTICE) && ewald->psi) {
-    field_memcpy(ewald->psi->rho, tdpMemcpyDeviceToHost);
+  // if ((ewald->sources & EWALD_SOURCE_LATTICE) && ewald->psi) {
+  //   field_memcpy(ewald->psi->rho, tdpMemcpyDeviceToHost);
 
-    int nk_ewald;
-    psi_nk(ewald->psi, &nk_ewald);
-    kahan_t* Q_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
-    kahan_t* Mx_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
-    kahan_t* My_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
-    kahan_t* Mz_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
-    for (int s = 0; s < nk_ewald; s++) {
-      Q_species_k[s] = kahan_zero();
-      Mx_species_k[s] = kahan_zero();
-      My_species_k[s] = kahan_zero();
-      Mz_species_k[s] = kahan_zero();
-    }
+  //   int nk_ewald;
+  //   psi_nk(ewald->psi, &nk_ewald);
+  //   kahan_t* Q_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
+  //   kahan_t* Mx_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
+  //   kahan_t* My_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
+  //   kahan_t* Mz_species_k = (kahan_t*)calloc(nk_ewald, sizeof(kahan_t));
+  //   for (int s = 0; s < nk_ewald; s++) {
+  //     Q_species_k[s] = kahan_zero();
+  //     Mx_species_k[s] = kahan_zero();
+  //     My_species_k[s] = kahan_zero();
+  //     Mz_species_k[s] = kahan_zero();
+  //   }
 
-    for (int ic = 1; ic <= nlocal[X]; ic++) {
-      for (int jc = 1; jc <= nlocal[Y]; jc++) {
-        for (int kc = 1; kc <= nlocal[Z]; kc++) {
-          int index = cs_index(ewald->cs, ic, jc, kc);
-          double rx = (double)(noffset[X] + ic);
-          double ry = (double)(noffset[Y] + jc);
-          double rz = (double)(noffset[Z] + kc);
-          for (int s = 0; s < nk_ewald; s++) {
-            int val;
-            double rho_s;
-            psi_valency(ewald->psi, s, &val);
-            psi_rho(ewald->psi, index, s, &rho_s);
-            double q_s = val * rho_s;
-            kahan_add_double(&Q_species_k[s], q_s);
-            kahan_add_double(&Mx_species_k[s], q_s * rx);
-            kahan_add_double(&My_species_k[s], q_s * ry);
-            kahan_add_double(&Mz_species_k[s], q_s * rz);
-          }
-        }
-      }
-    }
+  //   for (int ic = 1; ic <= nlocal[X]; ic++) {
+  //     for (int jc = 1; jc <= nlocal[Y]; jc++) {
+  //       for (int kc = 1; kc <= nlocal[Z]; kc++) {
+  //         int index = cs_index(ewald->cs, ic, jc, kc);
+  //         double rx = (double)(noffset[X] + ic);
+  //         double ry = (double)(noffset[Y] + jc);
+  //         double rz = (double)(noffset[Z] + kc);
+  //         for (int s = 0; s < nk_ewald; s++) {
+  //           int val;
+  //           double rho_s;
+  //           psi_valency(ewald->psi, s, &val);
+  //           psi_rho(ewald->psi, index, s, &rho_s);
+  //           double q_s = val * rho_s;
+  //           kahan_add_double(&Q_species_k[s], q_s);
+  //           kahan_add_double(&Mx_species_k[s], q_s * rx);
+  //           kahan_add_double(&My_species_k[s], q_s * ry);
+  //           kahan_add_double(&Mz_species_k[s], q_s * rz);
+  //         }
+  //       }
+  //     }
+  //   }
 
-    for (int s = 0; s < nk_ewald; s++) {
-      kahan_add_double(&Q_total_k, kahan_sum(&Q_species_k[s]));
-      kahan_add_double(&M_dipole[X], kahan_sum(&Mx_species_k[s]));
-      kahan_add_double(&M_dipole[Y], kahan_sum(&My_species_k[s]));
-      kahan_add_double(&M_dipole[Z], kahan_sum(&Mz_species_k[s]));
-    }
-    free(Q_species_k); free(Mx_species_k); free(My_species_k); free(Mz_species_k);
-  }
+  //   for (int s = 0; s < nk_ewald; s++) {
+  //     kahan_add_double(&Q_total_k, kahan_sum(&Q_species_k[s]));
+  //     kahan_add_double(&M_dipole[X], kahan_sum(&Mx_species_k[s]));
+  //     kahan_add_double(&M_dipole[Y], kahan_sum(&My_species_k[s]));
+  //     kahan_add_double(&M_dipole[Z], kahan_sum(&Mz_species_k[s]));
+  //   }
+  //   free(Q_species_k); free(Mx_species_k); free(My_species_k); free(Mz_species_k);
+  // }
 
+  // {
+  //   kahan_t M_reduce[4] = { M_dipole[X], M_dipole[Y], M_dipole[Z], Q_total_k };
+  //   MPI_Datatype kahan_dt;
+  //   MPI_Op kahan_op;
+  //   kahan_mpi_datatype(&kahan_dt);
+  //   kahan_mpi_op_sum(&kahan_op);
+  //   MPI_Allreduce(MPI_IN_PLACE, M_reduce, 4, kahan_dt, kahan_op, comm);
+  //   MPI_Type_free(&kahan_dt);
+  //   MPI_Op_free(&kahan_op);
+  //   M_dipole[X] = M_reduce[0];
+  //   M_dipole[Y] = M_reduce[1];
+  //   M_dipole[Z] = M_reduce[2];
+  //   Q_total_k = M_reduce[3];
+  // }
+
+  // double M[3] = { kahan_sum(&M_dipole[X]), kahan_sum(&M_dipole[Y]), kahan_sum(&M_dipole[Z]) };
+  // double Q_total = kahan_sum(&Q_total_k);
+  // double V = ltot[X] * ltot[Y] * ltot[Z];
+
+  // double dipole_prefactor = 4.0 * pi / ((1.0 + 2.0 * ewald->epsilon_prime) * V);
+  // double E_dipole[3] = { -dipole_prefactor * M[X],
+  //                        -dipole_prefactor * M[Y],
+  //                        -dipole_prefactor * M[Z] };
+
+  // pe_info(ewald->pe, "  Dipole moment M = (%14.7e, %14.7e, %14.7e)\n", M[X], M[Y], M[Z]);
+  // pe_info(ewald->pe, "  Total charge Q = %14.7e\n", Q_total);
+
+  // cudaMemcpyToSymbol(d_E_dipole, E_dipole, 3 * sizeof(double));
+  // cudaMemcpyToSymbol(d_M_dipole, M, 3 * sizeof(double));
+  // cudaMemcpyToSymbol(d_dipole_prefactor, &dipole_prefactor, sizeof(double));
+
+  /* Zero dipole device constants so the Fourier kernel applies no dipole correction */
   {
-    kahan_t M_reduce[4] = { M_dipole[X], M_dipole[Y], M_dipole[Z], Q_total_k };
-    MPI_Datatype kahan_dt;
-    MPI_Op kahan_op;
-    kahan_mpi_datatype(&kahan_dt);
-    kahan_mpi_op_sum(&kahan_op);
-    MPI_Allreduce(MPI_IN_PLACE, M_reduce, 4, kahan_dt, kahan_op, comm);
-    MPI_Type_free(&kahan_dt);
-    MPI_Op_free(&kahan_op);
-    M_dipole[X] = M_reduce[0];
-    M_dipole[Y] = M_reduce[1];
-    M_dipole[Z] = M_reduce[2];
-    Q_total_k = M_reduce[3];
+    double zero3[3] = { 0.0, 0.0, 0.0 };
+    double zero1 = 0.0;
+    cudaMemcpyToSymbol(d_E_dipole, zero3, 3 * sizeof(double));
+    cudaMemcpyToSymbol(d_M_dipole, zero3, 3 * sizeof(double));
+    cudaMemcpyToSymbol(d_dipole_prefactor, &zero1, sizeof(double));
   }
-
-  double M[3] = { kahan_sum(&M_dipole[X]), kahan_sum(&M_dipole[Y]), kahan_sum(&M_dipole[Z]) };
-  double Q_total = kahan_sum(&Q_total_k);
-  double V = ltot[X] * ltot[Y] * ltot[Z];
-
-  double dipole_prefactor = 4.0 * pi / ((1.0 + 2.0 * ewald->epsilon_prime) * V);
-  double E_dipole[3] = { -dipole_prefactor * M[X],
-                         -dipole_prefactor * M[Y],
-                         -dipole_prefactor * M[Z] };
-
-  pe_info(ewald->pe, "  Dipole moment M = (%14.7e, %14.7e, %14.7e)\n", M[X], M[Y], M[Z]);
-  pe_info(ewald->pe, "  Total charge Q = %14.7e\n", Q_total);
-
-  cudaMemcpyToSymbol(d_E_dipole, E_dipole, 3 * sizeof(double));
-  cudaMemcpyToSymbol(d_M_dipole, M, 3 * sizeof(double));
-  cudaMemcpyToSymbol(d_dipole_prefactor, &dipole_prefactor, sizeof(double));
 
   /* ========================================================================
    * PART 2: Potential on lattice nodes
@@ -10071,6 +10867,518 @@ int ewald_charge_sum_full_gaussian_gpu(ewald_charge_t* ewald, FILE* fp,
 
 #endif /* __NVCC__ */
 }
+
+/*****************************************************************************
+ *
+ *  ewald_charge_sum_full_gaussian_dual_gpu
+ *
+ *  CHANGE INIT - Gaussian_Ewald_Dual
+ *
+ *  Same as ewald_charge_sum_full_gaussian_gpu but with independent Gaussian
+ *  widths for particles (σ_p) and fluid nodes (σ_f).
+ *
+ *  Pair interaction widths (convolution of two Gaussians):
+ *    σ_eff_pp = sqrt(2) · σ_p     (particle-particle)
+ *    σ_eff_ff = sqrt(2) · σ_f     (fluid-fluid)
+ *    σ_eff_pf = sqrt(σ_p² + σ_f²) (particle-fluid)
+ *
+ *  Fourier-space form factors (per-charge, used in structure factor):
+ *    f_p(k) = exp(-k² σ_p² / 4)   for particle charges
+ *    f_f(k) = exp(-k² σ_f² / 4)   for fluid node charges
+ *  The product fp·ff naturally gives the pair convolution exp(-k² σ_eff_pf²/2).
+ *
+ *  Real-space cutoff uses ewald_rc_ for all pairs.  Each pair uses its own
+ *  σ_eff in the smoothing term [erf(r/σ_eff) - erf(η r)] / r.
+ *
+ *  Status: STUB — kernels and main loop pending (Pasos 2-4).
+ *
+ *****************************************************************************/
+
+int ewald_charge_sum_full_gaussian_dual_gpu(ewald_charge_t* ewald, FILE* fp,
+                                            double sigma_p, double sigma_f) {
+
+#ifndef __NVCC__
+  pe_info(ewald->pe, "ewald_charge_sum_full_gaussian_dual_gpu: CUDA not available.\n");
+  return -1;
+#else
+
+  int nlocal[3], noffset[3];
+  double ltot[3];
+  double fkx, fky, fkz;
+  double r4alpha_sq, b0;
+  int irc;
+  PI_DOUBLE(pi);
+
+  if (ewald == NULL) return 0;
+  assert(fp);
+
+  TIMER_start(TIMER_EWALD_TOTAL);
+
+  cs_nlocal(ewald->cs, nlocal);
+  cs_nlocal_offset(ewald->cs, noffset);
+  cs_ltot(ewald->cs, ltot);
+
+  int nhalo;
+  cs_nhalo(ewald->cs, &nhalo);
+
+  irc = (int)ceil(ewald_rc_);
+
+  fkx = 2.0 * pi / ltot[X];
+  fky = 2.0 * pi / ltot[Y];
+  fkz = 2.0 * pi / ltot[Z];
+  r4alpha_sq = 1.0 / (4.0 * alpha_ * alpha_);
+  b0 = 1.0 / (ltot[X] * ltot[Y] * ltot[Z] * epsilon_);
+
+  int ntotal_nodes = nlocal[X] * nlocal[Y] * nlocal[Z];
+  int nsites = ewald->psi->nsites;
+
+  /* Pair-effective widths */
+  double sigma_eff_pp = sqrt(2.0) * sigma_p;
+  double sigma_eff_ff = sqrt(2.0) * sigma_f;
+  double sigma_eff_pf = sqrt(sigma_p * sigma_p + sigma_f * sigma_f);
+
+  pe_info(ewald->pe, "\n");
+  pe_info(ewald->pe, "Ewald charge sum full GAUSSIAN DUAL (GPU):\n");
+  pe_info(ewald->pe, "  sigma_p=%.4f sigma_f=%.4f alpha=%.4f\n",
+          sigma_p, sigma_f, alpha_);
+  pe_info(ewald->pe, "  sigma_eff: pp=%.4f ff=%.4f pf=%.4f\n",
+          sigma_eff_pp, sigma_eff_ff, sigma_eff_pf);
+  pe_info(ewald->pe, "  Local nodes: %d x %d x %d = %d\n",
+          nlocal[X], nlocal[Y], nlocal[Z], ntotal_nodes);
+  pe_info(ewald->pe, "  Fourier terms: %d\n", nktot_);
+  pe_info(ewald->pe, "  Real-space cutoff: %.2f (irc=%d)\n", ewald_rc_, irc);
+
+  /* Copy standard constants to device */
+  cudaMemcpyToSymbol(d_alpha, &alpha_, sizeof(double));
+  cudaMemcpyToSymbol(d_eps_reg, &eps_reg_, sizeof(double));
+  cudaMemcpyToSymbol(d_epsilon, &epsilon_, sizeof(double));
+  cudaMemcpyToSymbol(d_beta, &beta_, sizeof(double));
+  cudaMemcpyToSymbol(d_eunit, &eunit_, sizeof(double));
+  cudaMemcpyToSymbol(d_rpi, &rpi_, sizeof(double));
+  cudaMemcpyToSymbol(d_ewald_rc, &ewald_rc_, sizeof(double));
+  cudaMemcpyToSymbol(d_fkx, &fkx, sizeof(double));
+  cudaMemcpyToSymbol(d_fky, &fky, sizeof(double));
+  cudaMemcpyToSymbol(d_fkz, &fkz, sizeof(double));
+  cudaMemcpyToSymbol(d_r4alpha_sq, &r4alpha_sq, sizeof(double));
+  cudaMemcpyToSymbol(d_b0, &b0, sizeof(double));
+  cudaMemcpyToSymbol(d_kmax, &kmax_, sizeof(double));
+  cudaMemcpyToSymbol(d_nk, nk_, 3 * sizeof(int));
+  cudaMemcpyToSymbol(d_nlocal, nlocal, 3 * sizeof(int));
+  cudaMemcpyToSymbol(d_noffset, noffset, 3 * sizeof(int));
+
+  /* Dual-sigma device constants */
+  cudaMemcpyToSymbol(d_gauss_sigma_p,      &sigma_p,      sizeof(double));
+  cudaMemcpyToSymbol(d_gauss_sigma_f,      &sigma_f,      sizeof(double));
+  cudaMemcpyToSymbol(d_gauss_sigma_eff_pp, &sigma_eff_pp, sizeof(double));
+  cudaMemcpyToSymbol(d_gauss_sigma_eff_ff, &sigma_eff_ff, sizeof(double));
+  cudaMemcpyToSymbol(d_gauss_sigma_eff_pf, &sigma_eff_pf, sizeof(double));
+  cudaMemcpyToSymbol(d_gauss_eta,          &alpha_,       sizeof(double));
+
+  /* ========================================================================
+   * Precompute k-vectors, Green function, and two form-factor arrays
+   * ======================================================================== */
+
+  pe_info(ewald->pe, "  [1/6] Precomputing k-vectors, G(k), gaussian_fk_p, gaussian_fk_f...\n");
+
+  double* kvec_h          = (double*)malloc(3 * nktot_ * sizeof(double));
+  double* Gk_h            = (double*)malloc(    nktot_ * sizeof(double));
+  double* gaussian_fk_p_h = (double*)malloc(    nktot_ * sizeof(double));
+  double* gaussian_fk_f_h = (double*)malloc(    nktot_ * sizeof(double));
+  int*    kz_arr_h        = (int*)   malloc(    nktot_ * sizeof(int));
+
+  int kn = 0;
+  for (int kz = 0; kz <= nk_[Z]; kz++) {
+    for (int ky = -nk_[Y]; ky <= nk_[Y]; ky++) {
+      for (int kx = -nk_[X]; kx <= nk_[X]; kx++) {
+        double k[3], ksq;
+        k[X] = fkx * kx;
+        k[Y] = fky * ky;
+        k[Z] = fkz * kz;
+        ksq = k[X] * k[X] + k[Y] * k[Y] + k[Z] * k[Z];
+        if (ksq <= 0.0 || ksq > kmax_) continue;
+
+        kvec_h[3 * kn + X] = k[X];
+        kvec_h[3 * kn + Y] = k[Y];
+        kvec_h[3 * kn + Z] = k[Z];
+
+        Gk_h[kn] = b0 * exp(-r4alpha_sq * ksq) / ksq;
+
+        /* Per-species form factors */
+        gaussian_fk_p_h[kn] = exp(-ksq * sigma_p * sigma_p / 4.0);
+        gaussian_fk_f_h[kn] = exp(-ksq * sigma_f * sigma_f / 4.0);
+
+        kz_arr_h[kn] = kz;
+        kn++;
+      }
+    }
+  }
+  int nk_actual = kn;
+
+  double* kvec_d, * Gk_d, * gaussian_fk_p_d, * gaussian_fk_f_d, * Sk_sin_d, * Sk_cos_d;
+  int* kz_arr_d;
+
+  cudaMalloc(&kvec_d,          3 * nk_actual * sizeof(double));
+  cudaMalloc(&Gk_d,                nk_actual * sizeof(double));
+  cudaMalloc(&gaussian_fk_p_d,     nk_actual * sizeof(double));
+  cudaMalloc(&gaussian_fk_f_d,     nk_actual * sizeof(double));
+  cudaMalloc(&kz_arr_d,            nk_actual * sizeof(int));
+  cudaMalloc(&Sk_sin_d,            nk_actual * sizeof(double));
+  cudaMalloc(&Sk_cos_d,            nk_actual * sizeof(double));
+
+  cudaMemcpy(kvec_d, kvec_h, 3 * nk_actual * sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(Gk_d,   Gk_h,       nk_actual * sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(gaussian_fk_p_d, gaussian_fk_p_h, nk_actual * sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(gaussian_fk_f_d, gaussian_fk_f_h, nk_actual * sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(kz_arr_d, kz_arr_h, nk_actual * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemset(Sk_sin_d, 0, nk_actual * sizeof(double));
+  cudaMemset(Sk_cos_d, 0, nk_actual * sizeof(double));
+
+  /* Device pointers for rho/psi */
+  double* rho_data_d = NULL;
+  double* psi_data_d = NULL;
+  size_t data_offset = offsetof(field_t, data);
+  cudaMemcpy(&rho_data_d, (char*)(ewald->psi->rho->target) + data_offset,
+             sizeof(double*), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&psi_data_d, (char*)(ewald->psi->psi->target) + data_offset,
+             sizeof(double*), cudaMemcpyDeviceToHost);
+
+  field_memcpy(ewald->psi->rho, tdpMemcpyHostToDevice);
+
+  /* ========================================================================
+   * Collect particle data
+   * ======================================================================== */
+
+  int nparticles = 0;
+  double* particle_r_h = NULL, * particle_q_h = NULL;
+  double* particle_r_d = NULL, * particle_q_d = NULL;
+  double* Esub_d = NULL, * fex_d = NULL;
+
+  if ((ewald->sources & EWALD_SOURCE_COLLOIDS) && ewald->cinfo) {
+    colloid_t* pc;
+    colloids_info_local_head(ewald->cinfo, &pc);
+    for (; pc; pc = pc->nextlocal) nparticles++;
+
+    if (nparticles > 0) {
+      particle_r_h = (double*)malloc(3 * nparticles * sizeof(double));
+      particle_q_h = (double*)malloc(    nparticles * sizeof(double));
+
+      int p = 0;
+      colloids_info_local_head(ewald->cinfo, &pc);
+      for (; pc; pc = pc->nextlocal) {
+        particle_r_h[3 * p + 0] = pc->s.r[X];
+        particle_r_h[3 * p + 1] = pc->s.r[Y];
+        particle_r_h[3 * p + 2] = pc->s.r[Z];
+        particle_q_h[p] = pc->s.q0 - pc->s.q1;
+        p++;
+      }
+
+      cudaMalloc(&particle_r_d, 3 * nparticles * sizeof(double));
+      cudaMalloc(&particle_q_d,     nparticles * sizeof(double));
+      cudaMalloc(&Esub_d,       3 * nparticles * sizeof(double));
+      cudaMalloc(&fex_d,        3 * nparticles * sizeof(double));
+
+      cudaMemcpy(particle_r_d, particle_r_h, 3 * nparticles * sizeof(double), cudaMemcpyHostToDevice);
+      cudaMemcpy(particle_q_d, particle_q_h,     nparticles * sizeof(double), cudaMemcpyHostToDevice);
+    }
+  }
+
+  pe_info(ewald->pe, "  Particles: %d\n", nparticles);
+
+  /* ========================================================================
+   * PART 1: Structure factors with per-species form factors
+   *   Lattice nodes use gaussian_fk_f (σ_f), particles use gaussian_fk_p (σ_p)
+   * ======================================================================== */
+
+  pe_info(ewald->pe, "  [2/6] Computing dual-sigma structure factors S(k), C(k)...\n");
+
+  int threads = 256;
+  int blocks = (ntotal_nodes + threads - 1) / threads;
+
+  if (ewald->sources & EWALD_SOURCE_LATTICE) {
+    ewald_structure_factor_lattice_kernel_gaussian << <blocks, threads >> > (
+        rho_data_d, Sk_sin_d, Sk_cos_d, kvec_d, gaussian_fk_f_d,
+        nk_actual, nsites, nhalo);
+    cudaDeviceSynchronize();
+  }
+
+  if ((ewald->sources & EWALD_SOURCE_COLLOIDS) && nparticles > 0) {
+    int p_blocks = (nparticles + threads - 1) / threads;
+    ewald_structure_factor_particle_kernel_gaussian << <p_blocks, threads >> > (
+        particle_r_d, particle_q_d, Sk_sin_d, Sk_cos_d, kvec_d, gaussian_fk_p_d,
+        nparticles, nk_actual);
+    cudaDeviceSynchronize();
+  }
+
+  /* MPI reduce structure factors */
+  pe_info(ewald->pe, "  [3/6] MPI reducing structure factors...\n");
+
+  double* Sk_sin_h = (double*)malloc(nk_actual * sizeof(double));
+  double* Sk_cos_h = (double*)malloc(nk_actual * sizeof(double));
+  cudaMemcpy(Sk_sin_h, Sk_sin_d, nk_actual * sizeof(double), cudaMemcpyDeviceToHost);
+  cudaMemcpy(Sk_cos_h, Sk_cos_d, nk_actual * sizeof(double), cudaMemcpyDeviceToHost);
+
+  MPI_Comm comm;
+  cs_cart_comm(ewald->cs, &comm);
+  MPI_Allreduce(MPI_IN_PLACE, Sk_sin_h, nk_actual, MPI_DOUBLE, MPI_SUM, comm);
+  MPI_Allreduce(MPI_IN_PLACE, Sk_cos_h, nk_actual, MPI_DOUBLE, MPI_SUM, comm);
+
+  cudaMemcpy(Sk_sin_d, Sk_sin_h, nk_actual * sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(Sk_cos_d, Sk_cos_h, nk_actual * sizeof(double), cudaMemcpyHostToDevice);
+
+  /* Zero dipole device constants (no dipole correction in this variant) */
+  {
+    double zero3[3] = { 0.0, 0.0, 0.0 };
+    double zero1 = 0.0;
+    cudaMemcpyToSymbol(d_E_dipole, zero3, 3 * sizeof(double));
+    cudaMemcpyToSymbol(d_M_dipole, zero3, 3 * sizeof(double));
+    cudaMemcpyToSymbol(d_dipole_prefactor, &zero1, sizeof(double));
+  }
+
+  /* ========================================================================
+   * PART 2: Potential on lattice nodes
+   *   Real-space contributions use σ_eff_pf (particle→node) and σ_eff_ff (node→node)
+   * ======================================================================== */
+
+  pe_info(ewald->pe, "  [4/6] Computing dual-sigma potential on lattice nodes...\n");
+
+  /* Fourier part — dual kernel: multiplies by f_f (node receiver) */
+  ewald_potential_fourier_kernel_dual << <blocks, threads >> > (
+      psi_data_d, Sk_sin_d, Sk_cos_d, kvec_d, Gk_d, gaussian_fk_f_d, kz_arr_d,
+      nk_actual, nsites, nhalo);
+  cudaDeviceSynchronize();
+
+  if (nparticles > 0) {
+    ewald_potential_real_particle_kernel_dual_pf << <blocks, threads >> > (
+        psi_data_d, particle_r_d, particle_q_d, nparticles, nsites, nhalo, irc);
+    cudaDeviceSynchronize();
+  }
+
+  ewald_potential_real_lattice_kernel_dual_ff << <blocks, threads >> > (
+      psi_data_d, rho_data_d, nsites, nhalo, irc);
+  cudaDeviceSynchronize();
+
+  field_memcpy(ewald->psi->psi, tdpMemcpyDeviceToHost);
+
+  /* ========================================================================
+   * PART 3: Force and E-field on fluid nodes
+   * ======================================================================== */
+
+  pe_info(ewald->pe, "  [5/6] Computing dual-sigma force on lattice nodes...\n");
+
+  kahan_t F_fluid_total[3] = { kahan_zero(), kahan_zero(), kahan_zero() };
+
+  if (ewald->hydro != NULL) {
+    hydro_memcpy(ewald->hydro, tdpMemcpyDeviceToHost);
+
+    double* efield_d = NULL;
+    double* force_d;
+    cudaMalloc(&force_d, 3 * nsites * sizeof(double));
+    cudaMemset(force_d, 0, 3 * nsites * sizeof(double));
+
+    if (ewald->psi && ewald->psi->efield) {
+      cudaMalloc(&efield_d, 3 * nsites * sizeof(double));
+      cudaMemset(efield_d, 0, 3 * nsites * sizeof(double));
+
+      /* Fourier efield — dual kernel: multiplies by f_f (node receiver) */
+      ewald_efield_fourier_kernel_dual << <blocks, threads >> > (
+          efield_d, Sk_sin_d, Sk_cos_d, kvec_d, Gk_d, gaussian_fk_f_d, kz_arr_d,
+          nk_actual, nsites, nhalo);
+      cudaDeviceSynchronize();
+
+      if (nparticles > 0) {
+        ewald_efield_real_particle_kernel_dual_pf << <blocks, threads >> > (
+            efield_d, particle_r_d, particle_q_d,
+            nparticles, nsites, nhalo, irc);
+        cudaDeviceSynchronize();
+      }
+
+      ewald_efield_real_lattice_kernel_dual_ff << <blocks, threads >> > (
+          efield_d, rho_data_d, nsites, nhalo, irc);
+      cudaDeviceSynchronize();
+    }
+
+    /* Fourier force — dual kernel: multiplies by f_f (node receiver) */
+    ewald_force_fourier_kernel_dual << <blocks, threads >> > (
+        force_d, rho_data_d, Sk_sin_d, Sk_cos_d, kvec_d, Gk_d, gaussian_fk_f_d, kz_arr_d,
+        nk_actual, nsites, nhalo);
+    cudaDeviceSynchronize();
+
+    if (nparticles > 0) {
+      ewald_force_real_particle_kernel_dual_pf << <blocks, threads >> > (
+          force_d, rho_data_d, particle_r_d, particle_q_d,
+          nparticles, nsites, nhalo, irc);
+      cudaDeviceSynchronize();
+    }
+
+    /*CHANGE INIT - 20260611 Real-space force from lattice nodes (fluid-fluid pair, σ_eff_ff) */
+    ewald_force_real_lattice_kernel_dual_ff << <blocks, threads >> > (
+        force_d, rho_data_d, nsites, nhalo, irc);
+    cudaDeviceSynchronize();
+    /*CHANGE END - 20260611 */
+
+    double* force_h = (double*)malloc(3 * nsites * sizeof(double));
+    cudaMemcpy(force_h, force_d, 3 * nsites * sizeof(double), cudaMemcpyDeviceToHost);
+
+    double* efield_h = NULL;
+    if (efield_d != NULL) {
+      efield_h = (double*)malloc(3 * nsites * sizeof(double));
+      cudaMemcpy(efield_h, efield_d, 3 * nsites * sizeof(double), cudaMemcpyDeviceToHost);
+    }
+
+    for (int ic = 1; ic <= nlocal[X]; ic++) {
+      for (int jc = 1; jc <= nlocal[Y]; jc++) {
+        for (int kc = 1; kc <= nlocal[Z]; kc++) {
+          int index = cs_index(ewald->cs, ic, jc, kc);
+          double f[3] = { force_h[3 * index + 0], force_h[3 * index + 1], force_h[3 * index + 2] };
+          hydro_f_local_add(ewald->hydro, index, f);
+
+          if (efield_h != NULL) {
+            double e_field[3] = { efield_h[3 * index + 0], efield_h[3 * index + 1], efield_h[3 * index + 2] };
+            field_vector_set(ewald->psi->efield, index, e_field);
+          }
+
+          kahan_add_double(&F_fluid_total[X], f[X]);
+          kahan_add_double(&F_fluid_total[Y], f[Y]);
+          kahan_add_double(&F_fluid_total[Z], f[Z]);
+        }
+      }
+    }
+
+    if (efield_h) free(efield_h);
+    if (efield_d) cudaFree(efield_d);
+    free(force_h);
+    cudaFree(force_d);
+
+    if (ewald->psi && ewald->psi->efield)
+      field_memcpy(ewald->psi->efield, tdpMemcpyHostToDevice);
+
+    hydro_memcpy(ewald->hydro, tdpMemcpyHostToDevice);
+  }
+
+  {
+    MPI_Datatype kahan_dt;
+    MPI_Op kahan_op;
+    kahan_mpi_datatype(&kahan_dt);
+    kahan_mpi_op_sum(&kahan_op);
+    MPI_Allreduce(MPI_IN_PLACE, F_fluid_total, 3, kahan_dt, kahan_op, comm);
+    MPI_Type_free(&kahan_dt);
+    MPI_Op_free(&kahan_op);
+  }
+
+  /* ========================================================================
+   * PART 4: Field and force on particles (uses σ_eff_pf for nodes, σ_eff_pp for parts)
+   * ======================================================================== */
+
+  pe_info(ewald->pe, "  [6/6] Computing dual-sigma field and force on particles...\n");
+
+  kahan_t F_particle_total[3] = { kahan_zero(), kahan_zero(), kahan_zero() };
+
+  if (nparticles > 0) {
+    int p_blocks = (nparticles + threads - 1) / threads;
+
+    /* Fourier part — dual kernel: multiplies by f_p (particle receiver) */
+    ewald_particle_field_fourier_kernel_dual << <p_blocks, threads >> > (
+        Esub_d, fex_d, particle_r_d, particle_q_d,
+        Sk_sin_d, Sk_cos_d, kvec_d, Gk_d, gaussian_fk_p_d, kz_arr_d,
+        nparticles, nk_actual);
+    cudaDeviceSynchronize();
+
+    ewald_particle_field_real_kernel_dual << <p_blocks, threads >> > (
+        Esub_d, fex_d, particle_r_d, particle_q_d, rho_data_d,
+        nparticles, nsites, nhalo, irc);
+    cudaDeviceSynchronize();
+
+    double* Esub_h = (double*)malloc(3 * nparticles * sizeof(double));
+    double* fex_h  = (double*)malloc(3 * nparticles * sizeof(double));
+    cudaMemcpy(Esub_h, Esub_d, 3 * nparticles * sizeof(double), cudaMemcpyDeviceToHost);
+    cudaMemcpy(fex_h,  fex_d,  3 * nparticles * sizeof(double), cudaMemcpyDeviceToHost);
+
+    int p = 0;
+    colloid_t* pc;
+    colloids_info_local_head(ewald->cinfo, &pc);
+    for (; pc; pc = pc->nextlocal) {
+      pc->Esub[X] = Esub_h[3 * p + 0];
+      pc->Esub[Y] = Esub_h[3 * p + 1];
+      pc->Esub[Z] = Esub_h[3 * p + 2];
+      pc->fex[X]  = fex_h[3 * p + 0];
+      pc->fex[Y]  = fex_h[3 * p + 1];
+      pc->fex[Z]  = fex_h[3 * p + 2];
+      kahan_add_double(&F_particle_total[X], pc->fex[X]);
+      kahan_add_double(&F_particle_total[Y], pc->fex[Y]);
+      kahan_add_double(&F_particle_total[Z], pc->fex[Z]);
+      p++;
+    }
+
+    free(Esub_h);
+    free(fex_h);
+  }
+
+  {
+    MPI_Datatype kahan_dt;
+    MPI_Op kahan_op;
+    kahan_mpi_datatype(&kahan_dt);
+    kahan_mpi_op_sum(&kahan_op);
+    MPI_Allreduce(MPI_IN_PLACE, F_particle_total, 3, kahan_dt, kahan_op, comm);
+    MPI_Type_free(&kahan_dt);
+    MPI_Op_free(&kahan_op);
+  }
+
+  double F_fluid[3]    = { kahan_sum(&F_fluid_total[X]),    kahan_sum(&F_fluid_total[Y]),    kahan_sum(&F_fluid_total[Z]) };
+  double F_particle[3] = { kahan_sum(&F_particle_total[X]), kahan_sum(&F_particle_total[Y]), kahan_sum(&F_particle_total[Z]) };
+  double F_diff[3]     = { F_fluid[X] + F_particle[X], F_fluid[Y] + F_particle[Y], F_fluid[Z] + F_particle[Z] };
+
+  fprintf(fp, "%1.15e,%1.15e, %1.15e, %1.15e,%1.15e, %1.15e, %1.15e,%1.15e, %1.15e, %1.15e,\n",
+          sqrt(F_diff[X] * F_diff[X] + F_diff[Y] * F_diff[Y] + F_diff[Z] * F_diff[Z]),
+          F_diff[X], F_diff[Y], F_diff[Z],
+          F_fluid[X], F_fluid[Y], F_fluid[Z],
+          F_particle[X], F_particle[Y], F_particle[Z]);
+
+  pe_info(ewald->pe, "\n");
+  pe_info(ewald->pe, "  Momentum conservation check (Gaussian Dual Ewald):\n");
+  pe_info(ewald->pe, "    F_fluid    = (%14.7e, %14.7e, %14.7e)\n", F_fluid[X], F_fluid[Y], F_fluid[Z]);
+  pe_info(ewald->pe, "    F_particle = (%14.7e, %14.7e, %14.7e)\n", F_particle[X], F_particle[Y], F_particle[Z]);
+  pe_info(ewald->pe, "    F_total    = (%14.7e, %14.7e, %14.7e)\n", F_diff[X], F_diff[Y], F_diff[Z]);
+  pe_info(ewald->pe, "    |F_total|  = %14.7e\n",
+          sqrt(F_diff[X] * F_diff[X] + F_diff[Y] * F_diff[Y] + F_diff[Z] * F_diff[Z]));
+
+  ewald_charge_external_field(ewald);
+
+  /* Cleanup */
+  free(kvec_h);
+  free(Gk_h);
+  free(gaussian_fk_p_h);
+  free(gaussian_fk_f_h);
+  free(kz_arr_h);
+  free(Sk_sin_h);
+  free(Sk_cos_h);
+
+  cudaFree(kvec_d);
+  cudaFree(Gk_d);
+  cudaFree(gaussian_fk_p_d);
+  cudaFree(gaussian_fk_f_d);
+  cudaFree(kz_arr_d);
+  cudaFree(Sk_sin_d);
+  cudaFree(Sk_cos_d);
+
+  if (nparticles > 0) {
+    free(particle_r_h);
+    free(particle_q_h);
+    cudaFree(particle_r_d);
+    cudaFree(particle_q_d);
+    cudaFree(Esub_d);
+    cudaFree(fex_d);
+  }
+
+  pe_info(ewald->pe, "Ewald charge sum full GAUSSIAN DUAL (GPU): complete.\n\n");
+
+  TIMER_stop(TIMER_EWALD_TOTAL);
+
+  return 0;
+
+#endif /* __NVCC__ */
+}
+
+/* CHANGE END - Gaussian_Ewald_Dual */
 
 /*****************************************************************************
  *

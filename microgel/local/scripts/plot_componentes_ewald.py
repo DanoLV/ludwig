@@ -876,7 +876,7 @@ def export_csv_from_points(rows, particle_pos, charge, epsilon, kt, kappa, L, n_
 def plot_components_comparison(distances_real, E_real, distances_fourier, E_fourier,
                                distances_total, E_total, grid_size, rho_el, charge, epsilon, kt, kappa, alpha, rc,
                                rmin=0.1, output_file='ewald_components.png', max_points=10000,
-                               log_scale=True, log_log=False, log_log_error=False, xmin=None, ymin=None,
+                               log_scale=True, log_log=False, log_log_error=False, xmin=None, ymin=None, ymax=None,
                                show_ewald_components=True,
                                show_ewald_total=True, show_dh=True, show_ewald_theory_total=True,
                                show_dh_periodic=False, dh_periodic_shells=1,
@@ -886,7 +886,9 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
                                particle_radius=0.0, only_error_dh_per_rad=False,
                                show_dh_periodic_rad=False,
                                gaussian_source=False, sigma=1.0,
-                               gaussian_error=False, gaussian_error_periodic=False):
+                               gaussian_error=False, gaussian_error_periodic=False,
+                               show_gaussian_dh_inf=True,
+                               show_ewald_params=True):
     """
     Genera gráfico comparando las componentes Real, Fourier, Total y Teórico
 
@@ -908,6 +910,8 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
         show_ewald_total: Si True, grafica la suma total de Ewald (real + Fourier)
         show_dh: Si True, grafica la curva teórica de Debye-Hückel
         show_ewald_theory_total: Si True, grafica la suma teórica total de Ewald (real + recíproco teóricos)
+        show_ewald_params: Si False, no muestra parámetros de Ewald (α, rc) en el título
+                           ni las líneas verticales de rc (útil para corridas PM sin Ewald)
     """
     # Ordenar por distancia
     sort_idx_real = np.argsort(distances_real)
@@ -1037,7 +1041,7 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
 
     if show_ewald_total:
         ax1.plot(distances_total_sorted, E_total_sorted, 'g.', markersize=6, alpha=0.8,
-                 label='Ludwig: Total (Real + Fourier)')
+                 label='Ludwig: Total')
 
     # Teoría de componentes Ewald (solo si se muestran componentes)
     if show_ewald_components:
@@ -1086,7 +1090,7 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
     # CHANGE END - DHFiniteRadius
 
     # CHANGE INIT - GaussianDH - Curvas gaussiana-DH en panel 1
-    if gaussian_source and E_gauss_dh is not None:
+    if gaussian_source and E_gauss_dh is not None and show_gaussian_dh_inf:
         if kappa > 0:
             label_gauss = (f'Gauss-DH (σ={sigma:.2f}, λ_D={1.0/kappa:.2f}, κ={kappa:.3f})')
         else:
@@ -1101,8 +1105,9 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
     # CHANGE END - GaussianDH
 
     # Marcar rc y λ_D
-    ax1.axvline(x=rc, color='orange', linestyle='--', linewidth=2, alpha=0.7,
-                label=f'Radio de corte rc={rc:.1f}')
+    if show_ewald_params:
+        ax1.axvline(x=rc, color='orange', linestyle='--', linewidth=2, alpha=0.7,
+                    label=f'Radio de corte rc={rc:.1f}')
     if kappa > 0:
         ax1.axvline(x=lambda_d, color='purple', linestyle=':', linewidth=2, alpha=0.7,
                     label=f'Longitud Debye λ_D={lambda_d:.2f}')
@@ -1110,7 +1115,11 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
     ax1.set_xlabel('Distancia r [lattice units]', fontsize=font_size)
     ax1.set_ylabel('|E(r)|/kT [lattice units]', fontsize=font_size)
 
-    title_str = f'|E(r)|/kT vs. distancia\nL=({grid_size[0]:d}×{grid_size[1]:d}×{grid_size[2]:d}), rho_el={rho_el:.2e}, q={charge:.2e}, ε={epsilon:.2e}, kT={kt:.2e}, α={alpha:.3f}, rc={rc:.1f}'
+    title_str = (f'|E(r)|/kT vs. distancia\n'
+                 f'L=({grid_size[0]:d}×{grid_size[1]:d}×{grid_size[2]:d}), rho_el={rho_el:.2e}, '
+                 f'q={charge:.2e}, ε={epsilon:.2e}, kT={kt:.2e}')
+    if show_ewald_params:
+        title_str += f', α={alpha:.3f}, rc={rc:.1f}'
     if kappa > 0:
         title_str += f', κ={kappa:.3f}, λ_D={lambda_d:.2f}'
     if direction is not None:
@@ -1139,18 +1148,19 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
         ax1.set_yscale('log')
         ax1.set_xlim(x_left, x_max)
         ax1.set_ylim(bottom=ymin if ymin is not None else y_bottom_auto,
-                     top=y_top)
+                     top=ymax if ymax is not None else y_top)
     elif log_scale:
         x_left = xmin if xmin is not None else 0.0
         ax1.set_yscale('log')
         ax1.set_xlim(x_left, x_max)
         ax1.set_ylim(bottom=ymin if ymin is not None else y_bottom_auto,
-                     top=y_top)
+                     top=ymax if ymax is not None else y_top)
     else:
         x_left = xmin if xmin is not None else 0.0
         ax1.set_xlim(x_left, x_max)
-        if ymin is not None:
-            ax1.set_ylim(bottom=ymin, top=y_top)
+        if ymin is not None or ymax is not None:
+            ax1.set_ylim(bottom=ymin if ymin is not None else None,
+                         top=ymax if ymax is not None else y_top)
         elif y_top is not None:
             ax1.set_ylim(top=y_top)
 
@@ -1253,8 +1263,9 @@ def plot_components_comparison(distances_real, E_real, distances_fourier, E_four
 
         ax2.axhline(y=10, color='r', linestyle=':', alpha=0.5, linewidth=2, label='10% error')
         ax2.axhline(y=1, color='g', linestyle=':', alpha=0.5, linewidth=2, label='1% error')
-        ax2.axvline(x=rc, color='orange', linestyle='--', linewidth=2, alpha=0.7,
-                    label=f'rc={rc:.1f}')
+        if show_ewald_params:
+            ax2.axvline(x=rc, color='orange', linestyle='--', linewidth=2, alpha=0.7,
+                        label=f'rc={rc:.1f}')
 
         # problem_zone = (distances_total_sorted > 1.0) & (distances_total_sorted < 3.0)
         # if np.any(problem_zone):
@@ -1456,6 +1467,8 @@ Flags de visualización (si no se especifica ninguno, se muestran todos):
     --show-dh                    Curva teórica de Debye-Hückel (sistema infinito)
     --show-dh-periodic           DH con imágenes periódicas (primeros vecinos a distancia L)
     --dh-periodic-shells N       Número de capas de imágenes (default: 1 = 26 imágenes a ~L)
+    --no-ewald-params (--pm)     Oculta α y rc del título y las líneas verticales de rc
+                                 (usar cuando la corrida es PM, sin Ewald)
 
 NOTA: Este script requiere que ewald_charge.c genere archivos separados
       efield_real y efield_fourier (además del efield total).
@@ -1505,6 +1518,8 @@ NOTA: Este script requiere que ewald_charge.c genere archivos separados
                        help='Valor mínimo del eje X en ambos paneles (default: 0 o rmin en log-log)')
     parser.add_argument('--ymin', type=float, default=None,
                        help='Valor mínimo del eje Y (aplica a ax1 en log/semilog, y a ax2 en log-log-error)')
+    parser.add_argument('--ymax', type=float, default=None,
+                       help='Valor máximo del eje Y en el panel 1 (default: automático)')
     parser.add_argument('--show-ewald-components', action='store_true', default=None,
                        help='Mostrar componentes real y Fourier de Ewald por separado')
     parser.add_argument('--show-ewald-total', action='store_true', default=None,
@@ -1551,14 +1566,35 @@ NOTA: Este script requiere que ewald_charge.c genere archivos separados
                             'como fuente en la teoría DH. Activa curva |E| gaussiana-DH.')
     parser.add_argument('--sigma', type=float, default=1.0,
                        help='Anchura σ de la distribución gaussiana de carga (lu). '
-                            'Solo se usa con --gaussian-source (default: 1.0)')
+                            'Solo se usa con --gaussian-source (default: 1.0). '
+                            'Si se especifican --sigma-particle y --sigma-fluid, '
+                            'este valor se ignora y se usa σ_eff = √(σ_p² + σ_f²).')
+    # CHANGE INIT - GaussianDualEwald - sigmas separados para partícula y fluido
+    parser.add_argument('--sigma-particle', type=float, default=None,
+                       help='Anchura σ_p de las partículas gaussianas (lu). '
+                            'Combinado con --sigma-fluid define la interacción par '
+                            'σ_eff = √(σ_p² + σ_f²). Override de --sigma.')
+    parser.add_argument('--sigma-fluid', type=float, default=None,
+                       help='Anchura σ_f de los nodos de fluido gaussianos (lu). '
+                            'Combinado con --sigma-particle define la interacción par '
+                            'σ_eff = √(σ_p² + σ_f²). Override de --sigma.')
+    # CHANGE END - GaussianDualEwald
     parser.add_argument('--gaussian-error', action='store_true', default=False,
                        help='Mostrar el error relativo vs la teoría gaussiana-DH (infinita) '
                             'en el panel 2. Requiere --gaussian-source.')
     parser.add_argument('--gaussian-error-periodic', action='store_true', default=False,
                        help='Mostrar el error relativo vs la teoría gaussiana-DH periódica '
                             'en el panel 2. Requiere --gaussian-source y --show-dh-periodic.')
+    parser.add_argument('--no-gaussian-dh-inf', action='store_true', default=False,
+                       help='No graficar la curva gaussiana-DH sistema infinito (no periódica).')
     # CHANGE END - GaussianDH
+
+    # CHANGE INIT - 20260724 - Opción para ocultar parámetros de Ewald (corridas PM)
+    parser.add_argument('--no-ewald-params', '--pm', dest='no_ewald_params',
+                       action='store_true', default=False,
+                       help='No mostrar los parámetros de Ewald (α, rc) en el título ni las '
+                            'líneas verticales de rc. Usar cuando la corrida es PM (sin Ewald).')
+    # CHANGE END - 20260724
 
     parser.add_argument('--csv', default=None,
                        help='Exportar datos a CSV (nombre base sin extensión; se añade -n_NNNNNN.csv)')
@@ -1568,6 +1604,19 @@ NOTA: Este script requiere que ewald_charge.c genere archivos separados
                             'Nombre base sin extensión; se añade -n_NNNNNN.csv')
 
     args = parser.parse_args()
+
+    # CHANGE INIT - GaussianDualEwald - compute σ_eff from per-species sigmas
+    # If --sigma-particle and --sigma-fluid are given, override --sigma with
+    # σ_eff = √(σ_p² + σ_f²), which is the pair-interaction width for the
+    # convolution of two Gaussians (particle source → fluid sensor).
+    if args.sigma_particle is not None and args.sigma_fluid is not None:
+        args.sigma = float(np.sqrt(args.sigma_particle**2 + args.sigma_fluid**2))
+        print(f"σ_p={args.sigma_particle:.4g}  σ_f={args.sigma_fluid:.4g}  "
+              f"→  σ_eff = √(σ_p²+σ_f²) = {args.sigma:.4g} (sobrescribe --sigma)")
+    elif args.sigma_particle is not None or args.sigma_fluid is not None:
+        print("WARNING: --sigma-particle y --sigma-fluid deben usarse JUNTOS; "
+              "uno solo se ignora y se usa --sigma.")
+    # CHANGE END - GaussianDualEwald
 
     # Parsear dirección
     try:
@@ -1743,13 +1792,19 @@ NOTA: Este script requiere que ewald_charge.c genere archivos separados
     print(f"\nGenerando gráfico de componentes...")
     plot_components_comparison(distances_real, E_real, distances_fourier, E_fourier,
                               distances_total, E_total, grid_size, args.rho_el, args.charge, args.epsilon,
-                              args.kt, kappa, args.alpha, args.rc, args.rmin,
-                              output_file, args.max_points, log_scale, args.log_log, args.log_log_error,
-                              args.xmin, args.ymin, args.show_ewald_components, args.show_ewald_total,
-                              args.show_dh, args.show_ewald_theory_total,
-                              args.show_dh_periodic, args.dh_periodic_shells,
-                              direction, args.angle_tol,
-                              r_vecs_total, args.pointwise_error,
+                              args.kt, kappa, args.alpha, args.rc,
+                              rmin=args.rmin,
+                              output_file=output_file, max_points=args.max_points,
+                              log_scale=log_scale, log_log=args.log_log, log_log_error=args.log_log_error,
+                              xmin=args.xmin, ymin=args.ymin, ymax=args.ymax,
+                              show_ewald_components=args.show_ewald_components,
+                              show_ewald_total=args.show_ewald_total,
+                              show_dh=args.show_dh,
+                              show_ewald_theory_total=args.show_ewald_theory_total,
+                              show_dh_periodic=args.show_dh_periodic,
+                              dh_periodic_shells=args.dh_periodic_shells,
+                              direction=direction, angle_tol_deg=args.angle_tol,
+                              r_vecs_total=r_vecs_total, pointwise_error=args.pointwise_error,
                               show_error_inf=not args.no_error_inf,
                               show_error_dir=not args.no_error_dir,
                               particle_radius=args.particle_radius,
@@ -1758,7 +1813,9 @@ NOTA: Este script requiere que ewald_charge.c genere archivos separados
                               gaussian_source=args.gaussian_source,
                               sigma=args.sigma,
                               gaussian_error=args.gaussian_error,
-                              gaussian_error_periodic=args.gaussian_error_periodic)
+                              gaussian_error_periodic=args.gaussian_error_periodic,
+                              show_gaussian_dh_inf=not args.no_gaussian_dh_inf,
+                              show_ewald_params=not args.no_ewald_params)
 
     # Exportar CSV si se solicitó
     if args.csv is not None:

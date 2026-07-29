@@ -32,6 +32,17 @@ typedef enum psi_poisson_solver_enum_s {
   /*CHANGE END - 20260512 */
 } psi_poisson_solver_enum_t;
 
+/*CHANGE INIT - 20260630 FFT Laplacian variant selectable from input */
+/* Reciprocal-space operator used by the FFT Poisson solver. "discrete" uses
+   the eigenvalue of the same finite-difference stencil as PETSc/SOR (so the
+   solutions match); "analytic" uses the continuum k^2 (differs by O(h^2)). */
+
+typedef enum psi_fft_laplacian_enum_s {
+  PSI_FFT_LAPLACIAN_OPT_DISCRETE = 0,  /* discrete stencil eigenvalue (=PETSc) */
+  PSI_FFT_LAPLACIAN_OPT_ANALYTIC = 1   /* continuum k^2 */
+} psi_fft_laplacian_enum_t;
+/*CHANGE END - 20260630 */
+
 /* This is intended to be general; some components might not be relevant
    in all specific cases. */
 
@@ -40,6 +51,9 @@ typedef struct psi_solver_options_s psi_solver_options_t;
 struct psi_solver_options_s {
 
   psi_poisson_solver_enum_t psolver;   /* Poisson solver id */
+  /*CHANGE INIT - 20260630 FFT Laplacian variant (only used when psolver==FFT) */
+  psi_fft_laplacian_enum_t fft_laplacian;
+  /*CHANGE END - 20260630 */
   int maxits;                          /* Maximum iterations in solver */
   int verbose;                         /* Level of verbosity */
   int nfreq;                           /* Frequency of report */

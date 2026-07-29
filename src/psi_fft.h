@@ -140,4 +140,14 @@ int psi_solver_fft_solve_with_subgrid(psi_solver_fft_t * solver,
 /* Utility functions */
 int psi_solver_fft_info(psi_solver_fft_t * solver);
 
+/*CHANGE INIT - 20260710 spectral (FFT phase) shift of a scalar lattice field */
+int psi_fft_shift_field(psi_t * psi, double * field_data,
+                        double ux, double uy, double uz);
+int psi_fft_kill_nyquist(psi_t * psi, double * field_data,
+                         int killx, int killy, int killz);
+double psi_fft_nyquist_x_norm(psi_t * psi, const double * field_data);
+int psi_fft_shift_field_keepnyq(psi_t * psi, double * field_data,
+                                double ux, double uy, double uz);
+/*CHANGE END - 20260710 */
+
 #endif /* LUDWIG_PSI_FFT_H */

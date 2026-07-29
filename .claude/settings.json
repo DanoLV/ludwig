@@ -1,7 +1,16 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(xargs -I{} basename {})",
+      "Bash(grep -rn \"struct colloid_state\\\\|} colloid_state\" src/colloid.h; echo \"===\"; sed -n '/typedef struct colloid_state_type/,/} colloid_state_t/p' src/colloid.h 2>/dev/null | head -90)",
+      "Read(//home/bater/src/**)",
+      "Bash(awk 'END{print NR\" lineas\"}' config.cds.init.001-001)",
+      "Bash(awk 'END{print NR\" lineas\"}' config.cds.init.001-001-mon)",
+      "Bash(awk '{print $6,$7,$8}')"
+    ],
     "additionalDirectories": [
-      "/mnt/c/Users/bater/Desktop/Nueva carpeta"
+      "/mnt/c/Users/bater/Desktop/Nueva carpeta",
+      "/home/bater/Sim/ludwig/src"
     ]
   }
 }

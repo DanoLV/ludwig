@@ -91,6 +91,14 @@ static double subgrid_kb4_norm_fluid_ = 1.0;
 static double i0_series(double x);
 /*CHANGE END - 20260424 Kaiser-Bessel globals */
 
+/*CHANGE INIT - 20260630 Hann spread/gather kernel order (configurable) */
+/* Order n = full support width (in lattice units). w_i = 0 for |r| >= n/2.
+ * Default n = 4 (4-point support, |r| <= 2). Set from input via
+ * subgrid_set_hann_order(). Must be a positive even integer for the support
+ * to align with an integer number of nodes. */
+static double subgrid_hann_order_ = 4.0;
+/*CHANGE END - 20260630 */
+
 /*CHANGE INIT - 20260425 forward declare for interlacing offset variant */
 int subgrid_charge_from_grid_offset(colloids_info_t* cinfo, psi_t* obj,
 									 distributed_charge_klein_t** charge,
@@ -505,6 +513,11 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
 									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
 								}
+								/*CHANGE INIT - 20260630 Hann kernel */
+								else if (kernel == SUBGRID_KERNEL_HANN) {
+									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
+								}
+								/*CHANGE END - 20260630 */
 
 								q0_dr = p_colloid->s.q0 * dr;
 								q1_dr = p_colloid->s.q1 * dr;
@@ -722,6 +735,12 @@ int subgrid_scatter_fluid_offset(colloids_info_t* cinfo, psi_t* obj,
 							else if (kernel == SUBGRID_KERNEL_PESKIN4)  dr = d_peskin(dx) * d_peskin(dy) * d_peskin(dz);
 							else if (kernel == SUBGRID_KERNEL_KB4)      dr = d_kb4(dx) * d_kb4(dy) * d_kb4(dz) / subgrid_kb4_norm_fluid();
 							else if (kernel == SUBGRID_KERNEL_PESKIN6)  dr = d_peskin6(dx) * d_peskin6(dy) * d_peskin6(dz);
+							/*CHANGE INIT - 20260710 trilinear: exact relabelling at integer offsets */
+							else if (kernel == SUBGRID_KERNEL_TRILINEAR) dr = d_trilinear(dx) * d_trilinear(dy) * d_trilinear(dz);
+							/*CHANGE END - 20260710 */
+							/*CHANGE INIT - 20260630 Hann kernel */
+							else if (kernel == SUBGRID_KERNEL_HANN)     dr = d_hann(dx) * d_hann(dy) * d_hann(dz);
+							/*CHANGE END - 20260630 */
 							else dr = 0.0;
 							if (dr == 0.0) continue;
 
@@ -929,6 +948,11 @@ int subgrid_charge_from_grid_offset(colloids_info_t* cinfo, psi_t* obj,
 					else if (kernel == SUBGRID_KERNEL_PESKIN6) {
 						dr = d_peskin6(dx) * d_peskin6(dy) * d_peskin6(dz);
 					}
+					/*CHANGE INIT - 20260630 Hann kernel */
+					else if (kernel == SUBGRID_KERNEL_HANN) {
+						dr = d_hann(dx) * d_hann(dy) * d_hann(dz);
+					}
+					/*CHANGE END - 20260630 */
 					// if (kernel == SUBGRID_KERNEL_BSPLINE6) {
 					// 	dr = d_bspline6(r0[X] - (double)i2) 
 					// 		* d_bspline6(r0[Y] - (double)j2)
@@ -1511,6 +1535,11 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
 									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
 								}
+								/*CHANGE INIT - 20260630 Hann kernel */
+								else if (kernel == SUBGRID_KERNEL_HANN) {
+									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
+								}
+								/*CHANGE END - 20260630 */
 
 								force_aux[X] = force[X] * dr;
 								force_aux[Y] = force[Y] * dr;
@@ -1570,7 +1599,8 @@ int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo,
 												map_t* map,
 												physics_t* phys,
 												psi_t* psi,
-										  hydro_t* hydro) {
+										  		hydro_t* hydro,
+										  		subgrid_kernel_t kernel) {
 
 	int i, j, k, ic, jc, kc, i_min, i_max, j_min, j_max, k_min, k_max;
 	int ncell[3];
@@ -1643,6 +1673,21 @@ int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo,
 					/* Work out which local lattice sites are involved */
 					subgrid_get_lattice_index(r0, nlocal, &i_min, &i_max, &j_min, &j_max, &k_min, &k_max);
 
+					double kb_w[4][4][4] = { {{0}} };
+					double kb_w_sum = 1.0;
+					if (kernel == SUBGRID_KERNEL_KB4) {
+						kb_w_sum = 0.0;
+						for (i = i_min; i <= i_max; i++)
+							for (j = j_min; j <= j_max; j++)
+								for (k = k_min; k <= k_max; k++) {
+									double wx = d_kb4(r0[X] - i);
+									double wy = d_kb4(r0[Y] - j);
+									double wz = d_kb4(r0[Z] - k);
+									kb_w[i - i_min][j - j_min][k - k_min] = wx * wy * wz;
+									kb_w_sum += wx * wy * wz;
+								}
+					}
+
 					for (i = i_min; i <= i_max; i++) {
 						for (j = j_min; j <= j_max; j++) {
 							for (k = k_min; k <= k_max; k++) {
@@ -1656,7 +1701,28 @@ int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo,
 								r[Y] = r0[Y] - 1.0 * j;
 								r[Z] = r0[Z] - 1.0 * k;
 
-								dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								// dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+
+								if (kernel == SUBGRID_KERNEL_BSPLINE6) {
+									dr = d_bspline6(r[X]) * d_bspline6(r[Y]) * d_bspline6(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_BSPLINE4) {
+									dr = d_bspline4(r[X]) * d_bspline4(r[Y]) * d_bspline4(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN4) {
+									dr = d_peskin(r[X]) * d_peskin(r[Y]) * d_peskin(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_KB4) {
+									dr = kb_w[i - i_min][j - j_min][k - k_min] / kb_w_sum;
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
+									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
+								}
+								/*CHANGE INIT - 20260630 Hann kernel */
+								else if (kernel == SUBGRID_KERNEL_HANN) {
+									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
+								}
+								/*CHANGE END - 20260630 */
 
 								/* Force on particle from electric field at this site index*/
 								force_aux[X] = force[X] * dr;
@@ -1674,6 +1740,25 @@ int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo,
 		}
 	}
 	// // END VERSION - Ewald
+
+	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
+
+	/* Apply accumulated forces to hydro */
+	if (force_k_indexed != NULL) {
+		for (int i = 0; i < (force_k_indexed)->count; i++) {
+			distributed_force_klein_entry_t* entry = (force_k_indexed)->entries[i];
+			double new_force[3];
+			new_force[X] = klein_sum(entry->force[X]);
+			new_force[Y] = klein_sum(entry->force[Y]);
+			new_force[Z] = klein_sum(entry->force[Z]);
+			hydro_f_local_add(hydro, entry->cs_index, new_force);
+		}
+		subgrid_free_distributed_force_t(&force_k_indexed);
+	}
+
+	hydro_memcpy(hydro, tdpMemcpyHostToDevice);
+
+	return 0;
 }
 /*****************************************************************************
  *
@@ -1911,6 +1996,61 @@ int subgrid_update_forces_electrokinetics_theory(colloids_info_t* cinfo,
 	hydro_memcpy(hydro, tdpMemcpyHostToDevice);
 
 	return 0;
+}
+
+/*****************************************************************************
+ *
+ *  subgrid_print_Esub
+ *
+ *  Print electric field on subgrid particles
+ *****************************************************************************/
+int subgrid_print_Esub(colloids_info_t* cinfo,
+						int step,
+						FILE* fp) {
+
+	int i, j, k, ic, jc, kc;
+	int ncell[3];
+
+	colloid_t* pc;
+	// MPI_Comm comm;
+
+
+	assert(cinfo);
+
+	if (cinfo->nsubgrid == 0) return 0;
+
+	// cs_cart_comm(cinfo->cs, &comm);
+	colloids_info_ncell(cinfo, ncell);
+
+	// colloid_sums_halo(cinfo, COLLOID_SUM_ELECTRIC_FIELD);
+
+	/* Loop only over non-halo cells to write data */
+	for (ic = 1; ic <= ncell[X]; ic++) {
+		for (jc = 1; jc <= ncell[Y]; jc++) {
+			for (kc = 1; kc <= ncell[Z]; kc++) {
+
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					char string[512];
+					double Emod = sqrt(pc->Esub[X] * pc->Esub[X] + pc->Esub[Y] * pc->Esub[Y] + pc->Esub[Z] * pc->Esub[Z]);
+
+					sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e\n",
+							step, pc->s.index,
+							Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z]);
+					for (i = 0; i < (int)strlen(string); i++) if (string[i] == '.') string[i] = ',';
+					fprintf(fp, "%s", string);
+				}
+			}
+		}
+	}
+	fflush(fp);
+
+	return 0;
+
 }
 
 /*****************************************************************************
@@ -2230,6 +2370,11 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 								else if (kernel == SUBGRID_KERNEL_PESKIN6) {
 									dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
 								}
+								/*CHANGE INIT - 20260630 Hann kernel */
+								else if (kernel == SUBGRID_KERNEL_HANN) {
+									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
+								}
+								/*CHANGE END - 20260630 */
 
 
 								psi_electric_field(psi, index, e);
@@ -2300,18 +2445,16 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 
 					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
 
-					/* Write data for each particle - including both methods */
+					/*CHANGE INIT - 20260518 fix sprintf: remove dangling PB format specifiers */
 					char string[512];
 					double Emod = sqrt(pc->Esub[X] * pc->Esub[X] + pc->Esub[Y] * pc->Esub[Y] + pc->Esub[Z] * pc->Esub[Z]);
-					// double Emod_PB = sqrt(pc->fc0[X] * pc->fc0[X] + pc->fc0[Y] * pc->fc0[Y] + pc->fc0[Z] * pc->fc0[Z]);
-					/* Format: step;index;Emod_Peskin;Ex_Peskin;Ey_Peskin;Ez_Peskin;Emod_PB;Ex_PB;Ey_PB;Ez_PB */
-					// sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
-					sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e;%.15e\n",
+					/* Format: step;index;|E|;Ex;Ey;Ez */
+					sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e\n",
 							step, pc->s.index,
 							Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z]);
-					// Emod_PB, pc->fc0[X], pc->fc0[Y], pc->fc0[Z]);
-					for (i = 0; i < strlen(string); i++) if (string[i] == '.') string[i] = ',';
+					for (i = 0; i < (int)strlen(string); i++) if (string[i] == '.') string[i] = ',';
 					fprintf(fp, "%s", string);
+					/*CHANGE END - 20260518 */
 				}
 			}
 		}
@@ -2833,6 +2976,12 @@ int subgrid_get_range(subgrid_kernel_t kernel)
 	else if (kernel == SUBGRID_KERNEL_PESKIN4)  return 1;
 	else if (kernel == SUBGRID_KERNEL_KB4)      return 1;
 	else if (kernel == SUBGRID_KERNEL_PESKIN6)  return 2;
+	/*CHANGE INIT - 20260630 Hann kernel range = ceil(n/2) */
+	else if (kernel == SUBGRID_KERNEL_HANN)     return (int) ceil(0.5 * subgrid_hann_order_);
+	/*CHANGE END - 20260630 */
+	/*CHANGE INIT - 20260710 trilinear (interpolating) kernel */
+	else if (kernel == SUBGRID_KERNEL_TRILINEAR) return 1;
+	/*CHANGE END - 20260710 */
 	else                                        return drange_;
 
 }
@@ -3614,47 +3763,53 @@ double d_bspline6(double r) {
  *  Argument s = x_node - x_particle (signed distance).
  *
  *****************************************************************************/
-double d_peskin6(double s) {
-	if (fabs(s) >= 3.0) return 0.0;
-
-	/* K = 59/60 - sqrt(29)/20 from Bao et al. 2016 Eq. (2.15); sqrt(29) ≈ 5.38516 */
-	static const double K = 0.71407520893979593; /* 59/60 - sqrt(29)/20 */
-
-	/* Determine fractional offset r in [0,1) and which phi formula to use.
-	 * Particle at x_p = floor(x_p) + r; nodes at floor(x_p) + {-2,-1,0,1,2,3}.
-	 * Signed distances: s in (-3,-2] -> r=-2-s; (-2,-1] -> r=-1-s; (-1,0] -> r=-s;
-	 *                       (0,1]  -> r=1-s;    (1,2]  -> r=2-s;   (2,3)  -> r=3-s. */
-	double r;
-	int segment; /* which of the 6 phi formulas: 0=phi(r-3), 1=phi(r-2), ..., 5=phi(r+2) */
-	if (s > -3.0 && s <= -2.0) { r = -2.0 - s; segment = 0; }
-	else if (s > -2.0 && s <= -1.0) { r = -1.0 - s; segment = 1; }
-	else if (s > -1.0 && s <= 0.0) { r = -s;        segment = 2; }
-	else if (s > 0.0 && s <= 1.0) { r = 1.0 - s;   segment = 3; }
-	else if (s > 1.0 && s <= 2.0) { r = 2.0 - s;   segment = 4; }
-	else { r = 3.0 - s;   segment = 5; }
-
-	/* beta(r) Eq. (2.16) */
+/* Six phi formulas of the Bao et al. 2016 6-point kernel, evaluated at the
+ * normalised fractional offset r in [0,1). segment in {0..5} selects the
+ * weight for one of the 6 support nodes. */
+static double peskin6_phi_segment(int segment, double r) {
+	/* K = 59/60 - sqrt(29)/20 (Bao et al. 2016 Eq. 2.15) */
+	static const double K = 0.71407520893979593;
 	double beta = 9.0 / 4.0 - 1.5 * (K + r * r) + (22.0 / 3.0 - 7.0 * K) * r - (7.0 / 3.0) * r * r * r;
-	/* gamma_r(r) Eq. (2.17) */
 	double t1 = (3.0 * K - 1.0) * r + r * r * r;
 	double t2 = (4.0 - 3.0 * K) * r - r * r * r;
 	double gamma_r = -11.0 / 32.0 * r * r + 3.0 / 32.0 * (2.0 * K + r * r) * r * r
 		+ t1 * t1 / 72.0 + t2 * t2 / 18.0;
-	/* sgn(3/2 - K): K ≈ 0.7141 < 3/2, so sgn = +1 */
-	double phi_m3 = (-beta + sqrt(beta * beta - 112.0 * gamma_r)) / 56.0; /* Eq. (2.18) */
+	double phi_m3 = (-beta + sqrt(beta * beta - 112.0 * gamma_r)) / 56.0;
 
 	switch (segment) {
-	case 0: return phi_m3;                                                              /* phi(r-3) */
+	case 0: return phi_m3;
 	case 1: return -3.0 * phi_m3 - 1.0 / 16.0 + (K + r * r) / 8.0
-		+ (3.0 * K - 1.0) * r / 12.0 + r * r * r / 12.0;                               /* phi(r-2) */
-	case 2: return  2.0 * phi_m3 + 1.0 / 4.0 + (4.0 - 3.0 * K) * r / 6.0 - r * r * r / 6.0;         /* phi(r-1) */
-	case 3: return  2.0 * phi_m3 + 5.0 / 8.0 - (K + r * r) / 4.0;                             /* phi(r)   */
-	case 4: return -3.0 * phi_m3 + 1.0 / 4.0 - (4.0 - 3.0 * K) * r / 6.0 + r * r * r / 6.0;         /* phi(r+1) */
+		+ (3.0 * K - 1.0) * r / 12.0 + r * r * r / 12.0;
+	case 2: return  2.0 * phi_m3 + 1.0 / 4.0 + (4.0 - 3.0 * K) * r / 6.0 - r * r * r / 6.0;
+	case 3: return  2.0 * phi_m3 + 5.0 / 8.0 - (K + r * r) / 4.0;
+	case 4: return -3.0 * phi_m3 + 1.0 / 4.0 - (4.0 - 3.0 * K) * r / 6.0 + r * r * r / 6.0;
 	case 5: return  phi_m3 - 1.0 / 16.0 + (K + r * r) / 8.0
-		- (3.0 * K - 1.0) * r / 12.0 - r * r * r / 12.0;                               /* phi(r+2) */
+		- (3.0 * K - 1.0) * r / 12.0 - r * r * r / 12.0;
 	default: return 0.0;
 	}
 }
+
+/*CHANGE INIT - 20260630 Fix d_peskin6 node-segment mapping.
+ * Previous version derived (r, segment) per integer band of s with a
+ * piecewise r definition, which broke partition of unity (Sum != 1) and
+ * symmetry (d6(s) != d6(-s)) at integer offsets (particle exactly on a
+ * node). That injected ~2.7% charge error wherever the particle / fluid
+ * ions sit on integer nodes, producing the noisy Debye layer seen with
+ * Peskin6. Correct mapping: particle at floor+off (off in [0,1)); the node
+ * at floor+m (m in {-2..3}) gets phi_segment(3 - m, off). This gives
+ * Sum = 1 and the correct first moment (centre of mass = off) for ALL
+ * offsets, including integers, and is symmetric d6(s)=d6(-s). */
+double d_peskin6(double s) {
+	if (fabs(s) >= 3.0) return 0.0;
+
+	double off = s - floor(s);          /* fractional offset in [0,1) */
+	int    m   = (int)lround(off - s);  /* node index relative to floor */
+	int    segment = 3 - m;             /* node floor+m -> segment 3-m */
+	if (segment < 0 || segment > 5) return 0.0;
+
+	return peskin6_phi_segment(segment, off);
+}
+/*CHANGE END - 20260630 Fix d_peskin6 node-segment mapping */
 /*CHANGE END - 20260424 Peskin 6-point kernel */
 
 /*CHANGE INIT - 20260424 Kaiser-Bessel order-4 kernel */
@@ -3710,6 +3865,57 @@ double d_kb4(double r) {
 	return i0_series(subgrid_kb4_beta_ * arg) / (2.0 * i0_series(subgrid_kb4_beta_));
 }
 /*CHANGE END - 20260424 Kaiser-Bessel order-4 kernel */
+
+/*CHANGE INIT - 20260630 Hann (raised-cosine) spread/gather kernel */
+/*****************************************************************************
+ *
+ *  subgrid_set_hann_order
+ *
+ *  Set the Hann kernel order n (full support width, lattice units). A larger
+ *  n spreads the charge/force over more nodes, reducing the "snap-to-grid"
+ *  effect at the cost of a wider stencil. n must be a positive integer;
+ *  partition of unity holds for any integer n (odd n makes the active-node
+ *  count vary between n and n-1 with the sub-grid offset, even n is uniform).
+ *
+ *****************************************************************************/
+void subgrid_set_hann_order(double n) {
+	/* n must be a positive integer for exact partition of unity (odd n is fine;
+	 * it only makes the active-node count vary with the offset). Callers that
+	 * read from input validate and report this; the assert guards direct use. */
+	assert(n > 0.0);
+	assert(n == floor(n));
+	subgrid_hann_order_ = n;
+}
+
+/*****************************************************************************
+ *
+ *  d_hann
+ *
+ *  Raised-cosine (Hann) window used as a regularised delta for spread/gather:
+ *
+ *      w(r) = (1/n) [1 + cos(2*pi*r/n)],   |r| <= n/2
+ *           = 0                            otherwise
+ *
+ *  where r = x_node - x_particle (signed distance in lattice units) and n is
+ *  the order (support width). For integer n the window satisfies partition of
+ *  unity exactly: sum_i w(i - c) = 1 for any offset c. This holds because the
+ *  Fourier transform of the truncated raised cosine has exact zeros at all
+ *  non-zero integer frequencies, so by Poisson summation the node sum is
+ *  independent of c. (Verified numerically to ~1e-16 for n in {2,3,4,5,6,8}.)
+ *  Hence no per-particle renormalisation is required, unlike KB4.
+ *
+ *  Reference: raised-cosine interpolation window; reduces grid-snapping of
+ *  the particle<->mesh coupling (see ek_particle_coupling note).
+ *
+ *****************************************************************************/
+double d_hann(double r) {
+	double n = subgrid_hann_order_;
+	double t = fabs(r);
+	if (t >= 0.5 * n) return 0.0;
+	PI_DOUBLE(pi);
+	return (1.0 / n) * (1.0 + cos(2.0 * pi * r / n));
+}
+/*CHANGE END - 20260630 Hann spread/gather kernel */
 
 /*****************************************************************************
  *
@@ -4740,3 +4946,728 @@ int subgrid_peskin_scatter_rho_gpu(colloids_info_t* cinfo,
 }
 /*CHANGE END - Peskin scatter kernel on GPU */
 /*CHANGE END - Poisson-Boltzmann weight */
+
+/*CHANGE INIT - 20260625 PM short-range correction table */
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_t
+ *
+ *  Lookup table for the short-range correction to the PM (FFT/PETSc) solver.
+ *
+ *  Stores delta_phi(r), delta_E(r), delta_F(r) = phi_ref - phi_PM_p, etc.,
+ *  where the reference is a Gaussian charge distribution of width sigma and
+ *  phi_PM_p is estimated from the same Gaussian smeared onto the lattice.
+ *
+ *  Two build strategies:
+ *    pm_sr_table_build_radial  -- phi_PM_p averaged over all directions (1D)
+ *    pm_sr_table_build_3d      -- phi_PM_p evaluated on a 3D grid (dx,dy,dz)
+ *
+ *  Parameters common to both:
+ *    sigma    - Gaussian width (lattice units)
+ *    r_cut    - correction cutoff radius (lattice units)
+ *    n_voxel  - sub-voxel points per axis for averaging within each cell
+ *    epsilon  - dielectric permittivity
+ *
+ *****************************************************************************/
+
+#define PM_SR_NR  1024   /* radial bins for 1D table  */
+
+struct pm_sr_table_s {
+  int    nr;       /* radial bins (1D) or points per axis (3D: nr^3 total) */
+  int    is_3d;    /* 0 = radial, 1 = 3D                                   */
+  double r_cut;
+  double sigma;
+  double dr;       /* bin width: r_cut/nr (1D) or 2*r_cut/nr per axis (3D) */
+  double* phi;     /* delta_phi table                                       */
+  double* E;       /* delta_E: radial magnitude (1D only)                  */
+  double* F;       /* delta_F = delta_E (1D only)                          */
+  /* CHANGE 20260724: 3D VECTOR field correction. delta_E is a vector
+   * (E_ref*r_hat - E_pm_vec), stored as 3 planes so the cubic anisotropy of
+   * the kernel (which the radial table cannot represent) is captured. The
+   * old scalar "E_pm_x * r/dx" reconstruction was singular at dx=0 and wrong
+   * off-axis, so the 3D table never actually differed from the radial one. */
+  double* Ex;      /* delta_E x-component, nr^3 (3D only) */
+  double* Ey;      /* delta_E y-component, nr^3 (3D only) */
+  double* Ez;      /* delta_E z-component, nr^3 (3D only) */
+};
+
+/* -------------------------------------------------------------------------
+ * Internal: 1D kernel weight for the spread/gather kernel used to scatter
+ * the particle charge. Mirrors the selection in subgrid_charge_from_particles
+ * and subgrid_update_forces_electrokinetics.
+ * ------------------------------------------------------------------------- */
+static double pm_sr_kernel_weight_1d(double dr, subgrid_kernel_t kernel) {
+  switch (kernel) {
+  case SUBGRID_KERNEL_BSPLINE6: return d_bspline6(dr);
+  case SUBGRID_KERNEL_BSPLINE4: return d_bspline4(dr);
+  case SUBGRID_KERNEL_PESKIN6:  return d_peskin6(dr);
+  /*CHANGE INIT - 20260630 Hann kernel */
+  case SUBGRID_KERNEL_HANN:     return d_hann(dr);
+  /*CHANGE END - 20260630 */
+  case SUBGRID_KERNEL_KB4:      return d_kb4(dr);
+  case SUBGRID_KERNEL_PESKIN4:
+  default:                      return d_peskin(dr);
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Internal: analytic Gaussian phi and E (unit charge, epsilon given)
+ * ------------------------------------------------------------------------- */
+static double pm_sr_phi_gauss(double r, double sigma, double epsilon) {
+  PI_DOUBLE(pi);
+  if (r < 1.0e-12) return 0.0;
+  return erf(r / (sigma * sqrt(2.0))) / (4.0 * pi * epsilon * r);
+}
+
+static double pm_sr_E_gauss(double r, double sigma, double epsilon) {
+  PI_DOUBLE(pi);
+  if (r < 1.0e-12) return 0.0;
+  double r2   = r * r;
+  double s2   = sigma * sqrt(2.0);
+  double erfv = erf(r / s2);
+  double gaus = sqrt(2.0 / pi) / sigma * exp(-r2 / (2.0 * sigma * sigma));
+  return (erfv / r2 - gaus / r) / (4.0 * pi * epsilon);
+}
+
+/* -------------------------------------------------------------------------
+ * Internal: phi_PM_p(r) along direction r_hat=(1,0,0).
+ * Charge q=1 is smeared with trilinear weights onto 8 surrounding nodes
+ * from fractional position (xf, yf, zf). The Coulomb potential of each
+ * smeared node charge is evaluated at (xf + r, yf, zf).
+ * Average over n_voxel^3 fractional positions within the unit cell.
+ * ------------------------------------------------------------------------- */
+static double pm_sr_phi_PM_radial(double r, double sigma, double epsilon,
+                                   int n_voxel, subgrid_kernel_t kernel) {
+  PI_DOUBLE(pi);
+  int krange = subgrid_get_range(kernel);
+  double sum = 0.0;
+  for (int ix = 0; ix < n_voxel; ix++) {
+    double xf = (ix + 0.5) / n_voxel;
+    for (int iy = 0; iy < n_voxel; iy++) {
+      double yf = (iy + 0.5) / n_voxel;
+      for (int iz = 0; iz < n_voxel; iz++) {
+        double zf = (iz + 0.5) / n_voxel;
+        /* evaluation point at distance r along x from particle (xf,yf,zf) */
+        double ex = xf + r, ey = yf, ez = zf;
+        /* Smear unit charge with the real kernel over its full support */
+        double phi = 0.0;
+        for (int di = -krange; di <= krange + 1; di++)
+          for (int dj = -krange; dj <= krange + 1; dj++)
+            for (int dk = -krange; dk <= krange + 1; dk++) {
+              double w = pm_sr_kernel_weight_1d(xf - di, kernel)
+                       * pm_sr_kernel_weight_1d(yf - dj, kernel)
+                       * pm_sr_kernel_weight_1d(zf - dk, kernel);
+              if (w == 0.0) continue;
+              double dist = sqrt((ex-di)*(ex-di) + (ey-dj)*(ey-dj) +
+                                 (ez-dk)*(ez-dk));
+              if (dist < 1.0e-12) continue;
+              phi += w / (4.0*pi*epsilon*dist);
+            }
+        sum += phi;
+      }
+    }
+  }
+  return sum / (n_voxel * n_voxel * n_voxel);
+}
+
+/* Same but returns radial E component (x-axis) */
+static double pm_sr_E_PM_radial(double r, double sigma, double epsilon,
+                                 int n_voxel, subgrid_kernel_t kernel) {
+  PI_DOUBLE(pi);
+  int krange = subgrid_get_range(kernel);
+  double sum = 0.0;
+  for (int ix = 0; ix < n_voxel; ix++) {
+    double xf = (ix + 0.5) / n_voxel;
+    for (int iy = 0; iy < n_voxel; iy++) {
+      double yf = (iy + 0.5) / n_voxel;
+      for (int iz = 0; iz < n_voxel; iz++) {
+        double zf = (iz + 0.5) / n_voxel;
+        double ex = xf + r, ey = yf, ez = zf;
+        double E = 0.0;
+        for (int di = -krange; di <= krange + 1; di++)
+          for (int dj = -krange; dj <= krange + 1; dj++)
+            for (int dk = -krange; dk <= krange + 1; dk++) {
+              double w = pm_sr_kernel_weight_1d(xf - di, kernel)
+                       * pm_sr_kernel_weight_1d(yf - dj, kernel)
+                       * pm_sr_kernel_weight_1d(zf - dk, kernel);
+              if (w == 0.0) continue;
+              double dx = ex - di, dy = ey - dj, dz = ez - dk;
+              double d2 = dx*dx + dy*dy + dz*dz;
+              if (d2 < 1.0e-24) continue;
+              double d3 = sqrt(d2) * d2;
+              E += w * dx / (4.0*pi*epsilon*d3);
+            }
+        sum += E;
+      }
+    }
+  }
+  return sum / (n_voxel * n_voxel * n_voxel);
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_build_radial
+ *
+ *  Build 1D radial table: phi_PM_p averaged over fractional positions
+ *  (all along the same direction). Fast, approximate.
+ *
+ *****************************************************************************/
+int pm_sr_table_build_radial(double sigma, double r_cut, int n_voxel,
+                              double epsilon, subgrid_kernel_t kernel,
+                              pm_sr_table_t** ptable) {
+  assert(ptable && sigma > 0.0 && r_cut > 0.0 && n_voxel > 0 && epsilon > 0.0);
+
+  pm_sr_table_t* t = (pm_sr_table_t*)calloc(1, sizeof(pm_sr_table_t));
+  if (!t) return -1;
+
+  t->nr    = PM_SR_NR;
+  t->is_3d = 0;
+  t->r_cut = r_cut;
+  t->sigma = sigma;
+  t->dr    = r_cut / PM_SR_NR;
+  t->phi   = (double*)malloc(PM_SR_NR * sizeof(double));
+  t->E     = (double*)malloc(PM_SR_NR * sizeof(double));
+  t->F     = (double*)malloc(PM_SR_NR * sizeof(double));
+  if (!t->phi || !t->E || !t->F) { pm_sr_table_free(&t); return -1; }
+
+  for (int i = 0; i < PM_SR_NR; i++) {
+    double r    = (i + 0.5) * t->dr;
+    double dphi = pm_sr_phi_gauss(r, sigma, epsilon)
+                - pm_sr_phi_PM_radial(r, sigma, epsilon, n_voxel, kernel);
+    double dE   = pm_sr_E_gauss(r, sigma, epsilon)
+                - pm_sr_E_PM_radial(r, sigma, epsilon, n_voxel, kernel);
+    t->phi[i] = dphi;
+    t->E[i]   = dE;
+    t->F[i]   = dE;   /* per unit q_node */
+  }
+
+  *ptable = t;
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_build_3d
+ *
+ *  Build 3D table: phi_PM_p evaluated for each (dx, dy, dz) on a grid of
+ *  nr^3 points in [-r_cut, r_cut]^3. Exact per direction, larger memory.
+ *
+ *  Layout: index = ix*nr*nr + iy*nr + iz
+ *  Coordinate: dx = -r_cut + (ix + 0.5)*dr, same for dy, dz.
+ *
+ *****************************************************************************/
+int pm_sr_table_build_3d(double sigma, double r_cut, int nr, int n_voxel,
+                          double epsilon, subgrid_kernel_t kernel,
+                          pm_sr_table_t** ptable) {
+  assert(ptable && sigma > 0.0 && r_cut > 0.0 && nr > 0
+         && n_voxel > 0 && epsilon > 0.0);
+  int krange = subgrid_get_range(kernel);
+
+  pm_sr_table_t* t = (pm_sr_table_t*)calloc(1, sizeof(pm_sr_table_t));
+  if (!t) return -1;
+
+  t->nr    = nr;
+  t->is_3d = 1;
+  t->r_cut = r_cut;
+  t->sigma = sigma;
+  t->dr    = 2.0 * r_cut / nr;   /* axis spacing */
+  int ntot = nr * nr * nr;
+  t->phi   = (double*)malloc(ntot * sizeof(double));
+  t->Ex    = (double*)malloc(ntot * sizeof(double));
+  t->Ey    = (double*)malloc(ntot * sizeof(double));
+  t->Ez    = (double*)malloc(ntot * sizeof(double));
+  if (!t->phi || !t->Ex || !t->Ey || !t->Ez) { pm_sr_table_free(&t); return -1; }
+
+  PI_DOUBLE(pi);
+
+  for (int ix = 0; ix < nr; ix++) {
+    double dx = -r_cut + (ix + 0.5) * t->dr;
+    for (int iy = 0; iy < nr; iy++) {
+      double dy = -r_cut + (iy + 0.5) * t->dr;
+      for (int iz = 0; iz < nr; iz++) {
+        double dz = -r_cut + (iz + 0.5) * t->dr;
+        double r  = sqrt(dx*dx + dy*dy + dz*dz);
+        int idx   = ix*nr*nr + iy*nr + iz;
+
+        /* Reference: Gaussian analytic (radial, exact) */
+        double phi_ref = pm_sr_phi_gauss(r, sigma, epsilon);
+        double E_ref   = pm_sr_E_gauss(r, sigma, epsilon);
+
+        /* CHANGE 20260724b: NO sub-voxel averaging. The table index (dx,dy,dz)
+         * IS the exact particle->node displacement used by the application
+         * (dx = r0 - i, carrying the particle's fractional sub-cell position).
+         * So the PM field is computed for that SINGLE displacement, not
+         * averaged over offsets — this makes the table offset-aware.
+         *
+         * Geometry: the EVALUATION NODE is at the origin. The PARTICLE is at
+         * (dx,dy,dz) relative to it (dx = particle - node). The particle's
+         * charge is spread onto the integer nodes (m,n,l) NEAR THE PARTICLE
+         * with weight kernel(particle - spread_node) = kernel(dx - m). Each
+         * fragment w at node (m,n,l) contributes its Coulomb field measured at
+         * the origin: direction (origin - node) = -(m,n,l). This offset-aware
+         * PM field is what the radial table destroyed by averaging over xf. */
+        double phi_pm = 0.0, E_pm_x = 0.0, E_pm_y = 0.0, E_pm_z = 0.0;
+        int mlo_x = (int)floor(dx) - krange, mhi_x = (int)floor(dx) + krange + 1;
+        int mlo_y = (int)floor(dy) - krange, mhi_y = (int)floor(dy) + krange + 1;
+        int mlo_z = (int)floor(dz) - krange, mhi_z = (int)floor(dz) + krange + 1;
+        for (int m = mlo_x; m <= mhi_x; m++)
+          for (int n = mlo_y; n <= mhi_y; n++)
+            for (int l = mlo_z; l <= mhi_z; l++) {
+              double w = pm_sr_kernel_weight_1d(dx - m, kernel)
+                       * pm_sr_kernel_weight_1d(dy - n, kernel)
+                       * pm_sr_kernel_weight_1d(dz - l, kernel);
+              if (w == 0.0) continue;
+              /* field of fragment at (m,n,l) measured at the origin node */
+              double vx = -(double)m, vy = -(double)n, vz = -(double)l;
+              double d2 = vx*vx + vy*vy + vz*vz;
+              if (d2 < 1.0e-24) continue;   /* fragment exactly on the node */
+              double d3 = sqrt(d2) * d2;
+              double c = w / (4.0*pi*epsilon);
+              phi_pm += w / (4.0*pi*epsilon*sqrt(d2));
+              E_pm_x += c * vx / d3;
+              E_pm_y += c * vy / d3;
+              E_pm_z += c * vz / d3;
+            }
+
+        /* Reference field at the origin from the particle at (dx,dy,dz):
+         * points from particle to node = -(dx,dy,dz)/r. Both E_ref_vec and
+         * E_pm_vec are the field AT THE NODE, so the correction stored is
+         * delta_E = E_ref_vec - E_pm_vec, consistent frame. */
+        double rhx = (r > 1.0e-12) ? -dx / r : 0.0;
+        double rhy = (r > 1.0e-12) ? -dy / r : 0.0;
+        double rhz = (r > 1.0e-12) ? -dz / r : 0.0;
+
+        t->phi[idx] = phi_ref - phi_pm;
+        t->Ex[idx]  = E_ref * rhx - E_pm_x;
+        t->Ey[idx]  = E_ref * rhy - E_pm_y;
+        t->Ez[idx]  = E_ref * rhz - E_pm_z;
+      }
+    }
+  }
+
+  *ptable = t;
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_free
+ *
+ *****************************************************************************/
+void pm_sr_table_free(pm_sr_table_t** ptable) {
+  if (!ptable || !*ptable) return;
+  free((*ptable)->phi);
+  free((*ptable)->E);   /* NULL for 3D (calloc), free(NULL) is safe */
+  free((*ptable)->F);
+  free((*ptable)->Ex);  /* NULL for 1D */
+  free((*ptable)->Ey);
+  free((*ptable)->Ez);
+  free(*ptable);
+  *ptable = NULL;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_interpolate
+ *
+ *  Returns delta_phi, delta_E (radial), delta_F (radial, per unit q_node)
+ *  at distance r for the 1D table.
+ *  Returns 1 if r < r_cut, 0 otherwise (no correction).
+ *
+ *****************************************************************************/
+int pm_sr_table_interpolate(const pm_sr_table_t* t, double r,
+                             double* delta_phi, double* delta_E,
+                             double* delta_F) {
+  assert(t && !t->is_3d);
+  *delta_phi = *delta_E = *delta_F = 0.0;
+  if (r >= t->r_cut || r < 0.0) return 0;
+
+  double pos  = r / t->dr;
+  int    i0   = (int)floor(pos);
+  int    i1   = i0 + 1;
+  double frac = pos - i0;
+  if (i1 >= t->nr) i1 = t->nr - 1;
+
+  *delta_phi = (1.0-frac)*t->phi[i0] + frac*t->phi[i1];
+  *delta_E   = (1.0-frac)*t->E[i0]   + frac*t->E[i1];
+  *delta_F   = (1.0-frac)*t->F[i0]   + frac*t->F[i1];
+  return 1;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_interpolate_3d
+ *
+ *  Trilinear interpolation in the 3D table at displacement (dx, dy, dz).
+ *  Returns delta_phi (scalar) and the VECTOR field correction
+ *  (delta_Ex, delta_Ey, delta_Ez). Returns 1 if inside r_cut, 0 otherwise.
+ *
+ *****************************************************************************/
+int pm_sr_table_interpolate_3d(const pm_sr_table_t* t,
+                                double dx, double dy, double dz,
+                                double* delta_phi,
+                                double* delta_Ex, double* delta_Ey,
+                                double* delta_Ez) {
+  assert(t && t->is_3d);
+  *delta_phi = *delta_Ex = *delta_Ey = *delta_Ez = 0.0;
+
+  double r = sqrt(dx*dx + dy*dy + dz*dz);
+  if (r >= t->r_cut || r < 1.0e-12) return 0;
+
+  int    nr  = t->nr;
+  double dr  = t->dr;
+  double off = t->r_cut;   /* origin of axis: index 0 corresponds to -r_cut */
+
+  double px = (dx + off) / dr - 0.5;
+  double py = (dy + off) / dr - 0.5;
+  double pz = (dz + off) / dr - 0.5;
+
+  int ix = (int)floor(px),  iy = (int)floor(py),  iz = (int)floor(pz);
+  double fx = px - ix,      fy = py - iy,          fz = pz - iz;
+
+  /* clamp */
+  int ix1 = ix+1, iy1 = iy+1, iz1 = iz+1;
+  if (ix  <  0) { ix  = 0; fx = 0.0; }
+  if (iy  <  0) { iy  = 0; fy = 0.0; }
+  if (iz  <  0) { iz  = 0; fz = 0.0; }
+  if (ix1 >= nr) ix1 = nr-1;
+  if (iy1 >= nr) iy1 = nr-1;
+  if (iz1 >= nr) iz1 = nr-1;
+
+#define IDX3(a,b,c) ((a)*nr*nr + (b)*nr + (c))
+#define TRILIN(FIELD) ( \
+    (1-fx)*(1-fy)*(1-fz)*t->FIELD[IDX3(ix ,iy ,iz )] + \
+    (1-fx)*(1-fy)*   fz *t->FIELD[IDX3(ix ,iy ,iz1)] + \
+    (1-fx)*   fy *(1-fz)*t->FIELD[IDX3(ix ,iy1,iz )] + \
+    (1-fx)*   fy *   fz *t->FIELD[IDX3(ix ,iy1,iz1)] + \
+       fx *(1-fy)*(1-fz)*t->FIELD[IDX3(ix1,iy ,iz )] + \
+       fx *(1-fy)*   fz *t->FIELD[IDX3(ix1,iy ,iz1)] + \
+       fx *   fy *(1-fz)*t->FIELD[IDX3(ix1,iy1,iz )] + \
+       fx *   fy *   fz *t->FIELD[IDX3(ix1,iy1,iz1)] )
+
+  *delta_phi = TRILIN(phi);
+  *delta_Ex  = TRILIN(Ex);
+  *delta_Ey  = TRILIN(Ey);
+  *delta_Ez  = TRILIN(Ez);
+#undef TRILIN
+#undef IDX3
+  return 1;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_table_print
+ *
+ *  Print the table to fp (stdout if NULL).
+ *  1D: columns r  delta_phi  delta_E  delta_F
+ *  3D: columns dx  dy  dz  r  delta_phi  delta_E  delta_F
+ *
+ *****************************************************************************/
+void pm_sr_table_print(const pm_sr_table_t* t, FILE* fp) {
+  assert(t);
+  FILE* out = fp ? fp : stdout;
+  fprintf(out, "# PM short-range correction table  is_3d=%d\n", t->is_3d);
+  fprintf(out, "# sigma=%.6g  r_cut=%.6g  nr=%d  dr=%.6g\n",
+          t->sigma, t->r_cut, t->nr, t->dr);
+
+  if (!t->is_3d) {
+    fprintf(out, "# r  delta_phi  delta_E  delta_F\n");
+    for (int i = 0; i < t->nr; i++) {
+      double r = (i + 0.5) * t->dr;
+      fprintf(out, "%.8e  %.8e  %.8e  %.8e\n",
+              r, t->phi[i], t->E[i], t->F[i]);
+    }
+  } else {
+    int nr = t->nr;
+    fprintf(out, "# dx  dy  dz  r  delta_phi  delta_Ex  delta_Ey  delta_Ez\n");
+    for (int ix = 0; ix < nr; ix++) {
+      double dx = -t->r_cut + (ix+0.5)*t->dr;
+      for (int iy = 0; iy < nr; iy++) {
+        double dy = -t->r_cut + (iy+0.5)*t->dr;
+        for (int iz = 0; iz < nr; iz++) {
+          double dz = -t->r_cut + (iz+0.5)*t->dr;
+          double r  = sqrt(dx*dx + dy*dy + dz*dz);
+          int idx   = ix*nr*nr + iy*nr + iz;
+          fprintf(out, "%.8e  %.8e  %.8e  %.8e  %.8e  %.8e  %.8e  %.8e\n",
+                  dx, dy, dz, r, t->phi[idx],
+                  t->Ex[idx], t->Ey[idx], t->Ez[idx]);
+        }
+      }
+    }
+  }
+}
+
+/*CHANGE END - 20260625 PM short-range correction table */
+
+/*CHANGE INIT - 20260625 pm_sr_correct_phi / pm_sr_correct_efield */
+
+/*****************************************************************************
+ *
+ *  pm_sr_correct_phi
+ *
+ *  Step 1 of option C:
+ *    - If phi_pm_buf != NULL, copy phi_PM into it before modifying psi->psi
+ *    - Add q_p * delta_phi(r) to psi->psi for each node within r_cut
+ *
+ *****************************************************************************/
+int pm_sr_correct_phi(colloids_info_t* cinfo, psi_t* psi,
+                       const pm_sr_table_t* table, double* phi_pm_buf) {
+
+  int ncell[3], nlocal[3], offset[3];
+
+  assert(cinfo && psi && table);
+  if (cinfo->nsubgrid == 0) return 0;
+
+  cs_nlocal(cinfo->cs, nlocal);
+  cs_nlocal_offset(cinfo->cs, offset);
+  colloids_info_ncell(cinfo, ncell);
+
+  /* Optionally save phi_PM before correction (caller may pass NULL) */
+  if (phi_pm_buf)
+    memcpy(phi_pm_buf, psi->psi->data, psi->nsites * sizeof(double));
+
+  double eunit;
+  psi_unit_charge(psi, &eunit);
+  int range = (int)ceil(table->r_cut);
+
+  for (int ic = 1; ic <= ncell[X]; ic++)
+    for (int jc = 1; jc <= ncell[Y]; jc++)
+      for (int kc = 1; kc <= ncell[Z]; kc++) {
+        colloid_t* pc = NULL;
+        colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+        for (; pc; pc = pc->next) {
+          if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+          double q_p = (pc->s.q0 - pc->s.q1) * eunit;
+          double r0[3] = { pc->s.r[X] - offset[X],
+                           pc->s.r[Y] - offset[Y],
+                           pc->s.r[Z] - offset[Z] };
+          int i_min, i_max, j_min, j_max, k_min, k_max;
+          subgrid_get_lattice_index_range(r0, range, nlocal,
+                                          &i_min, &i_max,
+                                          &j_min, &j_max,
+                                          &k_min, &k_max);
+
+          for (int i = i_min; i <= i_max; i++)
+            for (int j = j_min; j <= j_max; j++)
+              for (int k = k_min; k <= k_max; k++) {
+                double dx = r0[X] - i, dy = r0[Y] - j, dz = r0[Z] - k;
+                double r  = sqrt(dx*dx + dy*dy + dz*dz);
+                double dphi = 0.0, dE = 0.0, dF = 0.0;
+                double dEx = 0.0, dEy = 0.0, dEz = 0.0;
+                int hit = table->is_3d
+                  ? pm_sr_table_interpolate_3d(table, dx, dy, dz, &dphi, &dEx, &dEy, &dEz)
+                  : pm_sr_table_interpolate(table, r, &dphi, &dE, &dF);
+                if (!hit) continue;
+                int idx = cs_index(cinfo->cs, i, j, k);
+                double phi_old;
+                psi_psi(psi, idx, &phi_old);
+                psi_psi_set(psi, idx, phi_old + q_p * dphi);
+              }
+        }
+      }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_apply_force_correction
+ *
+ *  Apply the short-range force/field correction AFTER the uncorrected forces
+ *  have been computed (psi_force_gradmu, subgrid_update_Esub,
+ *  subgrid_update_forces_electrokinetics).
+ *
+ *  Two passes per particle to conserve momentum exactly:
+ *
+ *    Pass 1: sum the total correction force on the particle from all nodes j
+ *            within r_cut (q_node = local ionic charge, q_p = particle charge,
+ *            delta_F(r) the tabulated theory-PM force per unit of both charges,
+ *            r_hat = (dx,dy,dz)/r):
+ *
+ *              dF_total += q_p * q_node * delta_F(r) * r_hat
+ *
+ *            and correct the diagnostic fields at the same time:
+ *              psi->efield[j] += q_p   * delta_F(r) * r_hat * kt   (= dF/q_node)
+ *              pc->Esub       += q_node* delta_F(r) * r_hat        (= dF/q_p)
+ *
+ *    Pass 2: distribute -dF_total onto the fluid with the SAME Peskin kernel
+ *            used elsewhere, over the kernel support of the particle. Since
+ *            the kernel is a partition of unity, the fluid receives exactly
+ *            -dF_total, equal and opposite to the particle force.
+ *
+ *  Field corrections feed no force calculation (diagnostic only), so they do
+ *  not affect momentum conservation.
+ *
+ *****************************************************************************/
+int pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
+                                  psi_t* psi, hydro_t* hydro,
+                                  const pm_sr_table_t* table,
+                                  subgrid_kernel_t kernel) {
+
+  int ncell[3], nlocal[3], offset[3];
+
+  assert(cinfo && psi && hydro && table);
+  if (cinfo->nsubgrid == 0) return 0;
+
+  cs_nlocal(cinfo->cs, nlocal);
+  cs_nlocal_offset(cinfo->cs, offset);
+  colloids_info_ncell(cinfo, ncell);
+
+  double eunit, beta;
+  psi_unit_charge(psi, &eunit);
+  psi_beta(psi, &beta);
+  double kt     = 1.0 / beta;
+  double reunit = 1.0 / eunit;
+  int range  = (int)ceil(table->r_cut);
+  /* Reaction force distributed with the SAME kernel used for charge spread
+   * (partition of unity), matching subgrid_update_forces_electrokinetics. */
+  int krange = subgrid_get_range(kernel);
+
+  hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+
+  for (int ic = 1; ic <= ncell[X]; ic++)
+    for (int jc = 1; jc <= ncell[Y]; jc++)
+      for (int kc = 1; kc <= ncell[Z]; kc++) {
+        colloid_t* pc = NULL;
+        colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+        for (; pc; pc = pc->next) {
+          if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+          /* Particle charge in solver units (same as the Poisson source) */
+          double q_p_solver = pc->s.q0 - pc->s.q1;
+          /* Force prefactor: identical to subgrid_update_forces_electrokinetics
+           * which does force = kt * reunit * Esub * (q0-q1). Here the field
+           * correction delta_E is already in solver-potential units, and the
+           * node charge below is also in solver units, so:
+           *   dF = kt * reunit * (q_node_solver * delta_E) * (q0-q1) */
+          double fpref = kt * reunit * q_p_solver;
+
+          double r0[3] = { pc->s.r[X] - offset[X],
+                           pc->s.r[Y] - offset[Y],
+                           pc->s.r[Z] - offset[Z] };
+
+          /* ---- Pass 1: total correction force on the particle ---- */
+          double dF_total[3] = { 0.0, 0.0, 0.0 };
+
+          int i_min, i_max, j_min, j_max, k_min, k_max;
+          subgrid_get_lattice_index_range(r0, range, nlocal,
+                                          &i_min, &i_max,
+                                          &j_min, &j_max,
+                                          &k_min, &k_max);
+
+          for (int i = i_min; i <= i_max; i++)
+            for (int j = j_min; j <= j_max; j++)
+              for (int k = k_min; k <= k_max; k++) {
+                double dx = r0[X] - i, dy = r0[Y] - j, dz = r0[Z] - k;
+                double r  = sqrt(dx*dx + dy*dy + dz*dz);
+                if (r < 1.0e-12) continue;
+
+                /* Correction field VECTOR (dEcx,dEcy,dEcz). For the 3D table
+                 * it comes straight from the interpolation (captures kernel
+                 * anisotropy). For the radial table it is the scalar dE
+                 * projected onto r_hat. */
+                double dphi = 0.0, dEcx = 0.0, dEcy = 0.0, dEcz = 0.0;
+                int hit;
+                if (table->is_3d) {
+                  hit = pm_sr_table_interpolate_3d(table, dx, dy, dz,
+                                                   &dphi, &dEcx, &dEcy, &dEcz);
+                } else {
+                  double dE = 0.0, dF = 0.0;
+                  hit = pm_sr_table_interpolate(table, r, &dphi, &dE, &dF);
+                  double rx = dx/r, ry = dy/r, rz = dz/r;
+                  dEcx = dE * rx; dEcy = dE * ry; dEcz = dE * rz;
+                }
+                if (!hit) continue;
+
+                int idx = cs_index(cinfo->cs, i, j, k);
+
+                /* Node charge in solver units (Poisson source = rho0 - rho1) */
+                double rho0, rho1;
+                psi_rho(psi, idx, 0, &rho0);
+                psi_rho(psi, idx, 1, &rho1);
+                double q_node = rho0 - rho1;
+
+                /* Correction field at the particle from this node (vector) */
+                double dEsx = q_node * dEcx;
+                double dEsy = q_node * dEcy;
+                double dEsz = q_node * dEcz;
+
+                /* Pair force particle <-> node j (same prefactor as base force) */
+                double dF_j[3];
+                dF_j[X] = fpref * dEsx;
+                dF_j[Y] = fpref * dEsy;
+                dF_j[Z] = fpref * dEsz;
+
+                /* Accumulate force on the particle */
+                dF_total[X] += dF_j[X];
+                dF_total[Y] += dF_j[Y];
+                dF_total[Z] += dF_j[Z];
+
+                /* Newton III: counter-force on the ion at node j (directly) */
+                double f_node[3] = { -dF_j[X], -dF_j[Y], -dF_j[Z] };
+                hydro_f_local_add(hydro, idx, f_node);
+
+                /* diagnostic field at node (stored as kt*E): field from the
+                 * particle charge q_p_solver seen at this node */
+                double eb = kt * q_p_solver;
+                psi->efield->data[addr_rank1(psi->efield->nsites,
+                                             psi->efield->nf, idx, X)] += eb * dEcx;
+                psi->efield->data[addr_rank1(psi->efield->nsites,
+                                             psi->efield->nf, idx, Y)] += eb * dEcy;
+                psi->efield->data[addr_rank1(psi->efield->nsites,
+                                             psi->efield->nf, idx, Z)] += eb * dEcz;
+
+                /* diagnostic effective field at particle (solver units) */
+                pc->Esub[X] += dEsx;
+                pc->Esub[Y] += dEsy;
+                pc->Esub[Z] += dEsz;
+              }
+
+          /* Force on the particle */
+          pc->fex[X] += dF_total[X];
+          pc->fex[Y] += dF_total[Y];
+          pc->fex[Z] += dF_total[Z];
+
+          /* ---- Pass 2: communicate the particle force to the fluid with
+           * Peskin, SAME sign as the particle (as subgrid_update_forces_
+           * electrokinetics does for the electrostatic force). The Peskin
+           * kernel is a partition of unity, so the sum over the support
+           * equals +dF_total, exactly cancelling the -dF_j counter-forces
+           * deposited node-by-node in Pass 1. Net fluid momentum from this
+           * correction is therefore zero. ---- */
+          subgrid_get_lattice_index_range(r0, krange, nlocal,
+                                          &i_min, &i_max,
+                                          &j_min, &j_max,
+                                          &k_min, &k_max);
+
+          for (int i = i_min; i <= i_max; i++)
+            for (int j = j_min; j <= j_max; j++)
+              for (int k = k_min; k <= k_max; k++) {
+                double dr = pm_sr_kernel_weight_1d(r0[X]-i, kernel)
+                          * pm_sr_kernel_weight_1d(r0[Y]-j, kernel)
+                          * pm_sr_kernel_weight_1d(r0[Z]-k, kernel);
+                if (dr == 0.0) continue;
+                int idx = cs_index(cinfo->cs, i, j, k);
+                double f_comm[3] = { dF_total[X]*dr,
+                                     dF_total[Y]*dr,
+                                     dF_total[Z]*dr };
+                hydro_f_local_add(hydro, idx, f_comm);
+              }
+        }
+      }
+
+  hydro_memcpy(hydro, tdpMemcpyHostToDevice);
+
+  /* NOTE: do NOT call colloid_sums_halo here. subgrid_update_forces_electro-
+   * kinetics already synchronised pc->fex before this function ran; calling it
+   * again would re-sum the full fex (not just our correction) and break the
+   * action-reaction balance. The correction force on the particle and the
+   * Peskin-distributed reaction on the fluid are computed locally and balance
+   * by construction (serial / single-domain). */
+
+  return 0;
+}
+
+/*CHANGE END - 20260625 pm_sr_correct_phi / pm_sr_apply_force_correction */

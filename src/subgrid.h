@@ -55,13 +55,26 @@ double d_kb4(double r);
 void subgrid_set_kb4_beta(double beta);
 double subgrid_kb4_norm_fluid(void);
 double d_peskin6(double r);
+/*CHANGE INIT - 20260630 Hann spread/gather kernel */
+double d_hann(double r);
+void subgrid_set_hann_order(double n);
+/*CHANGE END - 20260630 */
 
 typedef enum {
   SUBGRID_KERNEL_PESKIN4 = 0,
   SUBGRID_KERNEL_BSPLINE4 = 1,
   SUBGRID_KERNEL_BSPLINE6 = 2,
   SUBGRID_KERNEL_KB4 = 3,
-  SUBGRID_KERNEL_PESKIN6 = 4
+  SUBGRID_KERNEL_PESKIN6 = 4,
+  /*CHANGE INIT - 20260630 Hann kernel id */
+  SUBGRID_KERNEL_HANN = 5,
+  /*CHANGE END - 20260630 */
+  /*CHANGE INIT - 20260710 interpolating kernel for shifted-grid fluid ops.
+   * Trilinear is a delta at integer offsets, so fluid scatter/gather with an
+   * integer mesh shift reduces to an exact node relabelling (required for the
+   * integer-shift identity test of the interlacing machinery). */
+  SUBGRID_KERNEL_TRILINEAR = 6
+  /*CHANGE END - 20260710 */
 } subgrid_kernel_t;
 
 int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge,
@@ -88,13 +101,12 @@ void subgrid_get_lattice_index_range_halo(double r0[3], int range, int nlocal[3]
 void subgrid_get_lattice_index(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
 void subgrid_get_lattice_index_fn(double r0[3], int nlocal[3], int* i_min, int* i_max, int* j_min, int* j_max, int* k_min, int* k_max);
 /*CHANGE INIT - 20260422 kernel parameter for subgrid_update_forces_electrokinetics */
-int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro,
-                                           subgrid_kernel_t kernel);
-int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro,
-                                           subgrid_kernel_t kernel);                                           
+int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro, subgrid_kernel_t kernel);
+int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro,subgrid_kernel_t kernel);
 /*CHANGE END - 20260422 kernel parameter for subgrid_update_forces_electrokinetics */
 int subgrid_update_forces_electrokinetics_theory(colloids_info_t* cinfo, map_t* map, physics_t* phys, psi_t* psi, hydro_t* hydro);
 /*CHANGE INIT - 20260422 kernel parameter for subgrid_update_Esub */
+int subgrid_print_Esub(colloids_info_t* cinfo,int step,FILE* fp);
 int subgrid_update_Esub(colloids_info_t* cinfo, psi_t* psi, int step, FILE* fp, pe_t* pe,
                          subgrid_kernel_t kernel);
 /*CHANGE END - 20260422 kernel parameter for subgrid_update_Esub */
@@ -139,6 +151,33 @@ int  subgrid_shortrange_level3_pn(colloids_info_t* cinfo, psi_t* psi, hydro_t* h
 int  subgrid_shortrange_corrections(colloids_info_t* cinfo, psi_t* psi,
                                      hydro_t* hydro);
 /*CHANGE END - 20260117 Short-range corrections declarations */
+
+/*CHANGE INIT - 20260625 PM short-range correction table */
+typedef struct pm_sr_table_s pm_sr_table_t;
+
+int  pm_sr_table_build_radial(double sigma, double r_cut, int n_voxel,
+                               double epsilon, subgrid_kernel_t kernel,
+                               pm_sr_table_t** ptable);
+int  pm_sr_table_build_3d(double sigma, double r_cut, int nr, int n_voxel,
+                           double epsilon, subgrid_kernel_t kernel,
+                           pm_sr_table_t** ptable);
+void pm_sr_table_free(pm_sr_table_t** ptable);
+int  pm_sr_table_interpolate(const pm_sr_table_t* t, double r,
+                              double* delta_phi, double* delta_E,
+                              double* delta_F);
+int  pm_sr_table_interpolate_3d(const pm_sr_table_t* t,
+                                 double dx, double dy, double dz,
+                                 double* delta_phi, double* delta_Ex,
+                                 double* delta_Ey, double* delta_Ez);
+void pm_sr_table_print(const pm_sr_table_t* t, FILE* fp);
+
+int  pm_sr_correct_phi(colloids_info_t* cinfo, psi_t* psi,
+                        const pm_sr_table_t* table, double* phi_pm_buf);
+int  pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
+                                   psi_t* psi, hydro_t* hydro,
+                                   const pm_sr_table_t* table,
+                                   subgrid_kernel_t kernel);
+/*CHANGE END - 20260625 PM short-range correction table */
 
 /*CHANGE END - Subgrid charge */
 

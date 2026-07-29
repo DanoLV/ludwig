@@ -1219,6 +1219,281 @@ int psi_solver_fft_set_influence_ewald(psi_solver_fft_t* solver,
 }
 /*CHANGE END - 20260422 deconv parameter in set_influence_ewald */
 
+/*CHANGE INIT - 20260710 spectral (FFT phase) shift of a scalar lattice field
+ *
+ *  psi_fft_shift_field
+ *
+ *  Translates a periodic scalar lattice field by a fractional displacement
+ *  (ux, uy, uz) using the Fourier shift theorem: each mode k is multiplied
+ *  by exp(-i k.u), which is an EXACT, unitary translation of the lattice
+ *  field (no amplitude loss for any mode, unlike linear interpolation which
+ *  kills the Nyquist mode completely at u = 0.5). For integer u this reduces
+ *  to an exact index relabelling.
+ *
+ *  Nyquist handling: for even N the m = N/2 mode is shared between +N/2 and
+ *  -N/2; keeping the output real requires replacing that dimension's phase
+ *  factor by its real part cos(pi*u) (standard treatment for fractional
+ *  spectral shifts of real fields; exact +/-1 for integer u).
+ *
+ *  field_data: HOST pointer to one scalar field in Ludwig halo layout
+ *  (e.g. psi->psi->data, or &psi->rho->data[nsites*n] for species n).
+ *  Only the interior is transformed; caller must re-halo afterwards.
+ *
+ *  Serial / single-domain only (checked): the FFT needs the full box.
+ *
+ *****************************************************************************/
+
+/* CHANGE 20260714: the Nyquist factor per dimension is now an explicit
+ * argument (nyqx/nyqy/nyqz). Policy set by the host wrappers:
+ *   - integer u:     nyq = cos(pi*u) = +/-1  (exact relabelling)
+ *   - fractional u:  nyq = 0                 (kill the plane: within the
+ *     band-limited subspace |m| < N/2 the phase shift is exactly unitary
+ *     for ANY u; the previous cos(pi*u) attenuation was u-dependent and
+ *     non-unitary on round trips)
+ *   - pure filtering: u = 0, nyq = 0 kills the plane, nyq = 1 no-op. */
+__global__ void spectral_shift_phase_kernel(cufftDoubleComplex* fh,
+                                            int nx, int ny, int nz,
+                                            double ux, double uy, double uz,
+                                            double nyqx, double nyqy,
+                                            double nyqz) {
+  int nzh = nz / 2 + 1;
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  int n_total = nx * ny * nzh;
+  if (idx >= n_total) return;
+
+  int iz = idx % nzh;
+  int iy = (idx / nzh) % ny;
+  int ix = idx / (nzh * ny);
+
+  /* Signed mode numbers */
+  int mx = (ix <= nx / 2) ? ix : ix - nx;
+  int my = (iy <= ny / 2) ? iy : iy - ny;
+  int mz = iz;   /* R2C half-spectrum: 0 .. nz/2 */
+
+  const double twopi = 2.0 * M_PI;
+
+  double fr = 1.0, fi = 0.0;
+
+  double th, cr, ci, tr;
+  /* X */
+  if (2 * mx == nx || 2 * mx == -nx) { cr = nyqx; ci = 0.0; }
+  else { th = twopi * mx * ux / nx; cr = cos(th); ci = -sin(th); }
+  tr = fr * cr - fi * ci; fi = fr * ci + fi * cr; fr = tr;
+  /* Y */
+  if (2 * my == ny || 2 * my == -ny) { cr = nyqy; ci = 0.0; }
+  else { th = twopi * my * uy / ny; cr = cos(th); ci = -sin(th); }
+  tr = fr * cr - fi * ci; fi = fr * ci + fi * cr; fr = tr;
+  /* Z */
+  if (2 * mz == nz) { cr = nyqz; ci = 0.0; }
+  else { th = twopi * mz * uz / nz; cr = cos(th); ci = -sin(th); }
+  tr = fr * cr - fi * ci; fi = fr * ci + fi * cr; fr = tr;
+
+  double re = fh[idx].x, im = fh[idx].y;
+  fh[idx].x = re * fr - im * fi;
+  fh[idx].y = re * fi + im * fr;
+}
+
+/* Internal worker: spectral phase shift with explicit Nyquist factors. */
+static int psi_fft_spectral_apply(psi_t* psi, double* field_data,
+                                  double ux, double uy, double uz,
+                                  double nyqx, double nyqy, double nyqz) {
+
+  assert(psi);
+  assert(field_data);
+
+  int nlocal[3], ntotal[3], nhalo;
+  cs_nlocal(psi->cs, nlocal);
+  cs_ntotal(psi->cs, ntotal);
+  cs_nhalo(psi->cs, &nhalo);
+
+  if (nlocal[X] != ntotal[X] || nlocal[Y] != ntotal[Y] ||
+      nlocal[Z] != ntotal[Z]) {
+    pe_fatal(psi->pe, "psi_fft_shift_field: serial/single-domain only\n");
+  }
+
+  int nx = nlocal[X], ny = nlocal[Y], nz = nlocal[Z];
+  int n = nx * ny * nz;
+  int nzh = nz / 2 + 1;
+
+  /* Cached plans and device buffers (single-threaded host code) */
+  static int sh_nx = 0, sh_ny = 0, sh_nz = 0;
+  static cufftHandle sh_fwd, sh_bwd;
+  static double* d_real = NULL;
+  static cufftDoubleComplex* d_cplx = NULL;
+  static double* h_real = NULL;
+
+  if (sh_nx != nx || sh_ny != ny || sh_nz != nz) {
+    if (d_real) { cudaFree(d_real);  d_real = NULL; }
+    if (d_cplx) { cudaFree(d_cplx);  d_cplx = NULL; }
+    if (h_real) { free(h_real);      h_real = NULL; }
+    if (sh_nx > 0) { cufftDestroy(sh_fwd); cufftDestroy(sh_bwd); }
+
+    if (cufftPlan3d(&sh_fwd, nx, ny, nz, CUFFT_D2Z) != CUFFT_SUCCESS ||
+        cufftPlan3d(&sh_bwd, nx, ny, nz, CUFFT_Z2D) != CUFFT_SUCCESS) {
+      pe_fatal(psi->pe, "psi_fft_shift_field: cufftPlan3d failed\n");
+    }
+    cudaMalloc((void**)&d_real, (size_t)n * sizeof(double));
+    cudaMalloc((void**)&d_cplx, (size_t)nx * ny * nzh * sizeof(cufftDoubleComplex));
+    h_real = (double*)malloc((size_t)n * sizeof(double));
+    sh_nx = nx; sh_ny = ny; sh_nz = nz;
+  }
+
+  /* Pack interior (Ludwig halo layout -> row-major x,y,z) on host */
+  int str_z = 1;
+  int str_y = (nz + 2 * nhalo);
+  int str_x = str_y * (ny + 2 * nhalo);
+  for (int ix = 0; ix < nx; ix++) {
+    for (int iy = 0; iy < ny; iy++) {
+      for (int iz = 0; iz < nz; iz++) {
+        int lidx = str_x * (nhalo + ix) + str_y * (nhalo + iy) + str_z * (nhalo + iz);
+        h_real[ix * (ny * nz) + iy * nz + iz] = field_data[lidx];
+      }
+    }
+  }
+
+  cudaMemcpy(d_real, h_real, (size_t)n * sizeof(double), cudaMemcpyHostToDevice);
+
+  if (cufftExecD2Z(sh_fwd, d_real, d_cplx) != CUFFT_SUCCESS)
+    pe_fatal(psi->pe, "psi_fft_shift_field: forward FFT failed\n");
+
+  int nthreads = 256;
+  int nblocks = (nx * ny * nzh + nthreads - 1) / nthreads;
+  spectral_shift_phase_kernel<<<nblocks, nthreads>>>(d_cplx, nx, ny, nz,
+                                                     ux, uy, uz,
+                                                     nyqx, nyqy, nyqz);
+  cudaDeviceSynchronize();
+
+  if (cufftExecZ2D(sh_bwd, d_cplx, d_real) != CUFFT_SUCCESS)
+    pe_fatal(psi->pe, "psi_fft_shift_field: inverse FFT failed\n");
+
+  cudaMemcpy(h_real, d_real, (size_t)n * sizeof(double), cudaMemcpyDeviceToHost);
+
+  /* Unpack with 1/N normalisation (cuFFT is unnormalised) */
+  double norm = 1.0 / (double)n;
+  for (int ix = 0; ix < nx; ix++) {
+    for (int iy = 0; iy < ny; iy++) {
+      for (int iz = 0; iz < nz; iz++) {
+        int lidx = str_x * (nhalo + ix) + str_y * (nhalo + iy) + str_z * (nhalo + iz);
+        field_data[lidx] = h_real[ix * (ny * nz) + iy * nz + iz] * norm;
+      }
+    }
+  }
+
+  return 0;
+}
+
+/* Nyquist factor for one axis: exact +/-1 phase for integer u; 0 (kill the
+ * plane) for fractional u — see policy note above the phase kernel. */
+static double psi_fft_nyq_factor(double u) {
+  double frac = u - floor(u);
+  return (frac == 0.0) ? cos(M_PI * u) : 0.0;
+}
+
+int psi_fft_shift_field(psi_t* psi, double* field_data,
+                        double ux, double uy, double uz) {
+  return psi_fft_spectral_apply(psi, field_data, ux, uy, uz,
+                                psi_fft_nyq_factor(ux),
+                                psi_fft_nyq_factor(uy),
+                                psi_fft_nyq_factor(uz));
+}
+
+/* CHANGE 20260715: shift that LEAVES the Nyquist plane in place (factor 1).
+ * For transporting a real DENSITY (rho) round-trip: the |m|<N/2 modes
+ * translate exactly (unitary phase) and the Nyquist plane is preserved
+ * intact rather than killed. The half-cell translation of the (-1)^i mode
+ * has no real representation, so it stays put — but with factor 1 the round
+ * trip T_{+u} . T_{-u} is the exact identity on the WHOLE field, so NP's
+ * regenerated Nyquist content (~1e-9) is no longer destroyed u-dependently
+ * each step (which was the source of the random-u force noise). */
+int psi_fft_shift_field_keepnyq(psi_t* psi, double* field_data,
+                                double ux, double uy, double uz) {
+  double fx = (ux - floor(ux) == 0.0) ? cos(M_PI*ux) : 1.0;
+  double fy = (uy - floor(uy) == 0.0) ? cos(M_PI*uy) : 1.0;
+  double fz = (uz - floor(uz) == 0.0) ? cos(M_PI*uz) : 1.0;
+  return psi_fft_spectral_apply(psi, field_data, ux, uy, uz, fx, fy, fz);
+}
+
+/*****************************************************************************
+ *
+ *  psi_fft_kill_nyquist
+ *
+ *  Band-limit a lattice field by zeroing the Nyquist plane(s) of the
+ *  selected axes (killx/killy/killz nonzero). Projects the field onto the
+ *  subspace |m| < N/2 in those axes, within which fractional spectral
+ *  shifts are exactly unitary. Applied to the particle's scattered charge
+ *  so that the Poisson solution has no content the -u un-shift can lose.
+ *
+ *****************************************************************************/
+int psi_fft_kill_nyquist(psi_t* psi, double* field_data,
+                         int killx, int killy, int killz) {
+  return psi_fft_spectral_apply(psi, field_data, 0.0, 0.0, 0.0,
+                                killx ? 0.0 : 1.0,
+                                killy ? 0.0 : 1.0,
+                                killz ? 0.0 : 1.0);
+}
+
+/*CHANGE INIT - 20260715 diagnostic: L2 norm of the Nyquist-x plane of a field.
+ * Returns sqrt(sum over k with mx=nx/2 of |field_hat(k)|^2) / N, i.e. the
+ * real-space RMS amplitude carried by the Nyquist-x plane. Used to trace
+ * where u-dependent Nyquist content enters/leaves rho and psi. Standalone
+ * FFT (own cached plan) so it does not disturb the shift buffers. */
+double psi_fft_nyquist_x_norm(psi_t* psi, const double* field_data) {
+
+  int nlocal[3], ntotal[3], nhalo;
+  cs_nlocal(psi->cs, nlocal);
+  cs_ntotal(psi->cs, ntotal);
+  cs_nhalo(psi->cs, &nhalo);
+  if (nlocal[X] != ntotal[X]) return -1.0;
+
+  int nx = nlocal[X], ny = nlocal[Y], nz = nlocal[Z];
+  int n = nx * ny * nz, nzh = nz / 2 + 1;
+
+  static int dn_nx = 0, dn_ny = 0, dn_nz = 0;
+  static cufftHandle dn_fwd;
+  static double* dn_dreal = NULL;
+  static cufftDoubleComplex* dn_dcplx = NULL;
+  static double* dn_hreal = NULL;
+  static cufftDoubleComplex* dn_hcplx = NULL;
+
+  if (dn_nx != nx || dn_ny != ny || dn_nz != nz) {
+    if (dn_dreal) cudaFree(dn_dreal);
+    if (dn_dcplx) cudaFree(dn_dcplx);
+    if (dn_hreal) free(dn_hreal);
+    if (dn_hcplx) free(dn_hcplx);
+    if (dn_nx > 0) cufftDestroy(dn_fwd);
+    cufftPlan3d(&dn_fwd, nx, ny, nz, CUFFT_D2Z);
+    cudaMalloc((void**)&dn_dreal, (size_t)n * sizeof(double));
+    cudaMalloc((void**)&dn_dcplx, (size_t)nx * ny * nzh * sizeof(cufftDoubleComplex));
+    dn_hreal = (double*)malloc((size_t)n * sizeof(double));
+    dn_hcplx = (cufftDoubleComplex*)malloc((size_t)nx * ny * nzh * sizeof(cufftDoubleComplex));
+    dn_nx = nx; dn_ny = ny; dn_nz = nz;
+  }
+
+  int str_z = 1, str_y = (nz + 2*nhalo), str_x = str_y * (ny + 2*nhalo);
+  for (int ix = 0; ix < nx; ix++)
+    for (int iy = 0; iy < ny; iy++)
+      for (int iz = 0; iz < nz; iz++) {
+        int lidx = str_x*(nhalo+ix) + str_y*(nhalo+iy) + str_z*(nhalo+iz);
+        dn_hreal[ix*(ny*nz) + iy*nz + iz] = field_data[lidx];
+      }
+  cudaMemcpy(dn_dreal, dn_hreal, (size_t)n*sizeof(double), cudaMemcpyHostToDevice);
+  cufftExecD2Z(dn_fwd, dn_dreal, dn_dcplx);
+  cudaMemcpy(dn_hcplx, dn_dcplx,
+             (size_t)nx*ny*nzh*sizeof(cufftDoubleComplex), cudaMemcpyDeviceToHost);
+
+  /* Sum |.|^2 over the mx = nx/2 plane (Hermitian: the half-spectrum holds it) */
+  double s = 0.0;
+  int mxn = nx / 2;
+  for (int iy = 0; iy < ny; iy++)
+    for (int iz = 0; iz < nzh; iz++) {
+      cufftDoubleComplex c = dn_hcplx[mxn*(ny*nzh) + iy*nzh + iz];
+      s += c.x*c.x + c.y*c.y;
+    }
+  return sqrt(s) / (double)n;
+}
+/*CHANGE END - 20260715 */
+/*CHANGE END - 20260710 spectral shift */
+
 #else /* __NVCC__ not defined */
 
 /*****************************************************************************
@@ -1283,6 +1558,35 @@ int psi_solver_fft_solve(psi_solver_fft_t* solver, int ntimestep) {
   (void)ntimestep;
   return -1;
 }
+
+/*CHANGE INIT - 20260710 spectral shift stub (no CUDA) */
+int psi_fft_shift_field(psi_t* psi, double* field_data,
+                        double ux, double uy, double uz) {
+  (void)field_data; (void)ux; (void)uy; (void)uz;
+  pe_fatal(psi->pe, "psi_fft_shift_field requires the CUDA/cuFFT build\n");
+  return -1;
+}
+
+int psi_fft_kill_nyquist(psi_t* psi, double* field_data,
+                         int killx, int killy, int killz) {
+  (void)field_data; (void)killx; (void)killy; (void)killz;
+  pe_fatal(psi->pe, "psi_fft_kill_nyquist requires the CUDA/cuFFT build\n");
+  return -1;
+}
+
+double psi_fft_nyquist_x_norm(psi_t* psi, const double* field_data) {
+  (void)field_data;
+  pe_fatal(psi->pe, "psi_fft_nyquist_x_norm requires the CUDA/cuFFT build\n");
+  return -1.0;
+}
+
+int psi_fft_shift_field_keepnyq(psi_t* psi, double* field_data,
+                                double ux, double uy, double uz) {
+  (void)field_data; (void)ux; (void)uy; (void)uz;
+  pe_fatal(psi->pe, "psi_fft_shift_field_keepnyq requires the CUDA/cuFFT build\n");
+  return -1;
+}
+/*CHANGE END - 20260710 */
 
 int psi_solver_fft_solve_with_subgrid(psi_solver_fft_t* solver,
                                        colloids_info_t* cinfo,

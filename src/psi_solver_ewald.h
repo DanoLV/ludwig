@@ -64,4 +64,30 @@ int psi_solver_ewald_gaussian_set_fp(psi_solver_ewald_gaussian_t * solver,
 
 /* CHANGE END - Gaussian_Ewald */
 
+/* CHANGE INIT - Gaussian_Ewald_Dual */
+typedef struct psi_solver_ewald_gaussian_dual_s psi_solver_ewald_gaussian_dual_t;
+
+struct psi_solver_ewald_gaussian_dual_s {
+  psi_solver_t    super;     /* superclass block — must be first */
+  ewald_charge_t* ewald;     /* Ewald solver object */
+  FILE          * fp;        /* output file (may be NULL) */
+  double          sigma_p;   /* Particle Gaussian width σ_p */
+  double          sigma_f;   /* Fluid node Gaussian width σ_f */
+};
+
+int psi_solver_ewald_gaussian_dual_create(ewald_charge_t * ewald,
+                                          FILE * fp,
+                                          double sigma_p,
+                                          double sigma_f,
+                                          psi_solver_ewald_gaussian_dual_t ** psolver);
+
+int psi_solver_ewald_gaussian_dual_free(psi_solver_ewald_gaussian_dual_t ** psolver);
+
+int psi_solver_ewald_gaussian_dual_solve(psi_solver_ewald_gaussian_dual_t * solver,
+                                         int ntimestep);
+
+int psi_solver_ewald_gaussian_dual_set_fp(psi_solver_ewald_gaussian_dual_t * solver,
+                                          FILE * fp);
+/* CHANGE END - Gaussian_Ewald_Dual */
+
 #endif

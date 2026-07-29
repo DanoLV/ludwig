@@ -168,3 +168,73 @@ static int ewald_gaussian_solver_solve_vt(psi_solver_t * solver, int ntimestep) 
 }
 
 /* CHANGE END - Gaussian_Ewald */
+
+/* CHANGE INIT - Gaussian_Ewald_Dual */
+
+static int ewald_gaussian_dual_solver_free_vt (psi_solver_t ** psolver);
+static int ewald_gaussian_dual_solver_solve_vt(psi_solver_t *  solver, int ntimestep);
+
+static const psi_solver_vt_t vt_gaussian_dual_ = {
+  .free  = ewald_gaussian_dual_solver_free_vt,
+  .solve = ewald_gaussian_dual_solver_solve_vt,
+};
+
+int psi_solver_ewald_gaussian_dual_create(ewald_charge_t * ewald,
+                                          FILE * fp,
+                                          double sigma_p,
+                                          double sigma_f,
+                                          psi_solver_ewald_gaussian_dual_t ** psolver) {
+
+  assert(ewald);
+  assert(psolver && *psolver == NULL);
+
+  psi_solver_ewald_gaussian_dual_t * obj =
+    (psi_solver_ewald_gaussian_dual_t *) calloc(1, sizeof(*obj));
+  if (obj == NULL) return -1;
+
+  obj->super.impl = &vt_gaussian_dual_;
+  obj->ewald      = ewald;
+  obj->fp         = fp;
+  obj->sigma_p    = sigma_p;
+  obj->sigma_f    = sigma_f;
+
+  *psolver = obj;
+  return 0;
+}
+
+int psi_solver_ewald_gaussian_dual_free(psi_solver_ewald_gaussian_dual_t ** psolver) {
+
+  assert(psolver && *psolver);
+
+  free(*psolver);
+  *psolver = NULL;
+  return 0;
+}
+
+int psi_solver_ewald_gaussian_dual_solve(psi_solver_ewald_gaussian_dual_t * solver,
+                                         int ntimestep) {
+
+  assert(solver);
+  return ewald_charge_sum_full_gaussian_dual_gpu(solver->ewald, solver->fp,
+                                                 solver->sigma_p, solver->sigma_f);
+}
+
+int psi_solver_ewald_gaussian_dual_set_fp(psi_solver_ewald_gaussian_dual_t * solver,
+                                          FILE * fp) {
+  assert(solver);
+
+  solver->fp = fp;
+  return 0;
+}
+
+static int ewald_gaussian_dual_solver_free_vt(psi_solver_t ** psolver) {
+  return psi_solver_ewald_gaussian_dual_free(
+      (psi_solver_ewald_gaussian_dual_t **) psolver);
+}
+
+static int ewald_gaussian_dual_solver_solve_vt(psi_solver_t * solver, int ntimestep) {
+  return psi_solver_ewald_gaussian_dual_solve(
+      (psi_solver_ewald_gaussian_dual_t *) solver, ntimestep);
+}
+
+/* CHANGE END - Gaussian_Ewald_Dual */

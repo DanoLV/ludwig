@@ -33,6 +33,9 @@ typedef enum psi_force_method_enum_s {
   /*CHANGE INIT - Gaussian_Ewald*/
   PSI_FORCE_EWALD_GAUSSIAN,
   /*CHANGE END - Gaussian_Ewald*/
+  /*CHANGE INIT - Gaussian_Ewald_Dual*/
+  PSI_FORCE_EWALD_GAUSSIAN_DUAL,
+  /*CHANGE END - Gaussian_Ewald_Dual*/
   PSI_FORCE_NTYPES
 } psi_force_method_enum_t;
 

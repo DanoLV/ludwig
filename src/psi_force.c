@@ -655,6 +655,11 @@ int psi_force_gradmu_e_ewald_offset(psi_t* psi, fe_t* fe, hydro_t* hydro,
               else if (kernel == SUBGRID_KERNEL_PESKIN6) {
                 dr = d_peskin6(rx) * d_peskin6(ry) * d_peskin6(rz);
               }
+              /*CHANGE INIT - 20260710 trilinear: pointwise E at integer offsets */
+              else if (kernel == SUBGRID_KERNEL_TRILINEAR) {
+                dr = d_trilinear(rx) * d_trilinear(ry) * d_trilinear(rz);
+              }
+              /*CHANGE END - 20260710 */
               else { dr = 0.0; }
 
               if (dr == 0.0) continue;

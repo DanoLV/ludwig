@@ -26,7 +26,9 @@ SRC  = $(ROOT_DIR)./src
 INCL = -I$(SRC) $(TARGET_INC_PATH) $(MPI_INC_PATH) $(PETSC_INC)
 
 BLIBS = $(MPI_LIB_PATH) $(MPI_LIB) $(TARGET_LIB_PATH) $(TARGET_LIB) $(PETSC_LIB)
-LIBS  = $(SRC)/libludwig.a ${BLIBS} -lm
+# libludwig.a now references cuFFT (psi_fft.o, psi_refined.o), so every
+# utility that links it needs -lcufft.
+LIBS  = $(SRC)/libludwig.a ${BLIBS} -lm -lcufft
 
 
 default:
@@ -39,8 +41,6 @@ build:
 	$(MAKE) extract_colloids
 	$(MAKE) coll_squ_subgrid_init
 	$(MAKE) multi_poly_init
-	$(MAKE) microgel_poly
-	$(MAKE) microgel_poly_filled
 	$(MAKE) microgel_poly_cross_density
 	$(MAKE) polarizer
 
@@ -77,6 +77,9 @@ microgel_poly_cross_density: microgel_poly_cross_density.o
 polarizer: polarizer.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+PM_self_force: PM_self_force.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
 # Default rules
 
 .PHONY : clean
@@ -89,4 +92,4 @@ clean:
 .SUFFIXES: .c .o
 
 .c.o:
-	$(CC) $(CFLAGS) $(INCL) -c $*.c
+	$(CC) $(CFLAGS) $(MODEL) $(INCL) -c $*.c
