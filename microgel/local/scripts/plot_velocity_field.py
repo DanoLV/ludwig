@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para visualizar campos de velocidad de archivos vel-* de Ludwig
 Permite graficar en planos xy, xz, yz o cualquier plano definido por el usuario

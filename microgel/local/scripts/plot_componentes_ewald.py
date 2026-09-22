@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para plotear por separado las componentes Real y Recíproca del campo eléctrico
 calculadas por Ewald en Ludwig.

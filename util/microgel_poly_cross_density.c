@@ -139,7 +139,10 @@ int clopt(int argc, char** argv,
           double* drmax,
           double* crosslink_density,
           int* max_links,
-          double* offset);
+          double* offset,
+          int* charge_mode,
+          double* charge_frac,
+          unsigned int* seed);
 
 /* New function prototypes */
 void initExtendedMicrogelPolymer(MicrogelPolymer* polymer,
@@ -180,7 +183,9 @@ void colloid_init_state(double offset, colloid_state_t* state, MicrogelPolymer* 
                         int bc,
                         int shape,
                         double drmax,
-                        double al);
+                        double al,
+                        int charge_mode,
+                        double charge_frac);
 
 /*****************************************************************************
  *
@@ -222,6 +227,11 @@ int main(int argc, char** argv)
   // --- NUEVOS PARAMETROS POR DEFECTO ---
   double avg_chain_length = 5.0;  // Longitud media de las cadenas
   double crosslink_density = 0.1; // Probabilidad de entrecruzamiento (0.0 a 1.0)
+  /*CHANGE INIT - 20260920 */
+  int charge_mode = 0;            // 0 todos, 1 superficie, 2 interior al azar
+  double charge_frac = 0.5;       // fraccion cargada en modo random
+  unsigned int seed = (unsigned int) time(NULL);
+  /*CHANGE END - 20260920 */
   // ------------------------------------
 
   colloid_state_t* state;
@@ -244,10 +254,11 @@ int main(int argc, char** argv)
 
   // clopt(argc, argv, &gsize, &nmon, &lbond, &distt, &a0, &ah, &al);
   clopt(argc, argv, &gsize, &surface_monomers, &density, &lbond, &distt, &q0, &epsilon, &sa, &saf, &a0, &ah, &drmax, &crosslink_density,
-          &max_links, &al);
+          &max_links, &al, &charge_mode, &charge_frac, &seed);
 
-  /* Initialize random seed */
-  srand((unsigned int)time(NULL));
+  /*CHANGE 20260920: semilla unica y reproducible (antes srand(time) sin control) */
+  srand(seed);
+  printf("  Semilla: %u\n", seed);
 
   /* Initialize the microgel polymer */
   MicrogelPolymer polymer;
@@ -265,6 +276,9 @@ int main(int argc, char** argv)
   /* Generate surface monomers using the Fibonacci sphere method */
   printf("\nDistributing surface monomers...\n");
   generateInitialMonomers(&polymer);
+  /*CHANGE 20260920: marcar los monomeros de superficie aca. La marca existente
+   * estaba al final de generateInteriorMonomers(), que este flujo no llama. */
+  for (int i = 0; i < polymer.nmon; i++) polymer.monomers[i].is_surface = 1;
 
   /* Generate interior monomers (now via chains) and create bonds */
   printf("Creando red polimerica completa (cadenas y entrecruzamientos)...\n");
@@ -289,7 +303,9 @@ int main(int argc, char** argv)
                       bc,
                       shape,
                       drmax,
-                      al);
+                      al,
+                      charge_mode,
+                      charge_frac);
 
   /* Free memory */
   freeMicrogelPolymer(&polymer);
@@ -374,6 +390,9 @@ void initPoint3D(Point3D* point, double x, double y, double z, int id)
   point->neighbors = NULL;
   point->num_neighbors = 0;
   point->neighbors_capacity = 0;
+  /*CHANGE 20260920: is_surface quedaba sin inicializar (se leia basura del malloc).
+   * Por defecto interior; los de superficie se marcan tras generarlos. */
+  point->is_surface = 0;
 }
 
 /* Function to free memory allocated for a Point3D structure */
@@ -862,7 +881,12 @@ int clopt(int argc, char** argv,
           double* drmax,
           double* crosslink_density,
           int* max_links,
-          double* offset)
+          double* offset,
+          /*CHANGE INIT - 20260920 modos de carga y semilla */
+          int* charge_mode,
+          double* charge_frac,
+          unsigned int* seed)
+          /*CHANGE END - 20260920 */
 {
   int c;
   char* eptr;
@@ -883,6 +907,12 @@ int clopt(int argc, char** argv,
     {"sa",                required_argument,       0, 's'}, // Surface area
     {"saf",               required_argument,       0, 'f'}, // Surface area to fluid
     {"drmax",             required_argument,       0, 'r'}, // Max displacement for colloids
+    /*CHANGE INIT - 20260920 */
+    {"charge-mode",       required_argument,       0, 'M'}, // all | surface | random
+    {"charge-frac",       required_argument,       0, 'F'}, // fraccion cargada en modo random
+    {"seed",              required_argument,       0, 'S'}, // semilla (reproducibilidad)
+    {"help",              no_argument,             0, 'H'},
+    /*CHANGE END - 20260920 */
     {"crosslink_density", required_argument,  0, 'x'}, // crosslink density 
     {"max_links",         required_argument,          0, 'm'}, // Max links 
     {0, 0, 0, 0}
@@ -893,7 +923,7 @@ int clopt(int argc, char** argv,
     /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv, "abc:d:f:",
+    c = getopt_long(argc, argv, "n:l:t:g:i:h:o:d:c:p:s:f:r:x:m:M:F:S:H",
                      long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -950,6 +980,43 @@ int clopt(int argc, char** argv,
       *saf = strtod(optarg, &eptr);
       break;
 
+    /*CHANGE INIT - 20260920 */
+    case 'M':
+      if      (strcmp(optarg,"all")     == 0) *charge_mode = 0;
+      else if (strcmp(optarg,"surface") == 0) *charge_mode = 1;
+      else if (strcmp(optarg,"random")  == 0) *charge_mode = 2;
+      else { fprintf(stderr,"--charge-mode debe ser all, surface o random\n"); exit(EXIT_FAILURE); }
+      break;
+    case 'F':
+      *charge_frac = strtod(optarg, &eptr);
+      if (*charge_frac < 0.0 || *charge_frac > 1.0) {
+        fprintf(stderr,"--charge-frac debe estar entre 0 y 1\n"); exit(EXIT_FAILURE);
+      }
+      break;
+    case 'S':
+      *seed = (unsigned int) strtoul(optarg, &eptr, 10);
+      break;
+    case 'H':
+      printf("Uso: microgel_poly_cross_density [opciones]\n"
+             "  -n --nmon N          monomeros de superficie\n"
+             "  -l --lbond X         longitud de enlace\n"
+             "  -t --distt X         tolerancia de distancia (fraccion)\n"
+             "  -g --gsize N         lado de la caja\n"
+             "  -i --irad X          radio de entrada a0\n"
+             "  -h --hrad X          radio hidrodinamico ah\n"
+             "  -o --offset X        parametro al de la particula subgrid\n"
+             "  -d --idensity X      densidad interior\n"
+             "  -c --charge X        carga q0\n"
+             "  -p --permittivity X  permitividad\n"
+             "  -s --sa X            area superficial\n"
+             "  -f --saf X           area superficial al fluido\n"
+             "  -r --drmax X         desplazamiento maximo por paso\n"
+             "  -M --charge-mode M   all (default) | surface | random\n"
+             "  -F --charge-frac X   fraccion cargada si el modo es random (default 0.5)\n"
+             "  -S --seed N          semilla del generador (default: reloj)\n"
+             "  -H --help            esta ayuda\n");
+      exit(EXIT_SUCCESS);
+    /*CHANGE END - 20260920 */
     case 'r':
       *drmax = strtod(optarg, &eptr);
       break;
@@ -992,7 +1059,11 @@ void colloid_init_state(double offset, colloid_state_t* state, MicrogelPolymer* 
                         int bc,
                         int shape,
                         double drmax,
-                        double al)
+                        double al,
+                        /*CHANGE INIT - 20260920 */
+                        int charge_mode,
+                        double charge_frac)
+                        /*CHANGE END - 20260920 */
 {
   // int a;
   for (int j = 0; j < polymer->total_nmon; j++)
@@ -1001,8 +1072,22 @@ void colloid_init_state(double offset, colloid_state_t* state, MicrogelPolymer* 
     state[j].rebuild = 1;
     state[j].a0 = a0;
     state[j].ah = ah;
-    state[j].q0 = q0;
-    state[j].q1 = q1;
+    /*CHANGE INIT - 20260920 modos de carga.
+     * 0 = todos los monomeros; 1 = solo los de superficie;
+     * 2 = una fraccion charge_frac elegida al azar entre los interiores. */
+    {
+      int cargado = 1;
+      if (charge_mode == 1) {
+        cargado = polymer->monomers[j].is_surface;
+      }
+      else if (charge_mode == 2) {
+        cargado = (!polymer->monomers[j].is_surface) &&
+                  (((double) rand() / RAND_MAX) < charge_frac);
+      }
+      state[j].q0 = cargado ? q0 : 0.0;
+      state[j].q1 = cargado ? q1 : 0.0;
+    }
+    /*CHANGE END - 20260920 */
     state[j].epsilon = epsilon;
     state[j].sa = sa;
     state[j].saf = saf;

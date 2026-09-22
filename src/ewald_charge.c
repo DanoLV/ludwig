@@ -9540,6 +9540,21 @@ __global__ void ewald_particle_field_real_kernel_gaussian(
   } while (0)
 /*CHANGE END - 20260611 */
 
+/*CHANGE INIT - 20260910 minimum image for the dual real-space kernels.
+ * These kernels computed node<->particle and particle<->particle displacements
+ * as raw differences, with no periodic wrapping, so a pair separated across a
+ * box face was seen at distance ~L and dropped by the cutoff. Measured as a
+ * violation of translation invariance: shifting the whole system by an integer
+ * number of nodes (which maps the lattice onto itself, so the force must be
+ * bit-identical) changed the force by 0.26% at step 50.
+ * Same idiom already used elsewhere in this file at :4841. */
+#define MIN_IMAGE_DUAL(d_, L_)                                                  \
+  do {                                                                          \
+    if ((d_) >  0.5 * (L_)) (d_) -= (L_);                                       \
+    else if ((d_) < -0.5 * (L_)) (d_) += (L_);                                  \
+  } while (0)
+/*CHANGE END - 20260910 */
+
 /* φ(node) from particles — particle-fluid pair → σ_eff_pf */
 __global__ void ewald_potential_real_particle_kernel_dual_pf(
     double* __restrict__ psi_data,
@@ -9577,6 +9592,13 @@ __global__ void ewald_potential_real_particle_kernel_dual_pf(
     r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
 
     double dr[3] = { r_local[0] - r_p[0], r_local[1] - r_p[1], r_local[2] - r_p[2] };
+    /*CHANGE INIT - 20260910 minimum image (see MIN_IMAGE_DUAL above).
+     * Correct for a single rank; an MPI build would also need the
+     * neighbour-rank particle list, which this path does not build. */
+    MIN_IMAGE_DUAL(dr[0], d_ltot[0]);
+    MIN_IMAGE_DUAL(dr[1], d_ltot[1]);
+    MIN_IMAGE_DUAL(dr[2], d_ltot[2]);
+    /*CHANGE END - 20260910 */
     double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
 
     if (dist < d_ewald_rc) {
@@ -9702,6 +9724,13 @@ __global__ void ewald_force_real_particle_kernel_dual_pf(
     r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
 
     double dr[3] = { r_local[0] - r_p[0], r_local[1] - r_p[1], r_local[2] - r_p[2] };
+    /*CHANGE INIT - 20260910 minimum image (see MIN_IMAGE_DUAL above).
+     * Correct for a single rank; an MPI build would also need the
+     * neighbour-rank particle list, which this path does not build. */
+    MIN_IMAGE_DUAL(dr[0], d_ltot[0]);
+    MIN_IMAGE_DUAL(dr[1], d_ltot[1]);
+    MIN_IMAGE_DUAL(dr[2], d_ltot[2]);
+    /*CHANGE END - 20260910 */
     double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
 
     if (dist < d_ewald_rc) {
@@ -9758,6 +9787,13 @@ __global__ void ewald_efield_real_particle_kernel_dual_pf(
     r_p[2] = particle_r[3 * p + 2] - (double)d_noffset[2];
 
     double dr[3] = { r_local[0] - r_p[0], r_local[1] - r_p[1], r_local[2] - r_p[2] };
+    /*CHANGE INIT - 20260910 minimum image (see MIN_IMAGE_DUAL above).
+     * Correct for a single rank; an MPI build would also need the
+     * neighbour-rank particle list, which this path does not build. */
+    MIN_IMAGE_DUAL(dr[0], d_ltot[0]);
+    MIN_IMAGE_DUAL(dr[1], d_ltot[1]);
+    MIN_IMAGE_DUAL(dr[2], d_ltot[2]);
+    /*CHANGE END - 20260910 */
     double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
 
     if (dist < d_ewald_rc) {
@@ -9961,9 +9997,23 @@ __global__ void ewald_particle_field_real_kernel_dual(
           int ni = i0 + di;
           int nj = j0 + dj;
           int nk_idx = k0 + dk;
-          if (ni < 1 || ni > d_nlocal[0]) continue;
-          if (nj < 1 || nj > d_nlocal[1]) continue;
-          if (nk_idx < 1 || nk_idx > d_nlocal[2]) continue;
+          /*CHANGE INIT - 20260910 use the halo instead of discarding it.
+           * nhalo is sized to the Ewald cutoff (ludwig.c:3093,
+           * nhalo = ceil(ewald_rc) = irc) and is refreshed every step by
+           * psi_halo_rho() (ludwig.c:1732), so the halo already holds exactly
+           * the periodic images this loop needs; the addressing below is
+           * already valid over [1-nhalo, nlocal+nhalo]. The old guard threw
+           * them away, so a colloid within ~5 lattice units of a box face lost
+           * genuinely nearby nodes. The ff kernel already guards this way.
+           * The unwrapped ni/nj/nk are kept for the displacement, which is
+           * what makes dr below the correct minimum-image separation. */
+          // if (ni < 1 || ni > d_nlocal[0]) continue;
+          // if (nj < 1 || nj > d_nlocal[1]) continue;
+          // if (nk_idx < 1 || nk_idx > d_nlocal[2]) continue;
+          if (ni < 1 - nhalo || ni > d_nlocal[0] + nhalo) continue;
+          if (nj < 1 - nhalo || nj > d_nlocal[1] + nhalo) continue;
+          if (nk_idx < 1 - nhalo || nk_idx > d_nlocal[2] + nhalo) continue;
+          /*CHANGE END - 20260910 */
 
           int ludwig_idx = str_x * (nhalo + ni - 1) + str_y * (nhalo + nj - 1) + str_z * (nhalo + nk_idx - 1);
           double rho0 = rho_data[nsites * 0 + ludwig_idx];
@@ -10003,6 +10053,13 @@ __global__ void ewald_particle_field_real_kernel_dual(
       r_p2[2] = particle_r[3 * p2 + 2] - (double)d_noffset[2];
 
       double dr[3] = { r_p[0] - r_p2[0], r_p[1] - r_p2[1], r_p[2] - r_p2[2] };
+      /*CHANGE INIT - 20260910 minimum image for the particle-particle pair.
+       * Only bites when the pair separation exceeds L/2, but kept for
+       * consistency with the node loop above. */
+      MIN_IMAGE_DUAL(dr[0], d_ltot[0]);
+      MIN_IMAGE_DUAL(dr[1], d_ltot[1]);
+      MIN_IMAGE_DUAL(dr[2], d_ltot[2]);
+      /*CHANGE END - 20260910 */
       double dist = sqrt(dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
 
       if (dist < d_ewald_rc) {
@@ -10253,9 +10310,20 @@ __global__ void ewald_particle_field_fourier_kernel_dual(
     double im_part = Sk_sin[kn] * coskr - Sk_cos[kn] * sinkr;
     double w = factor * d_beta * d_eunit * Gk[kn] * fk_recv[kn];
 
-    E_fourier[0] += w * kx * im_part;
-    E_fourier[1] += w * ky * im_part;
-    E_fourier[2] += w * kz_val * im_part;
+    /*CHANGE INIT - 20260910 sign of reciprocal field on particles.
+     * Was "+=", which made the measured pp force equal A*(F_real - F_recip)
+     * instead of A*(F_real + F_recip): confirmed to 0.1-0.9% with no fitted
+     * parameters, and at large alpha the force converged to MINUS bare Coulomb.
+     * E = -grad(phi) = Gk*k*(Sk_cos*sin - Sk_sin*cos) = -Gk*k*im_part, which is
+     * the convention documented at :2966 and used by the fluid E-field kernel
+     * at :10142 with the identical im_part. */
+    // E_fourier[0] += w * kx * im_part;
+    // E_fourier[1] += w * ky * im_part;
+    // E_fourier[2] += w * kz_val * im_part;
+    E_fourier[0] -= w * kx * im_part;
+    E_fourier[1] -= w * ky * im_part;
+    E_fourier[2] -= w * kz_val * im_part;
+    /*CHANGE END - 20260910 */
   }
 
   E_fourier[0] += d_beta * d_eunit * d_E_dipole[0];
@@ -10973,6 +11041,10 @@ int ewald_charge_sum_full_gaussian_dual_gpu(ewald_charge_t* ewald, FILE* fp,
   cudaMemcpyToSymbol(d_gauss_sigma_eff_ff, &sigma_eff_ff, sizeof(double));
   cudaMemcpyToSymbol(d_gauss_sigma_eff_pf, &sigma_eff_pf, sizeof(double));
   cudaMemcpyToSymbol(d_gauss_eta,          &alpha_,       sizeof(double));
+  /*CHANGE INIT - 20260910 d_ltot was never uploaded by this driver, so the
+   * minimum-image macro in the real-space kernels would read zeros. */
+  cudaMemcpyToSymbol(d_ltot, ltot, 3 * sizeof(double));
+  /*CHANGE END - 20260910 */
 
   /* ========================================================================
    * Precompute k-vectors, Green function, and two form-factor arrays
@@ -11004,8 +11076,24 @@ int ewald_charge_sum_full_gaussian_dual_gpu(ewald_charge_t* ewald, FILE* fp,
         Gk_h[kn] = b0 * exp(-r4alpha_sq * ksq) / ksq;
 
         /* Per-species form factors */
-        gaussian_fk_p_h[kn] = exp(-ksq * sigma_p * sigma_p / 4.0);
-        gaussian_fk_f_h[kn] = exp(-ksq * sigma_f * sigma_f / 4.0);
+        /*CHANGE INIT - 20260910 Ewald split convention: drop reciprocal form factors.
+         * The form factors were applied at BOTH source and receiver, so the
+         * reciprocal delivered erf(r/sqrt(sigma_eff^2 + 1/eta^2))/r, while the
+         * real-space kernels subtract erf(eta*r)/r — the complement of a
+         * reciprocal WITHOUT form factors. The two halves therefore did not sum
+         * to erf(r/sigma_eff)/r, leaving a residue that depends explicitly on
+         * eta. Measured alpha-dependence matched that residue to ~0.03% over 15
+         * points (3 separations x 5 alphas, no fitted parameters).
+         * Convention adopted: plain point-charge reciprocal (form factors = 1);
+         * all Gaussian shape — and the overlap regularisation — lives in the
+         * exact real-space term, which is already written for this convention.
+         * This is also the Green's function psi_solver_fft_set_influence_ewald
+         * already implements, so the FFT port needs no form-factor machinery. */
+        // gaussian_fk_p_h[kn] = exp(-ksq * sigma_p * sigma_p / 4.0);
+        // gaussian_fk_f_h[kn] = exp(-ksq * sigma_f * sigma_f / 4.0);
+        gaussian_fk_p_h[kn] = 1.0;
+        gaussian_fk_f_h[kn] = 1.0;
+        /*CHANGE END - 20260910 */
 
         kz_arr_h[kn] = kz;
         kn++;

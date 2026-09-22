@@ -42,6 +42,7 @@ build:
 	$(MAKE) coll_squ_subgrid_init
 	$(MAKE) multi_poly_init
 	$(MAKE) microgel_poly_cross_density
+	$(MAKE) porous_solid_cube
 	$(MAKE) polarizer
 
 colloid_init: colloid_init.o
@@ -72,8 +73,11 @@ microgel_poly_filled: microgel_poly_filled.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 microgel_poly_cross_density: microgel_poly_cross_density.o
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)	
-	
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+porous_solid_cube: porous_solid_cube.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
+
 polarizer: polarizer.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 

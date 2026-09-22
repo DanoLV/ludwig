@@ -1,0 +1,66 @@
+  Semilla: 12345
+Initial radius estimate: 7.5053
+Generating polymer network with parameters:
+  Surface monomers: 65
+  Bond length: 3.00
+  Distance threshold: 0.20
+  Interior density: 0.50 monomers/unit³
+  Sphere radius: 7.5053
+
+Distributing surface monomers...
+Creando red polimerica completa (cadenas y entrecruzamientos)...
+Generando cadenas polimericas lineales desde la superficie hacia el interior...
+target_total_monomers: 885
+Generados 62 monomeros interiores en cadenas. Total de monomeros: 127.
+Advertencia: No se alcanzo la densidad objetivo. Faltan 758 monomeros para un total de 885.
+Verificando enlaces minimos y llenando capacidad restante...
+Ensuring minimum number of bonds for all monomers...
+Added 53 bonds to ensure minimum connectivity
+Creando enlaces cruzados (cross-links)...
+Anadidos 7 enlaces cruzados.
+
+Network statistics:
+  Total monomers: 127
+  Surface monomers: 65
+  Interior monomers: 62
+  Sphere radius: 7.5053
+  Bond length: 3.0000 (tolerance: 0.2000)
+  Min bonds per monomer: 1
+  Max bonds per monomer: 5
+  Avg bonds per monomer: 1.92
+  Monomers with no bonds: 0
+Distribution quality metrics:
+  Target distance (ldist): 3.0000
+  Minimum Euclidean distance between any monomers: 1.8763
+  Maximum Euclidean distance between any monomers: 15.0105
+  Average Euclidean distance between all monomers: 8.5309
+  Sphere radius: 7.5053
+
+Connectivity metrics:
+  Minimum Euclidean distance between connected monomers: 1.87631476
+  Maximum Euclidean distance between connected monomers: 3.59353713
+  Average Euclidean distance between connected monomers: 2.84463254
+  Average connections per monomer: 1.92125984
+
+Network statistics:
+  Total monomers: 127
+  Surface monomers: 65
+  Interior monomers: 62
+  Sphere radius: 7.5053
+  Bond length: 3.0000 (tolerance: 0.2000)
+  Min bonds per monomer: 1
+  Max bonds per monomer: 5
+  Avg bonds per monomer: 1.92
+  Monomers with no bonds: 0
+Distribution quality metrics:
+  Target distance (ldist): 3.0000
+  Minimum Euclidean distance between any monomers: 1.8763
+  Maximum Euclidean distance between any monomers: 15.0105
+  Average Euclidean distance between all monomers: 8.5309
+  Sphere radius: 7.5053
+
+Connectivity metrics:
+  Minimum Euclidean distance between connected monomers: 1.87631476
+  Maximum Euclidean distance between connected monomers: 3.59353713
+  Average Euclidean distance between connected monomers: 2.84463254
+  Average connections per monomer: 1.92125984

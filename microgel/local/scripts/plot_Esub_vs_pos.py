@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para graficar las componentes del campo E_sub sobre la partícula en
 función de su posición, recorriendo las subcarpetas de un directorio padre.

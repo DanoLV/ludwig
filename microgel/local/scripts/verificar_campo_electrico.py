@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para verificar el campo eléctrico calculado por Ludwig contra el teórico.
 

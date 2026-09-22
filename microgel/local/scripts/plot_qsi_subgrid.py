@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 plot_qsi_subgrid.py
 

@@ -41,7 +41,7 @@ MPI_RUN = $(LAUNCH_MPIRUN_CMD)
 
 ifdef HAVE_PETSC
 INCL += $(PETSC_INC) -DPETSC
-LIBS = $(BLIBS) /usr/local/petsc-cuda/lib/libpetsc.so $(SRC)/libludwig.a -lm
+LIBS = $(BLIBS) $(PETSC_LIB) $(SRC)/libludwig.a -lm
 else
 LIBS = $(BLIBS) $(SRC)/libludwig.a -lm
 endif
@@ -63,7 +63,7 @@ build:	$(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 test:
-	LD_LIBRARY_PATH=/usr/local/petsc-cuda/lib:/usr/local/ompi/lib:$$LD_LIBRARY_PATH ./a.out
+	LD_LIBRARY_PATH=/usr/local/petsc-cuda-hypre/lib:/usr/local/ompi/lib:$$LD_LIBRARY_PATH ./a.out
 
 clean:
 	$(RM) core *.o a.out

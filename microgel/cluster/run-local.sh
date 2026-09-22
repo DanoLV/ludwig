@@ -54,7 +54,10 @@ NT=$((Nsteps + Ninicio))
 # fi
 
 # Run Ludwig
-./Ludwig.exe
+# LC_NUMERIC=C.UTF-8 (no el locale del sistema): si queda en es_ES, Ludwig
+# escribe/lee los .cds con coma decimal en vez de punto y el parser
+# (fscanf %le) se desincroniza -> assert en colloid_state_read_ascii.
+LC_NUMERIC=C.UTF-8 ./Ludwig.exe
 
 # # Postprocesing - convert data to .cvs files
 # cp config.cds.init.001-001 config.cds00000000.001-001

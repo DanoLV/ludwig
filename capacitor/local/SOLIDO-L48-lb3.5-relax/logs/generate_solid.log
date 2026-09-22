@@ -1,0 +1,37 @@
+****************************************************************************
+*
+* Failed with: intersection without inclusion
+* while inserting Group0 (P#8 cpuset 0x000f0000) at L1d (P#8 cpuset 0x00010006)
+* coming from: linux:sysfs:cluster
+*
+* 
+****************************************************************************
+Generating porous solid with parameters:
+  Random seed: 20260920
+  Cube side: 48
+  Periodicity (x,y,z): 1,1,1
+  Mean bond distance: 3.5000
+  Bond delta: 0.5000 (accepted range [3.0000, 4.0000])
+  Point density: 0.0230
+  Target number of points: 2544
+  Max bonds per point: 6
+
+Filling cube with random points...
+Placed 2544 of 2544 target points after 301650 attempts
+
+Creating bonds (target length 3.5000 +/- 0.5000)...
+Added 6514 bonds
+
+Network statistics:
+  Total points: 2544
+  Fixed points: 0
+  Cube side: 48.0000
+  Bond length target: 3.5000 (delta: 0.5000)
+  Min bonds per point: 1
+  Max bonds per point: 6
+  Avg bonds per point: 5.1211
+  Points with no bonds: 0
+  Total bonds: 6514
+  Min bonded distance: 3.000074
+  Max bonded distance: 3.999937
+  Avg bonded distance: 3.471315

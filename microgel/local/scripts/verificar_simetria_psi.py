@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para verificar la simetría del campo eléctrico con respecto a la posición de la partícula.
 

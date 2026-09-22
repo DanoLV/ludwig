@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para comparar el campo eléctrico simulado con el campo teórico
 de una carga puntual.

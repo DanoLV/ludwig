@@ -2,6 +2,12 @@
 #------------------------------------------------------------------------------------
 # Run ludwig microgel simulation plots
 #------------------------------------------------------------------------------------
+# Los .py de aca abajo se invocan via el shebang "#!/usr/bin/python3" si se
+# corren como "./scripts/foo.py", que ignora PATH/venv activado. Para que
+# usen numpy/scipy/matplotlib del venv del repo (y no el python del sistema,
+# que no los tiene) se invocan explicitamente con PY_VENV.
+PY_VENV=/home/danolv/Sim/ludwig/.venv/bin/python3
+#------------------------------------------------------------------------------------
 # Input parameters:
 #   -n  Nsteps       : Number of steps to calculate
 #   -i  Ninicio      : Initial step number
@@ -71,30 +77,30 @@ mv coll*.csv ./colloid_data/
 if [ "$fluid_only" == "y" ]; then
     # Plot only fluid velocities (no colloids needed)
     # Run calculation in root dir (where vel-* files are), save output to proceced_data
-    ./scripts/calculosvelfluidonly.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o proceced_data/datosfluid.csv --idir colloid_data
+    "$PY_VENV" ./scripts/calculosvelfluidonly.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o proceced_data/datosfluid.csv --idir colloid_data
 
     # Generate plot in plots directory
-    ./scripts/plotvel.py -i proceced_data/datosfluid.csv --out_dir plots --fluid-only
+    "$PY_VENV" ./scripts/plotvel.py -i proceced_data/datosfluid.csv --out_dir plots --fluid-only
 
 elif [ "$single" == "y" ]; then
     # Calculates and plots velocity for a single subgrid monomer
     # Run calculation in root dir (where colloids-*.csv are), save output to proceced_data
     if [[ $Ninicio -eq 0 ]]; then
         # Step 1
-        ./scripts/calculosvelfluid.py -nciclos 1 -ninicio 0 -npaso 1 -o proceced_data/datosfluid.csv --idir colloid_data
+        "$PY_VENV" ./scripts/calculosvelfluid.py -nciclos 1 -ninicio 0 -npaso 1 -o proceced_data/datosfluid.csv --idir colloid_data
         Ninicio=$paso
     fi
-    ./scripts/calculosvelfluid.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o proceced_data/datosfluid.csv --idir colloid_data
+    "$PY_VENV" ./scripts/calculosvelfluid.py -nciclos $NT -ninicio $Ninicio -npaso $paso -o proceced_data/datosfluid.csv --idir colloid_data
 
     # Generate plot in plots directory
-    ./scripts/plotvel.py -i proceced_data/datosfluid.csv --out_dir plots
+    "$PY_VENV" ./scripts/plotvel.py -i proceced_data/datosfluid.csv --out_dir plots
 
 else
     # Calculates and plots density, medium bond length and inertia moments for a microgel
     # Run calculation in root dir (where colloids-*.csv are), save output to proceced_data
-    ./scripts/calculos.py -nciclos $NT -npaso $paso -o proceced_data/datos.csv
+    "$PY_VENV" ./scripts/calculos.py -nciclos $NT -npaso $paso -o proceced_data/datos.csv
 
     # Generate plot in plots directory
-    ./scripts/plot.py
+    "$PY_VENV" ./scripts/plot.py
 
 fi

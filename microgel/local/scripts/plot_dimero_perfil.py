@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Perfiles de campo electrico (E), potencial (psi) y carga (rho/qsi) para un DIMERO.
 

@@ -249,10 +249,25 @@ int psi_solver_petsc_initialise(psi_t* psi, psi_solver_petsc_t* solver) {
 
     /* Create 3D distributed array (always periodic) */
 
+    /*CHANGE INIT - 20260921 DMDA stencil width = reach of the Poisson stencil,
+     * not the lattice halo.
+     * The width only sizes the matrix preallocation, (2w+1)^3 entries per row
+     * for DMDA_STENCIL_BOX. The Poisson matrix is assembled from cv[p] with
+     * components in {-1,0,1} for D3Q7/19/27, so w=1 is exact. Passing nhalo
+     * (3 or 4 with Hann/Peskin6 kernels) preallocated 343-729 entries per row
+     * for a 27-point operator, and the PETSc 3.25.4 / hypre 3.1.0 stack
+     * rebuilt on 2026-08-04 aborts with "CUDA ERROR (code = 2, out of memory)
+     * at memory.c:304" (hypre's own memory.c) for w >= 3 -- reproduced in a
+     * standalone DMDA test with no Ludwig involved. Only global vectors are
+     * used here (no DMGlobalToLocal), so no code relies on wider ghosts.
+     * Original:
+     *   DMDACreate3d(..., cartsz[X], cartsz[Y], cartsz[Z], 1, nhalo, ...); */
+    (void) nhalo;
     DMDACreate3d(PETSC_COMM_WORLD, periodic, periodic, periodic,
      DMDA_STENCIL_BOX, ntotal[X], ntotal[Y], ntotal[Z],
-     cartsz[X], cartsz[Y], cartsz[Z], 1, nhalo,
+     cartsz[X], cartsz[Y], cartsz[Z], 1, 1,
      NULL, NULL, NULL, &solver->block->da);
+    /*CHANGE END - 20260921 */
 
     /*CHANGE INIT - 20260326 Use GPU vec/mat types when -vec_type cuda is set via .petscrc.
      * DMSetVecType/DMSetMatType must match the requested type BEFORE DMSetUp and

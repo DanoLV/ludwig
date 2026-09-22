@@ -77,16 +77,16 @@ fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence e
 # pm_sr_correction yes
 # # pm_sr_rcut 8
 
-pm_sr_correction  yes      # activa la corrección (sin esto, nada corre)
-pm_sr_sigma       0.3      # ancho Gaussiano de referencia (default 0.7 FIJO)
+pm_sr_correction  no      # activa la corrección (sin esto, nada corre)
+pm_sr_sigma       0.4      # ancho Gaussiano de referencia (default 0.7 FIJO)
 # pm_sr_rcut        4.0      # radio de corte (default 2+krange)
 # pm_sr_nvoxel      8        # resolución sub-voxel al construir la tabla
 # pm_sr_nr3d        32       # resolución de la tabla 3D
 subgrid_kernel    hann     # kernel de spread/gather
-subgrid_hann_order 12      # orden Hann (ancho total del soporte)
+subgrid_hann_order 8       # orden Hann (ancho total del soporte)
 
 
-interlacing_mode    0          # 0 = modo normal, 1 = red desplazada
+interlacing_mode    0         # 0 = modo normal, 1 = red desplazada
 # interlacing_offset  0.844     # valor fijo, o la palabra: random
 # interlacing_offset  random  
 # interlacing_seed    12345      # solo para random
@@ -170,7 +170,7 @@ default_io_mode   mpiio
 default_io_format ascii
 
 freq_statistics     100
-vel_io_freq 10
+# vel_io_freq 10
 # psi_io_freq         5
 freq_config 1000
 config_at_end     yes

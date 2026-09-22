@@ -1334,7 +1334,16 @@ void subgrid_free_distributed_force_t(distributed_force_klein_t** force)
 	/* Free each entry */
 	for (int i = 0; i < c->count; i++) {
 		if (c->entries[i] != NULL) {
-			if (c->entries[i]->force != NULL) free(c->entries[i]->force);
+			/*CHANGE INIT - 20260912 fuga de memoria: los tres klein_t de
+			 * entry->force[] se asignan en subgrid.c (3 * sizeof(klein_t))
+			 * pero solo se liberaba el array de punteros, perdiendo
+			 * 3 x 32 B por nodo cubierto y por paso de tiempo.
+			 * Original: if (c->entries[i]->force != NULL) free(c->entries[i]->force); */
+			if (c->entries[i]->force != NULL) {
+				for (int k = 0; k < 3; k++) free(c->entries[i]->force[k]);
+				free(c->entries[i]->force);
+			}
+			/*CHANGE END - 20260912 */
 			free(c->entries[i]);
 		}
 	}
@@ -2053,6 +2062,68 @@ int subgrid_print_Esub(colloids_info_t* cinfo,
 
 }
 
+/*CHANGE INIT - 20260823 per-particle force output for theory comparison */
+/*****************************************************************************
+ *
+ *  subgrid_print_force
+ *
+ *  Print the total force (pc->fex: electrostatic + any other mechanical
+ *  contribution already folded in by the caller before this step's
+ *  electrokinetic force was added) currently held on each local subgrid
+ *  particle. Must be called once fex has been finalised for the step
+ *  (i.e. after subgrid_update_forces_electrokinetics /
+ *  subgrid_update_forces_electrokinetics_ewald and any short-range
+ *  correction), so a colloid-vs-colloid Coulomb/Debye-Huckel theory
+ *  comparison can be made directly against this file.
+ *****************************************************************************/
+int subgrid_print_force(colloids_info_t* cinfo,
+						 int step,
+						 FILE* fp) {
+
+	int i, ic, jc, kc;
+	int ncell[3];
+
+	colloid_t* pc;
+
+	assert(cinfo);
+
+	if (fp == NULL) return 0;
+	if (cinfo->nsubgrid == 0) return 0;
+
+	colloids_info_ncell(cinfo, ncell);
+
+	/* Loop only over non-halo cells to write data (one line per local particle) */
+	for (ic = 1; ic <= ncell[X]; ic++) {
+		for (jc = 1; jc <= ncell[Y]; jc++) {
+			for (kc = 1; kc <= ncell[Z]; kc++) {
+
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+
+				for (; pc; pc = pc->next) {
+
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+
+					char string[512];
+					double Fmod = sqrt(pc->fex[X] * pc->fex[X] +
+									   pc->fex[Y] * pc->fex[Y] +
+									   pc->fex[Z] * pc->fex[Z]);
+
+					/* Format: step;index;|F|;Fx;Fy;Fz */
+					sprintf(string, "%d;%d;%.15e;%.15e;%.15e;%.15e\n",
+							step, pc->s.index,
+							Fmod, pc->fex[X], pc->fex[Y], pc->fex[Z]);
+					for (i = 0; i < (int)strlen(string); i++) if (string[i] == '.') string[i] = ',';
+					fprintf(fp, "%s", string);
+				}
+			}
+		}
+	}
+	fflush(fp);
+
+	return 0;
+}
+/*CHANGE END - 20260823 per-particle force output for theory comparison */
+
 /*****************************************************************************
  *
  *  subgrid_update_Esub
@@ -2453,7 +2524,9 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 							step, pc->s.index,
 							Emod, pc->Esub[X], pc->Esub[Y], pc->Esub[Z]);
 					for (i = 0; i < (int)strlen(string); i++) if (string[i] == '.') string[i] = ',';
-					fprintf(fp, "%s", string);
+					/*CHANGE 20260920: fp may be NULL when the caller is throttling
+					 * particle_Esub.csv output; the field itself is still computed. */
+					if (fp != NULL) fprintf(fp, "%s", string);
 					/*CHANGE END - 20260518 */
 				}
 			}
@@ -5500,6 +5573,14 @@ int pm_sr_correct_phi(colloids_info_t* cinfo, psi_t* psi,
  *  Field corrections feed no force calculation (diagnostic only), so they do
  *  not affect momentum conservation.
  *
+ *  NOTE 20260825: tried making q_node see nearby colloids too (via a
+ *  pre-restore rho snapshot, self-contribution subtracted analytically) —
+ *  reverted, see memory/commit notes: produced a sign-flipped, much
+ *  smaller force. The table's PM reference was built assuming q_node is a
+ *  diffuse ionic perturbation around an isolated charge, not a second,
+ *  comparably-sized nearby colloid; feeding it a large q_node from a real
+ *  neighbour appears to leave the table's linear regime. Needs a genuinely
+ *  separate colloid-colloid correction term instead of reusing this table.
  *****************************************************************************/
 int pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
                                   psi_t* psi, hydro_t* hydro,
@@ -5671,3 +5752,684 @@ int pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
 }
 
 /*CHANGE END - 20260625 pm_sr_correct_phi / pm_sr_apply_force_correction */
+
+/*CHANGE INIT - 20260902 direct colloid-colloid PM short-range correction
+ *
+ * pm_sr_apply_force_correction (above) can only ever see the ionic cloud:
+ * by the time it runs, the caller has already restored psi->rho to
+ * fluid-only (see ludwig.c), so it never corrects the discretisation error
+ * of the DIRECT colloid-colloid interaction, which is what actually
+ * dominates at short range (small r). This section adds a second,
+ * independent correction applied directly between nearby colloid PAIRS
+ * (never touching the grid/fluid), so it needs no snapshot, no
+ * self-interaction bookkeeping, and conserves momentum trivially (an
+ * explicit F_AB = -F_BA pairwise force).
+ *
+ * Derivation. Two subgrid particles, each spreading unit charge with the
+ * SAME real kernel w(x) (any of subgrid's kernels — Hann, Peskin,
+ * B-spline, KB4 — via pm_sr_kernel_weight_1d; no Gaussian approximation of
+ * the kernel shape is made anywhere here). Write w's 1D self-correlation
+ * (w is even, so this equals self-convolution):
+ *
+ *     h(x) = integral w(y) w(y-x) dy                 (support: [-2*krange, 2*krange])
+ *
+ * The discrete PM energy between the two spread charges, separated by r
+ * along x, AVERAGED over the (irrelevant, arbitrary) sub-cell fractional
+ * offset of particle A — this average is what turns the double lattice
+ * sum into the closed form below; see the long-form derivation notes in
+ * the conversation this was designed in, verified numerically against a
+ * brute-force continuum quadrature to ~1-2% — is:
+ *
+ *     phi_PM_pair(r) = sum_{mx,my,mz integer} h(mx-r) h(my) h(mz)
+ *                      / (4 pi epsilon sqrt(mx^2+my^2+mz^2))
+ *
+ * i.e. a sum over INTEGER lattice offsets m = node_B - node_A: h(.) (the
+ * WEIGHT) is evaluated at the real-valued (mx-r), but the DISTANCE in the
+ * denominator uses the raw integer m directly (not shifted by r) — mixing
+ * these up makes the sum r-independent, which was the bug caught while
+ * validating this in Python before writing the C version.
+ *
+ * The correction is target-minus-PM, target = two Gaussian charges of
+ * width sigma (the same "physical reference size" pm_sr_sigma already
+ * used for the colloid-vs-ion-cloud correction), combined width
+ * sigma*sqrt(2), PURE COULOMB (no kappa — see docstring in subgrid.h: the
+ * screening length is left entirely to the self-consistent NP+Poisson
+ * solve, forcing kappa in here would fight that and can be wrong wherever
+ * the local ion density departs from the bulk linear estimate, which is
+ * exactly the region — right next to a colloid — where this correction
+ * acts):
+ *
+ *     dphi(r) = phi_gauss(r, sigma*sqrt(2), epsilon) - phi_PM_pair(r)
+ *     F(r)    = -d(dphi)/dr                            (central finite difference)
+ *
+ * applied as F_on_B = q_A * q_B * F(r) * r_hat(A->B), F_on_A = -F_on_B.
+ *****************************************************************************/
+
+struct pm_sr_pair_table_s {
+  int     nr;
+  double  r_cut;
+  double  dr;
+  double* F;   /* per unit q_A*q_B, index i covers r in [(i)*dr, (i+1)*dr) */
+};
+
+/* h(x): 1D self-correlation of the real spread/gather kernel weight,
+ * tabulated on a fine uniform grid for linear interpolation. Generic for
+ * any kernel type via pm_sr_kernel_weight_1d — no shape is assumed. */
+static double pm_sr_pair_h_interp(double x, const double* h, int nh,
+                                   double dxh, double half_support) {
+  if (x <= -half_support || x >= half_support) return 0.0;
+  double u = (x + half_support) / dxh;
+  int i0 = (int)u;
+  if (i0 < 0) i0 = 0;
+  if (i0 >= nh - 1) i0 = nh - 2;
+  double frac = u - i0;
+  return h[i0] * (1.0 - frac) + h[i0 + 1] * frac;
+}
+
+static double pm_sr_phi_PM_pair(double r, double epsilon,
+                                 const double* h, int nh, double dxh,
+                                 double half_support, int m_max) {
+  PI_DOUBLE(pi);
+  double phi = 0.0;
+  for (int mx = -m_max; mx <= m_max; mx++) {
+    double hx = pm_sr_pair_h_interp((double)mx - r, h, nh, dxh, half_support);
+    if (hx == 0.0) continue;
+    for (int my = -m_max; my <= m_max; my++) {
+      double hy = pm_sr_pair_h_interp((double)my, h, nh, dxh, half_support);
+      if (hy == 0.0) continue;
+      for (int mz = -m_max; mz <= m_max; mz++) {
+        double hz = pm_sr_pair_h_interp((double)mz, h, nh, dxh, half_support);
+        if (hz == 0.0) continue;
+        double d2 = (double)(mx * mx + my * my + mz * mz);
+        if (d2 < 1.0e-24) continue;
+        phi += hx * hy * hz / (4.0 * pi * epsilon * sqrt(d2));
+      }
+    }
+  }
+  return phi;
+}
+
+/*CHANGE INIT - 20260916 continuum kernel-shaped target
+ *
+ * Gauss-Legendre nodes/weights on [-1,1] (Newton iteration on P_n).
+ *****************************************************************************/
+static void pm_sr_gauss_legendre(int n, double* x, double* w) {
+  PI_DOUBLE(pi);
+  int m = (n + 1) / 2;
+  for (int i = 0; i < m; i++) {
+    double z = cos(pi * (i + 0.75) / (n + 0.5));
+    double z1, pp;
+    do {
+      double p1 = 1.0, p2 = 0.0;
+      for (int j = 0; j < n; j++) {
+        double p3 = p2; p2 = p1;
+        p1 = ((2.0 * j + 1.0) * z * p2 - j * p3) / (j + 1.0);
+      }
+      pp = n * (z * p1 - p2) / (z * z - 1.0);
+      z1 = z;
+      z = z1 - p1 / pp;
+    } while (fabs(z - z1) > 1.0e-14);
+    x[i] = -z;          x[n - 1 - i] = z;
+    w[i] = 2.0 / ((1.0 - z * z) * pp * pp);
+    w[n - 1 - i] = w[i];
+  }
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_kernel_cont_force
+ *
+ *  Force between two CONTINUUM (non-lattice) charge clouds whose shape is the
+ *  real kernel's own self-correlation h, rescaled by a so the per-particle
+ *  width is the requested sigma:  h_a(x) = (1/a) h(x/a).
+ *
+ *  The pair potential is phi(r) = int H(v) / (4 pi eps |v - R|) d3v with
+ *  H(v) = h_a(vx) h_a(vy) h_a(vz) and R = (r,0,0). Written in spherical
+ *  coordinates centred on R the u^2 of the volume element cancels the 1/u of
+ *  the Coulomb kernel, so the integrand is NON-SINGULAR:
+ *
+ *      phi(r) = (1/4 pi eps) int int H(R + u nhat) u dOmega du
+ *
+ *  Differentiating under the integral (translation invariance) gives the
+ *  force directly, avoiding a finite difference of two noisy quadratures:
+ *
+ *      F(r) = -(1/4 pi eps) int int h_a'(vx) h_a(vy) h_a(vz) u dOmega du
+ *
+ *  with h_a'(x) = (1/a^2) h'(x/a). Validated in Python against the analytic
+ *  limits (total charge 1, far field -> point Coulomb to 2e-5 at r=30) and
+ *  found converged to 9 digits at (nu,nth,nph) = (200,40,80).
+ *
+ *****************************************************************************/
+static double pm_sr_kernel_cont_force(double r, double a, double epsilon,
+                                       const double* h, const double* hp,
+                                       int nh, double dxh, double half_support,
+                                       const double* gu, const double* wu, int nu,
+                                       const double* gc, const double* wc, int nth,
+                                       int nph) {
+  PI_DOUBLE(pi);
+  double sup   = a * half_support;
+  double umax  = r + sup * sqrt(3.0) + 1.0e-9;
+  double dph   = 2.0 * pi / nph;
+  double total = 0.0;
+
+  for (int iu = 0; iu < nu; iu++) {
+    double u   = 0.5 * umax * (gu[iu] + 1.0);
+    double wuu = 0.5 * umax * wu[iu];
+    for (int it = 0; it < nth; it++) {
+      double ct = gc[it];
+      double st = sqrt(fmax(0.0, 1.0 - ct * ct));
+      double vx = r + u * ct;
+      double hpx = pm_sr_pair_h_interp(vx / a, hp, nh, dxh, half_support) / (a * a);
+      if (hpx == 0.0) continue;
+      double acc = 0.0;
+      for (int ip = 0; ip < nph; ip++) {
+        double ph = dph * ip;
+        double hy = pm_sr_pair_h_interp(u * st * cos(ph) / a, h, nh, dxh, half_support) / a;
+        if (hy == 0.0) continue;
+        double hz = pm_sr_pair_h_interp(u * st * sin(ph) / a, h, nh, dxh, half_support) / a;
+        if (hz == 0.0) continue;
+        acc += hy * hz;
+      }
+      total += wuu * wc[it] * hpx * acc * u;
+    }
+  }
+  return -total * dph / (4.0 * pi * epsilon);
+}
+/*CHANGE END - 20260916 */
+
+/*CHANGE INIT - 20260918 measured mesh reference for the pair table
+ *
+ *  pm_sr_mesh_pair_esub_x
+ *
+ *  Reference term computed by RUNNING THE MESH, not by modelling it: deposits
+ *  two unit test charges separated by r along x with the production kernel,
+ *  solves Poisson with the simulation's own solver, and gathers the field back
+ *  onto the moving charge exactly as subgrid_update_Esub does
+ *  (psi_electric_field per node, weighted by the kernel). The single-charge
+ *  case is subtracted to remove the self-field and the force from the
+ *  neutralising background the periodic solver implies.
+ *
+ *  This removes in one step the three approximations of the analytic
+ *  phi_PM_pair model, which were measured (hann8, rhoel=0) to make it
+ *  underestimate the real mesh pair force by 9% at r=1: continuum 1/(4*pi*e*d)
+ *  instead of the solver's own Green function, the omitted same-node term,
+ *  and the exact energy derivative instead of the discrete gradient + gather.
+ *
+ *  Returns Esub_x in solver units (the caller applies reunit and kt, matching
+ *  subgrid_update_forces_electrokinetics: F = kt * reunit * Esub * q).
+ *
+ *****************************************************************************/
+static int pm_sr_mesh_pair_esub_x(psi_t* psi, psi_solver_t* solver,
+                                   subgrid_kernel_t kernel, double r,
+                                   double xa, double yc, double zc,
+                                   double* esub_x) {
+  int nlocal[3], offset[3];
+  int krange = subgrid_get_range(kernel);
+
+  assert(psi && solver && esub_x);
+  cs_nlocal(psi->cs, nlocal);
+  cs_nlocal_offset(psi->cs, offset);
+
+  /* CHANGE 20260918: the single-charge case is NOT subtracted. Keeping the
+   * self-field in the reference is what makes it cancel: production measures
+   * F_AB + F_self + F_ions, so with a reference of F_AB + F_self the corrected
+   * force lands on target + F_ions, whereas subtracting the self term would
+   * leave it as an error. It also halves the number of Poisson solves. */
+  {
+    for (int ic = 1; ic <= nlocal[X]; ic++)
+      for (int jc = 1; jc <= nlocal[Y]; jc++)
+        for (int kc = 1; kc <= nlocal[Z]; kc++) {
+          int index = cs_index(psi->cs, ic, jc, kc);
+          psi_rho_set(psi, index, 0, 0.0);
+          psi_rho_set(psi, index, 1, 0.0);
+        }
+
+    for (int ip = 0; ip < 2; ip++) {
+      /* ip = 0 is the moving charge at xa + r, ip = 1 the fixed one at xa. */
+      double rp[3];
+      rp[X] = (ip == 0 ? xa + r : xa) - 1.0 * offset[X];
+      rp[Y] = yc - 1.0 * offset[Y];
+      rp[Z] = zc - 1.0 * offset[Z];
+
+      int i0, i1, j0, j1, k0, k1;
+      subgrid_get_lattice_index_range(rp, krange, nlocal, &i0, &i1, &j0, &j1, &k0, &k1);
+
+      for (int i = i0; i <= i1; i++)
+        for (int j = j0; j <= j1; j++)
+          for (int k = k0; k <= k1; k++) {
+            double w = pm_sr_kernel_weight_1d(rp[X] - i, kernel)
+                     * pm_sr_kernel_weight_1d(rp[Y] - j, kernel)
+                     * pm_sr_kernel_weight_1d(rp[Z] - k, kernel);
+            if (w == 0.0) continue;
+            int index = cs_index(psi->cs, i, j, k);
+            double rho0;
+            psi_rho(psi, index, 0, &rho0);
+            psi_rho_set(psi, index, 0, rho0 + w);
+          }
+    }
+
+    psi_halo_rho(psi);
+    field_memcpy(psi->rho, tdpMemcpyHostToDevice);
+    solver->impl->solve(solver, 0);
+    /*CHANGE INIT - 20260921 no DeviceToHost after the solve.
+     * Every solver leaves its result on the HOST: the FFT solver copies
+     * DeviceToHost itself at the end of its solve (and re-uploads), and
+     * PETSc (psi_solver_petsc_da_to_psi) writes the host array directly.
+     * The main loop accordingly does no copy after solve(). The copy that
+     * was here was harmless for FFT but, for PETSc, overwrote the freshly
+     * computed host psi with the stale device copy (zero), so the measured
+     * reference came out identically zero in all 256 bins -- and the pair
+     * correction then added the full target force on top of the mesh force.
+     * Original:
+     *   field_memcpy(psi->psi, tdpMemcpyDeviceToHost); */
+    /*CHANGE END - 20260921 */
+    psi_halo_psi(psi);
+
+    /* Gather the field onto the moving charge, as subgrid_update_Esub does. */
+    double rp[3];
+    rp[X] = xa + r - 1.0 * offset[X];
+    rp[Y] = yc - 1.0 * offset[Y];
+    rp[Z] = zc - 1.0 * offset[Z];
+
+    int i0, i1, j0, j1, k0, k1;
+    subgrid_get_lattice_index_range(rp, krange, nlocal, &i0, &i1, &j0, &j1, &k0, &k1);
+
+    double ex = 0.0;
+    for (int i = i0; i <= i1; i++)
+      for (int j = j0; j <= j1; j++)
+        for (int k = k0; k <= k1; k++) {
+          double w = pm_sr_kernel_weight_1d(rp[X] - i, kernel)
+                   * pm_sr_kernel_weight_1d(rp[Y] - j, kernel)
+                   * pm_sr_kernel_weight_1d(rp[Z] - k, kernel);
+          if (w == 0.0) continue;
+          double e[3];
+          psi_electric_field(psi, cs_index(psi->cs, i, j, k), e);
+          ex += e[X] * w;
+        }
+
+    *esub_x = ex;
+  }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_meshref_filename / _load / _save
+ *
+ *  The mesh reference depends only on the kernel, the lattice and the solver,
+ *  so it is cached on disk and reused. What is stored is the REFERENCE, not
+ *  the finished table: the target depends on pm_sr_sigma, so keeping the
+ *  reference means changing sigma costs nothing. The force scales as
+ *  1/epsilon, so a file written with a different epsilon is rescaled rather
+ *  than discarded.
+ *
+ *  Not captured in the key: solver sub-options such as the FFT Laplacian
+ *  variant. Delete the file if those change.
+ *
+ *****************************************************************************/
+static void pm_sr_meshref_filename(char* buf, size_t n, subgrid_kernel_t kernel,
+                                    const int ntotal[3], int nr, double r_cut) {
+  snprintf(buf, n, "pm_sr_meshref_k%d_n%g_L%dx%dx%d_rc%g_nr%d.dat",
+           (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
+           r_cut, nr);
+}
+
+static int pm_sr_meshref_load(const char* fname, subgrid_kernel_t kernel,
+                               const int ntotal[3], int nr, double r_cut,
+                               double epsilon, int psolver, double* f) {
+  FILE* fp = fopen(fname, "r");
+  if (!fp) return -1;
+
+  int k_f, nx_f, ny_f, nz_f, nr_f, ps_f;
+  double hann_f, rc_f, eps_f;
+  int nread = fscanf(fp, "# pm_sr_meshref v1 kernel=%d hann=%lf nx=%d ny=%d nz=%d"
+                         " nr=%d r_cut=%lf epsilon=%lf psolver=%d",
+                     &k_f, &hann_f, &nx_f, &ny_f, &nz_f, &nr_f, &rc_f, &eps_f, &ps_f);
+  if (nread != 9 || k_f != (int) kernel || hann_f != subgrid_hann_order_ ||
+      nx_f != ntotal[X] || ny_f != ntotal[Y] || nz_f != ntotal[Z] ||
+      nr_f != nr || rc_f != r_cut || ps_f != psolver) {
+    fclose(fp);
+    return -1;
+  }
+
+  for (int i = 0; i < nr; i++) {
+    if (fscanf(fp, "%lf", &f[i]) != 1) { fclose(fp); return -1; }
+    f[i] *= eps_f / epsilon;   /* force scales as 1/epsilon */
+  }
+  fclose(fp);
+  return 0;
+}
+
+static void pm_sr_meshref_save(const char* fname, subgrid_kernel_t kernel,
+                                const int ntotal[3], int nr, double r_cut,
+                                double epsilon, int psolver, const double* f) {
+  FILE* fp = fopen(fname, "w");
+  if (!fp) return;
+  fprintf(fp, "# pm_sr_meshref v1 kernel=%d hann=%.10g nx=%d ny=%d nz=%d"
+              " nr=%d r_cut=%.10g epsilon=%.10g psolver=%d\n",
+          (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
+          nr, r_cut, epsilon, psolver);
+  for (int i = 0; i < nr; i++) fprintf(fp, "%.15e\n", f[i]);
+  fclose(fp);
+}
+/*CHANGE END - 20260918 */
+
+/*****************************************************************************
+ *
+ *  pm_sr_pair_table_build
+ *
+ *  See derivation above. sigma is the per-particle reference width
+ *  (combined pair width sigma*sqrt(2)); r_cut the correction's range; nr
+ *  the number of radial bins. target_shape selects the reference target:
+ *  0 = Gaussian, 1 = continuum kernel self-correlation (see subgrid.h).
+ *
+ *****************************************************************************/
+/*CHANGE INIT - 20260918 measured-reference pair table */
+int pm_sr_pair_table_build_measured(psi_t* psi, psi_solver_t* solver,
+                                     double sigma, double r_cut, double epsilon,
+                                     subgrid_kernel_t kernel, int nr,
+                                     pm_sr_pair_table_t** ptable) {
+  int ntotal[3], cartsz[3];
+  double eunit, reunit;
+
+  assert(psi && solver && ptable);
+  assert(sigma > 0.0 && r_cut > 0.0 && epsilon > 0.0 && nr > 1);
+
+  cs_ntotal(psi->cs, ntotal);
+  cs_cartsz(psi->cs, cartsz);
+  if (cartsz[X]*cartsz[Y]*cartsz[Z] != 1) {
+    pe_info(psi->pe, "pm_sr_pair_ref measured: only implemented in serial\n");
+    return -1;
+  }
+
+  /* Both test charges plus the kernel support must fit clear of the edges. */
+  double xa = 0.25*ntotal[X];
+  if (xa + r_cut + subgrid_get_range(kernel) + 1.0 > ntotal[X]) {
+    pe_info(psi->pe, "pm_sr_pair_ref measured: r_cut too large for the box\n");
+    return -1;
+  }
+
+  psi_unit_charge(psi, &eunit);
+  reunit = 1.0/eunit;
+
+  pm_sr_pair_table_t* t = (pm_sr_pair_table_t*)calloc(1, sizeof(*t));
+  if (!t) return -1;
+  t->nr = nr; t->r_cut = r_cut; t->dr = r_cut/nr;
+  t->F = (double*)malloc(nr*sizeof(double));
+  if (!t->F) { free(t); return -1; }
+
+  /* The calibration overwrites rho and psi, so snapshot and restore them. */
+  int nrho = psi->nsites*psi->nk;
+  double* rho_save = (double*)malloc(nrho*sizeof(double));
+  double* psi_save = (double*)malloc(psi->nsites*sizeof(double));
+  if (!rho_save || !psi_save) { free(rho_save); free(psi_save); free(t->F); free(t); return -1; }
+  memcpy(rho_save, psi->rho->data, nrho*sizeof(double));
+  memcpy(psi_save, psi->psi->data, psi->nsites*sizeof(double));
+
+  double sigma_pair = sigma*sqrt(2.0);
+  double fd_h = 1.0e-3;
+
+  double* fmesh = (double*)malloc(nr*sizeof(double));
+  if (!fmesh) { free(rho_save); free(psi_save); free(t->F); free(t); return -1; }
+
+  char fname[FILENAME_MAX];
+  pm_sr_meshref_filename(fname, sizeof(fname), kernel, ntotal, nr, r_cut);
+
+  if (pm_sr_meshref_load(fname, kernel, ntotal, nr, r_cut, epsilon,
+                          psi->solver.psolver, fmesh) == 0) {
+    pe_info(psi->pe, "  mesh reference read from %s\n", fname);
+  }
+  else {
+    pe_info(psi->pe, "  measuring mesh reference (%d Poisson solves)...\n", nr);
+    for (int ir = 0; ir < nr; ir++) {
+      double r = (ir + 0.5)*t->dr;
+      double esub_x = 0.0;
+      pm_sr_mesh_pair_esub_x(psi, solver, kernel, r, xa,
+                              0.5*ntotal[Y], 0.5*ntotal[Z], &esub_x);
+      /* Table convention: apply() multiplies by kt*q1*q2, and the production
+       * force is kt*reunit*Esub*q, so the mesh term enters as reunit*Esub. */
+      fmesh[ir] = reunit*esub_x;
+    }
+    pm_sr_meshref_save(fname, kernel, ntotal, nr, r_cut, epsilon,
+                        psi->solver.psolver, fmesh);
+    pe_info(psi->pe, "  mesh reference written to %s\n", fname);
+  }
+
+  for (int ir = 0; ir < nr; ir++) {
+    double r = (ir + 0.5)*t->dr;
+    double F_tg = -(pm_sr_phi_gauss(r + fd_h, sigma_pair, epsilon)
+                  - pm_sr_phi_gauss(r - fd_h, sigma_pair, epsilon))/(2.0*fd_h);
+    t->F[ir] = F_tg - fmesh[ir];
+  }
+  free(fmesh);
+
+  memcpy(psi->rho->data, rho_save, nrho*sizeof(double));
+  memcpy(psi->psi->data, psi_save, psi->nsites*sizeof(double));
+  field_memcpy(psi->rho, tdpMemcpyHostToDevice);
+  field_memcpy(psi->psi, tdpMemcpyHostToDevice);
+  psi_halo_rho(psi);
+  psi_halo_psi(psi);
+  free(rho_save); free(psi_save);
+
+  *ptable = t;
+  return 0;
+}
+/*CHANGE END - 20260918 */
+
+int pm_sr_pair_table_build(double sigma, double r_cut, double epsilon,
+                            subgrid_kernel_t kernel, int nr,
+                            int target_shape,
+                            pm_sr_pair_table_t** ptable) {
+  assert(ptable && sigma > 0.0 && r_cut > 0.0 && epsilon > 0.0 && nr > 1);
+
+  int krange = subgrid_get_range(kernel);
+  double half_w = (double)krange + 1.0;
+  int nw = 2001;
+  double dxw = 2.0 * half_w / (nw - 1);
+  double* w = (double*)malloc(nw * sizeof(double));
+  if (!w) return -1;
+  for (int i = 0; i < nw; i++) {
+    double x = -half_w + i * dxw;
+    w[i] = pm_sr_kernel_weight_1d(x, kernel);
+  }
+
+  int nh = 2 * nw - 1;
+  double half_support = 2.0 * half_w;
+  double* h = (double*)malloc(nh * sizeof(double));
+  if (!h) { free(w); return -1; }
+  for (int k = 0; k < nh; k++) {
+    double s = 0.0;
+    int i0 = (k - (nw - 1) > 0) ? (k - (nw - 1)) : 0;
+    int i1 = (k < nw - 1) ? k : (nw - 1);
+    for (int i = i0; i <= i1; i++) s += w[i] * w[k - i];
+    h[k] = s * dxw;
+  }
+  double norm = 0.0;
+  for (int k = 0; k < nh; k++) norm += h[k];
+  norm *= dxw;
+  for (int k = 0; k < nh; k++) h[k] /= norm;
+  free(w);
+
+  pm_sr_pair_table_t* t = (pm_sr_pair_table_t*)calloc(1, sizeof(*t));
+  if (!t) { free(h); return -1; }
+  t->nr    = nr;
+  t->r_cut = r_cut;
+  t->dr    = r_cut / nr;
+  t->F     = (double*)malloc(nr * sizeof(double));
+  if (!t->F) { free(h); free(t); return -1; }
+
+  double sigma_pair = sigma * sqrt(2.0);
+  int m_max = (int)ceil(r_cut + half_support) + 1;
+  double fd_h = 1.0e-3;   /* central finite-difference step for F = -d(dphi)/dr */
+
+  /*CHANGE INIT - 20260916 continuum kernel-shaped target setup */
+  /* Quadrature nodes and h' are only needed for target_shape == 1. Node
+   * counts from the Python convergence check: saturated to 9 digits at
+   * (200,40,80), so there is nothing to gain from going finer. */
+  const int nu = 200, nth = 40, nph = 80;
+  double *hp = NULL, *gu = NULL, *wu = NULL, *gc = NULL, *wc = NULL;
+  double a_scale = 1.0;
+
+  if (target_shape == 1) {
+    hp = (double*)calloc(nh, sizeof(double));
+    gu = (double*)malloc(nu * sizeof(double));
+    wu = (double*)malloc(nu * sizeof(double));
+    gc = (double*)malloc(nth * sizeof(double));
+    wc = (double*)malloc(nth * sizeof(double));
+    if (!hp || !gu || !wu || !gc || !wc) {
+      free(hp); free(gu); free(wu); free(gc); free(wc);
+      free(h); free(t->F); free(t);
+      return -1;
+    }
+    for (int k = 1; k < nh - 1; k++) hp[k] = (h[k + 1] - h[k - 1]) / (2.0 * dxw);
+
+    /* h is the self-correlation of the kernel, so var(h) = 2 var(w): the
+     * per-particle native width is sqrt(var(h)/2). Scaling by a puts the
+     * requested per-particle width sigma on the same footing as the
+     * Gaussian family's sigma, so the two targets are directly comparable. */
+    double var_h = 0.0;
+    for (int k = 0; k < nh; k++) {
+      double x = -half_support + k * dxw;
+      var_h += x * x * h[k];
+    }
+    var_h *= dxw;
+    a_scale = sigma / sqrt(0.5 * var_h);
+
+    pm_sr_gauss_legendre(nu,  gu, wu);
+    pm_sr_gauss_legendre(nth, gc, wc);
+  }
+  /*CHANGE END - 20260916 */
+
+  for (int ir = 0; ir < nr; ir++) {
+    double r = (ir + 0.5) * t->dr;
+
+    double phi_pm_p = pm_sr_phi_PM_pair(r + fd_h, epsilon, h, nh, dxw, half_support, m_max);
+    double phi_pm_m = pm_sr_phi_PM_pair(r - fd_h, epsilon, h, nh, dxw, half_support, m_max);
+    double F_pm = -(phi_pm_p - phi_pm_m) / (2.0 * fd_h);
+
+    double F_tg;
+    if (target_shape == 1) {
+      /* Direct force: no finite difference, so no cancellation noise. */
+      F_tg = pm_sr_kernel_cont_force(r, a_scale, epsilon, h, hp, nh, dxw,
+                                      half_support, gu, wu, nu, gc, wc, nth, nph);
+    }
+    else {
+      double phi_tg_p = pm_sr_phi_gauss(r + fd_h, sigma_pair, epsilon);
+      double phi_tg_m = pm_sr_phi_gauss(r - fd_h, sigma_pair, epsilon);
+      F_tg = -(phi_tg_p - phi_tg_m) / (2.0 * fd_h);
+    }
+
+    t->F[ir] = F_tg - F_pm;
+  }
+
+  free(hp); free(gu); free(wu); free(gc); free(wc);
+  free(h);
+  *ptable = t;
+  return 0;
+}
+
+void pm_sr_pair_table_free(pm_sr_pair_table_t** ptable) {
+  if (!ptable || !*ptable) return;
+  free((*ptable)->F);
+  free(*ptable);
+  *ptable = NULL;
+}
+
+/*****************************************************************************
+ *
+ *  pm_sr_apply_pair_correction
+ *
+ *  Loop over LOCAL colloid pairs within r_cut and apply the tabulated
+ *  direct correction force F_AB = -F_BA. Never touches the grid/fluid, so
+ *  momentum conservation is exact by construction (no bookkeeping needed).
+ *
+ *  The table was built with epsilon_eff = epsilon/beta (see ludwig.c,
+ *  same convention as pm_sr_table_build_radial/_3d, so that
+ *  1/(4*pi*epsilon_eff*r) == beta/(4*pi*epsilon*r)); the physical force
+ *  therefore needs an explicit kt = 1/beta factor here, exactly mirroring
+ *  pm_sr_apply_force_correction's "fpref = kt * reunit * q_p_solver".
+ *  Missing this the first time round made the correction ~1/kt too big.
+ *
+ *****************************************************************************/
+int pm_sr_apply_pair_correction(colloids_info_t* cinfo, psi_t* psi,
+                                 const pm_sr_pair_table_t* table) {
+  assert(cinfo && psi && table);
+  if (cinfo->nsubgrid == 0) return 0;
+
+  double beta;
+  psi_beta(psi, &beta);
+  double kt = 1.0 / beta;
+
+  /* Simple O(N^2) pass over all LOCAL colloids: correct and unambiguous,
+   * and entirely adequate for the particle counts these subgrid systems
+   * actually run (a handful of colloids). A cell-list neighbour search
+   * would be needed for large N, but r_cut here can exceed a single cell
+   * length (see pm_sr_rcut vs "Final cell lengths" in the log), so it
+   * would have to walk several shells of neighbouring cells anyway. */
+  colloid_t* pc1 = NULL;
+  colloids_info_local_head(cinfo, &pc1);
+  for (; pc1; pc1 = pc1->nextlocal) {
+    if (pc1->s.bc != COLLOID_BC_SUBGRID) continue;
+
+    colloid_t* pc2 = pc1->nextlocal;
+    for (; pc2; pc2 = pc2->nextlocal) {
+      if (pc2->s.bc != COLLOID_BC_SUBGRID) continue;
+
+      /*CHANGE INIT - 20260919 minimum image convention.
+       * The raw coordinate difference is wrong for pairs straddling a
+       * periodic boundary: two colloids genuinely 1.0 apart across the edge
+       * of a box of side 48 gave dx = -47, which falls outside r_cut, so the
+       * correction switched off silently exactly where it is largest (~26%
+       * of the force at r=1). bond_harmonic, pair_ss_cut and pair_lj_cut all
+       * use cs_minimum_distance already; this one did not. */
+      double r12[3];
+      cs_minimum_distance(cinfo->cs, pc1->s.r, pc2->s.r, r12);
+      double dx = r12[X];
+      double dy = r12[Y];
+      double dz = r12[Z];
+      double r2 = dx * dx + dy * dy + dz * dz;
+      /*CHANGE END - 20260919 */
+      if (r2 < 1.0e-24 || r2 >= table->r_cut * table->r_cut) continue;
+
+      double r = sqrt(r2);
+      /*CHANGE INIT - 20260917 linear interpolation in the pair table.
+       * Previously the nearest bin was used as-is (ir = (int)(r/dr)), which
+       * makes the correction piecewise constant in r. Measured with
+       * non-integer separations (hann8, r=0.5..3.0 step 0.1): the bin value
+       * departs from F(r) by up to ~4% below r=1, where the correction
+       * varies fastest, showing up as a ~1% jitter in the total force.
+       * F[i] is the value at the bin CENTRE r_i = (i+0.5)*dr, so the
+       * interpolation variable is r/dr - 0.5; outside the first/last centre
+       * we clamp rather than extrapolate. */
+      double u = r / table->dr - 0.5;
+      int ir = (int)floor(u);
+      double Fmag;
+      if (ir < 0) {
+        Fmag = table->F[0];
+      }
+      else if (ir >= table->nr - 1) {
+        Fmag = table->F[table->nr - 1];
+      }
+      else {
+        double frac = u - ir;
+        Fmag = table->F[ir] * (1.0 - frac) + table->F[ir + 1] * frac;
+      }
+      /*CHANGE END - 20260917 */
+
+      double q1 = pc1->s.q0 - pc1->s.q1;
+      double q2 = pc2->s.q0 - pc2->s.q1;
+      double Ftot = kt * q1 * q2 * Fmag;
+
+      double fvec[3] = { Ftot * dx / r, Ftot * dy / r, Ftot * dz / r };
+
+      /* Force on 2 points away from 1 (repulsive for like charges,
+       * Ftot>0); equal and opposite on 1. */
+      pc2->fex[X] += fvec[X]; pc2->fex[Y] += fvec[Y]; pc2->fex[Z] += fvec[Z];
+      pc1->fex[X] -= fvec[X]; pc1->fex[Y] -= fvec[Y]; pc1->fex[Z] -= fvec[Z];
+    }
+  }
+
+  return 0;
+}
+/*CHANGE END - 20260902 direct colloid-colloid PM short-range correction */

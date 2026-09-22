@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para combinar plots de velocidad agrupados por un parámetro específico
 Lee los archivos datosfluid.csv y genera plots combinados

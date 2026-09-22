@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para graficar el potencial electrostático ψ calculado por Ludwig (Ewald),
 comparándolo con la solución teórica de Debye-Hückel.

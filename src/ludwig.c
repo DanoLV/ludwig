@@ -157,6 +157,20 @@ psi_fft_deconv_t deconv_g = PSI_FFT_DECONV_NONE; // PSI_FFT_DECONV_NONE PSI_FFT_
 // static int interlacing_mode_ = 0;
 static int interlacing_mode_ = 0;
 /* CHANGE END - 20260425 */
+
+/*CHANGE INIT - 20260920 output frequency for the per-particle csv files
+ * particle_force.csv and particle_Esub.csv were written every step, which is
+ * one line per colloid per step: ~370 MB over a 30k-step, 127-monomer run,
+ * for data normally sampled far more coarsely. "pforce_io_freq n" writes them
+ * only when (step % n) == 0, plus step 1. File scope rather than a local of
+ * ludwig_run because interlacing_one_grid() also emits Esub. The default of 1
+ * reproduces the previous every-step behaviour, so existing inputs are
+ * unaffected. */
+static int pforce_io_freq_ = 1;
+static int pforce_io_step(int step) {
+  return (step == 1 || (step % pforce_io_freq_) == 0);
+}
+/*CHANGE END - 20260920 */
 /*CHANGE INIT - 20260714 interlacing offset from input + random per-step mode.
  * Input keys (all optional, defaults below):
  *   interlacing_mode    0|1        (overrides the static above)
@@ -773,7 +787,11 @@ static int interlacing_one_grid(ludwig_t* lud,
     // pc2->s.r[Z] += mesh_offset;
   }
 
-  subgrid_update_Esub(lud->collinfo, lud->psi, step, fp, lud->pe, kernel);
+  /*CHANGE 20260920: subgrid_update_Esub both computes Esub and logs it, so the
+   * call must still happen every step; only the logging is throttled, by
+   * passing a NULL stream on non-output steps. */
+  subgrid_update_Esub(lud->collinfo, lud->psi, step,
+                      pforce_io_step(step) ? fp : NULL, lud->pe, kernel);
 
   /*DIAG 20260715e: Esub of the particle in this grid (u = mesh_offset). Grid
    * B (u=0.5) in the 2-grid should match grid-B-alone (~2e-13 -> Esub ~ ?).
@@ -841,6 +859,9 @@ void ludwig_run(const char* inputfile) {
   pm_sr_table_t* pm_sr_radial = NULL;
   pm_sr_table_t* pm_sr_3d = NULL;
   /*CHANGE END - 20260625 */
+  /*CHANGE INIT - 20260902 direct colloid-colloid PM short-range correction */
+  pm_sr_pair_table_t* pm_sr_pair = NULL;
+  /*CHANGE END - 20260902 */
 
   ludwig_t* ludwig = NULL;
   MPI_Comm comm;
@@ -991,6 +1012,16 @@ void ludwig_run(const char* inputfile) {
   // CHANGE INIT -Subgrid charge debug data
   FILE* fp, * fpforce;
   double kappa_aux;
+  /*CHANGE INIT - 20260823 per-particle force output for theory comparison */
+  FILE* fp_pforce;
+  /*CHANGE END - 20260823 */
+
+  /*CHANGE INIT - 20260920 output frequency for the per-particle csv files
+   * See pforce_io_freq_ at file scope for the rationale. */
+  rt_int_parameter(ludwig->rt, "pforce_io_freq", &pforce_io_freq_);
+  if (pforce_io_freq_ < 1) pforce_io_freq_ = 1;
+  pe_info(ludwig->pe, "Per-particle csv output frequency: %d\n", pforce_io_freq_);
+  /*CHANGE END - 20260920 */
 
   if (ludwig->psi) subgrid_compute_kappa(ludwig->psi, &kappa_aux);
   pe_info(ludwig->pe, "Kappa calculado: %.15f\n", kappa_aux);
@@ -1025,6 +1056,31 @@ void ludwig_run(const char* inputfile) {
     fp = fopen("./proceced_data/particle_Esub.csv", "a");
     pe_info(ludwig->pe, "particle_Esub.csv: appending to existing file\n");
   }
+
+  /*CHANGE INIT - 20260823 per-particle force output for theory comparison
+   * particle_Esub.csv records the field felt at each subgrid particle, but
+   * comparing the simulated force against the theoretical (screened)
+   * Coulomb force between colloids requires the force actually applied to
+   * each particle (pc->fex), not just the field. This mirrors the
+   * particle_Esub.csv open/append logic above. */
+  fp_pforce = fopen("./proceced_data/particle_force.csv", "r");
+  if (fp_pforce == NULL) {
+    fp_pforce = fopen("./proceced_data/particle_force.csv", "w");
+    if (fp_pforce != NULL) {
+      fprintf(fp_pforce, "# Step;Index;Fmod;Fx;Fy;Fz\n");
+      fflush(fp_pforce);
+      pe_info(ludwig->pe, "particle_force.csv: created new file\n");
+    }
+    else {
+      pe_info(ludwig->pe, "WARNING: could not open particle_force.csv for writing\n");
+    }
+  }
+  else {
+    fclose(fp_pforce);
+    fp_pforce = fopen("./proceced_data/particle_force.csv", "a");
+    pe_info(ludwig->pe, "particle_force.csv: appending to existing file\n");
+  }
+  /*CHANGE END - 20260823 */
 
   // subgrid_set_kb4_beta(5.5);
 
@@ -1191,6 +1247,54 @@ void ludwig_run(const char* inputfile) {
         pe_fatal(ludwig->pe, "pm_sr_table_build_3d failed\n");
 
       pe_info(ludwig->pe, "PM short-range correction tables built.\n");
+
+      /*CHANGE INIT - 20260902 direct colloid-colloid PM short-range correction */
+      /*CHANGE 20260916: selectable target shape for the pair table.
+       * "pm_sr_pair_target gauss" (default) keeps the analytic Gaussian
+       * target; "kernel" uses the continuum self-correlation of the real
+       * kernel, which is the shape family the mesh actually produces. */
+      int pm_sr_target_shape = 0;
+      {
+        char tstr[BUFSIZ] = "";
+        if (rt_string_parameter(ludwig->rt, "pm_sr_pair_target", tstr, BUFSIZ) == 1) {
+          if (strcmp(tstr, "kernel") == 0) pm_sr_target_shape = 1;
+          else if (strcmp(tstr, "gauss") != 0)
+            pe_fatal(ludwig->pe, "pm_sr_pair_target must be gauss or kernel\n");
+        }
+      }
+      pe_info(ludwig->pe, "  pair target shape = %s\n",
+              pm_sr_target_shape == 1 ? "kernel (continuum self-correlation)"
+                                      : "gauss");
+
+      /*CHANGE INIT - 20260918 measured mesh reference for the pair table.
+       * "pm_sr_pair_ref measured" builds the reference by running the mesh
+       * (deposit + Poisson solve + gather) instead of the analytic model. */
+      int pm_sr_ref_measured = 0;
+      {
+        char rstr[BUFSIZ] = "";
+        if (rt_string_parameter(ludwig->rt, "pm_sr_pair_ref", rstr, BUFSIZ) == 1) {
+          if (strcmp(rstr, "measured") == 0) pm_sr_ref_measured = 1;
+          else if (strcmp(rstr, "model") != 0)
+            pe_fatal(ludwig->pe, "pm_sr_pair_ref must be model or measured\n");
+        }
+      }
+      if (pm_sr_ref_measured && pm_sr_target_shape != 0)
+        pe_fatal(ludwig->pe,
+                 "pm_sr_pair_ref measured currently supports only the Gaussian target\n");
+
+      if (pm_sr_ref_measured) {
+        pe_info(ludwig->pe, "  pair reference  = measured on the mesh\n");
+        if (pm_sr_pair_table_build_measured(ludwig->psi, ludwig->poisson,
+              pm_sr_sigma, pm_sr_rcut, epsilon_eff, kernel_g, 256,
+              &pm_sr_pair) != 0)
+          pe_fatal(ludwig->pe, "pm_sr_pair_table_build_measured failed\n");
+      }
+      else if (pm_sr_pair_table_build(pm_sr_sigma, pm_sr_rcut, epsilon_eff,
+        kernel_g, 256, pm_sr_target_shape, &pm_sr_pair) != 0)
+        pe_fatal(ludwig->pe, "pm_sr_pair_table_build failed\n");
+      /*CHANGE END - 20260918 */
+      pe_info(ludwig->pe, "PM colloid-colloid pair correction table built.\n");
+      /*CHANGE END - 20260902 */
     }
   }
   /*CHANGE END - 20260625 PM short-range correction tables */
@@ -1447,6 +1551,13 @@ void ludwig_run(const char* inputfile) {
             pc->fex[Z] = 0.5 * (pc_force_A[ip][Z] + pc->fex[Z]);
           }
         }
+        /*CHANGE INIT - 20260823 per-particle force output for theory comparison
+         * fex now holds the final averaged F = 1/2(F_A + F_B) for this step. */
+        /*CHANGE 20260920: throttled by pforce_io_freq (default 1 = every step) */
+        if (pforce_io_step(step))
+          subgrid_print_force(ludwig->collinfo, step, fp_pforce);
+        /*CHANGE END - 20260823 */
+
         free(force_A);
         if (pc_force_A) free(pc_force_A);
 
@@ -1543,10 +1654,13 @@ void ludwig_run(const char* inputfile) {
             /* CHANGE END - Ewald*/
 
             /*CHANGE INIT - Update particle field before correctin phi*/
+            /*CHANGE 20260920: subgrid_update_Esub both computes Esub and logs
+             * it, so the call must still happen every step; only the logging
+             * is throttled, by passing a NULL stream on non-output steps. */
             subgrid_update_Esub(ludwig->collinfo,
                               ludwig->psi,
                               step,
-                              fp,
+                              pforce_io_step(step) ? fp : NULL,
                               ludwig->pe,
                               kernel_g);
 
@@ -1716,7 +1830,9 @@ void ludwig_run(const char* inputfile) {
           // if (interlacing_mode_ == -1) {
 
           colloid_sums_halo(ludwig->collinfo, COLLOID_SUM_ELECTRIC_FIELD);
-          subgrid_print_Esub(ludwig->collinfo,
+          /*CHANGE 20260920: throttled by pforce_io_freq (default 1 = every step) */
+          if (pforce_io_step(step))
+            subgrid_print_Esub(ludwig->collinfo,
                               step,
                               fp);
           subgrid_update_forces_electrokinetics_ewald(ludwig->collinfo, ludwig->map,
@@ -1726,6 +1842,11 @@ void ludwig_run(const char* inputfile) {
           // subgrid_update_forces_electrokinetics(ludwig->collinfo, ludwig->map,
           //                                       ludwig->phys, ludwig->psi,
           //                                       ludwig->hydro, kernel_g);
+          /*CHANGE INIT - 20260823 per-particle force output for theory comparison */
+          /*CHANGE 20260920: throttled by pforce_io_freq (default 1 = every step) */
+          if (pforce_io_step(step))
+            subgrid_print_force(ludwig->collinfo, step, fp_pforce);
+          /*CHANGE END - 20260823 */
         }
         /* CHANGE 20260710: guard with interlacing_mode_ == 0. In mode != 0
          * interlacing_one_grid has ALREADY applied the particle force and its
@@ -1752,6 +1873,17 @@ void ludwig_run(const char* inputfile) {
                                          ludwig->psi, ludwig->hydro,
                                          pm_sr_3d, kernel_g);
           /*CHANGE END - 20260625 */
+
+          /*CHANGE INIT - 20260902 direct colloid-colloid PM short-range correction */
+          if (pm_sr_pair)
+            pm_sr_apply_pair_correction(ludwig->collinfo, ludwig->psi, pm_sr_pair);
+          /*CHANGE END - 20260902 */
+
+          /*CHANGE INIT - 20260823 per-particle force output for theory comparison */
+          /*CHANGE 20260920: throttled by pforce_io_freq (default 1 = every step) */
+          if (pforce_io_step(step))
+            subgrid_print_force(ludwig->collinfo, step, fp_pforce);
+          /*CHANGE END - 20260823 */
         }
         /* CHANGE END - 20260425 Interlacing */
         /*CHANGE END - Subgrid charge */
@@ -2078,6 +2210,11 @@ void ludwig_run(const char* inputfile) {
   if (fpforce != NULL) {
     fclose(fpforce);
   }
+  /*CHANGE INIT - 20260823 per-particle force output for theory comparison */
+  if (fp_pforce != NULL) {
+    fclose(fp_pforce);
+  }
+  /*CHANGE END - 20260823 */
   // subgrid_free_distributed_charge_t(&charge);
   /* CHANGE END - Subgrid charge debug data*/
 

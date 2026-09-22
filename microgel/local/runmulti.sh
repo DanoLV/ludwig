@@ -133,7 +133,11 @@ modify_line_in_config() {
     local config_file=$3
 
     # Format the value in scientific notation with proper spacing
-    local formatted_value=$(printf "%24.15e" $new_value)
+    # LC_NUMERIC=C.UTF-8: bajo un locale con coma decimal (es_ES), printf
+    # ni siquiera parsea "24.20" como numero valido (lo trunca a 24) y
+    # ademas escribe con coma en vez de punto, lo que rompe el parser de
+    # Ludwig (fscanf %le) al leer el archivo.
+    local formatted_value=$(LC_NUMERIC=C.UTF-8 printf "%24.15e" "$new_value")
 
     # Use sed to replace the specific line
     sed -i "${line_num}s/.*/${formatted_value}/" "$config_file"
@@ -150,7 +154,8 @@ modify_position_line() {
     local config_file=$4
 
     # Format the values in scientific notation with proper spacing
-    local formatted_line=$(printf "%24.15e %24.15e %24.15e" $x $y $z)
+    # LC_NUMERIC=C.UTF-8: ver comentario en modify_line_in_config.
+    local formatted_line=$(LC_NUMERIC=C.UTF-8 printf "%24.15e %24.15e %24.15e" "$x" "$y" "$z")
 
     # Replace line 36 (was 40 before NPAD_INT/NBOND_MAX changes)
     sed -i "36s/.*/${formatted_line}/" "$config_file"

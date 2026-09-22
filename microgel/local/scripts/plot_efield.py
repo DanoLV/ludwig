@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para graficar el campo eléctrico sobre una línea y sobre un plano
 leyendo directamente los archivos efield de Ludwig.

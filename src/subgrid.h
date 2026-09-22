@@ -18,6 +18,7 @@
 #include "wall.h"
  /*CHANGE INIT - Subgrid charge */
 #include "psi_colloid.h"
+#include "psi_solver.h"
 #include "util_sum.h"
 
 typedef struct distributed_charge_klein_entry_s {
@@ -110,6 +111,9 @@ int subgrid_print_Esub(colloids_info_t* cinfo,int step,FILE* fp);
 int subgrid_update_Esub(colloids_info_t* cinfo, psi_t* psi, int step, FILE* fp, pe_t* pe,
                          subgrid_kernel_t kernel);
 /*CHANGE END - 20260422 kernel parameter for subgrid_update_Esub */
+/*CHANGE INIT - 20260823 per-particle force output for theory comparison */
+int subgrid_print_force(colloids_info_t* cinfo, int step, FILE* fp);
+/*CHANGE END - 20260823 per-particle force output for theory comparison */
 /*CHANGE INIT - Poisson-Boltzmann force calculation */
 int subgrid_force_poisson_boltzmann(colloids_info_t* cinfo, map_t* map,
                                      physics_t* phys, psi_t* psi, hydro_t* hydro,
@@ -178,6 +182,46 @@ int  pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
                                    const pm_sr_table_t* table,
                                    subgrid_kernel_t kernel);
 /*CHANGE END - 20260625 PM short-range correction table */
+
+/*CHANGE INIT - 20260902 direct colloid-colloid PM short-range correction
+ * Corrects the discrete PM (kernel-on-mesh) interaction directly BETWEEN
+ * nearby colloids (not colloid-vs-ion-cloud, which is what
+ * pm_sr_apply_force_correction above does). No screening (kappa) anywhere:
+ * both the target (two Gaussian charges of width sigma, pure Coulomb) and
+ * the "what the mesh actually computes" side (two REAL kernel-shaped
+ * charges, any kernel type, pure Coulomb) are unscreened — screening is
+ * left entirely to the self-consistent Nernst-Planck + Poisson solve, this
+ * only fixes the short-range mesh/kernel discretisation error. See
+ * docstring in subgrid.c for the derivation. */
+typedef struct pm_sr_pair_table_s pm_sr_pair_table_t;
+
+/*CHANGE INIT - 20260916 selectable pair-correction target shape.
+ * target_shape: 0 = Gaussian (analytic erf form, original behaviour)
+ *               1 = continuum self-convolution of the real kernel, scaled so
+ *                   that its per-particle width equals sigma. Same shape
+ *                   family the mesh actually produces, so the near-field
+ *                   shape mismatch of the Gaussian target disappears; the
+ *                   width remains a free parameter exactly as sigma was. */
+int  pm_sr_pair_table_build(double sigma, double r_cut, double epsilon,
+                             subgrid_kernel_t kernel, int nr,
+                             int target_shape,
+                             pm_sr_pair_table_t** ptable);
+/*CHANGE END - 20260916 */
+
+/*CHANGE INIT - 20260918 measured mesh reference (pm_sr_pair_ref measured).
+ * Same table, but the reference term is obtained by running the mesh — deposit
+ * two test charges, solve Poisson with the simulation's solver, gather the
+ * field back with the kernel — instead of the analytic phi_PM_pair model,
+ * which underestimates the real mesh pair force by ~9% at r=1. Serial only. */
+int  pm_sr_pair_table_build_measured(psi_t* psi, psi_solver_t* solver,
+                                      double sigma, double r_cut, double epsilon,
+                                      subgrid_kernel_t kernel, int nr,
+                                      pm_sr_pair_table_t** ptable);
+/*CHANGE END - 20260918 */
+void pm_sr_pair_table_free(pm_sr_pair_table_t** ptable);
+int  pm_sr_apply_pair_correction(colloids_info_t* cinfo, psi_t* psi,
+                                  const pm_sr_pair_table_t* table);
+/*CHANGE END - 20260902 */
 
 /*CHANGE END - Subgrid charge */
 

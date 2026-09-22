@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Script para graficar la densidad de carga (qsi) calculada por Ludwig (Ewald),
 comparándola con la solución teórica de Debye-Hückel.

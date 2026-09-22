@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/danolv/Sim/ludwig/.venv/bin/python3
 """
 Calcula el potencial químico por nodo y especie:
     μ_i(x) = kT * ln(ρ_i(x)) + z_i * e * ϕ(x)
