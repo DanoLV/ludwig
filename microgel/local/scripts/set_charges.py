@@ -67,13 +67,18 @@ def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--mode", required=True,
-                   choices=("all", "surface", "random", "shell", "none"))
+                   choices=("all", "surface", "random", "shell", "none", "outer"))
     p.add_argument("--q", type=float, default=1.0, help="carga por monomero cargado")
     p.add_argument("--frac", type=float, default=0.4,
                    help="fraccion cargada en modo random (solo interior)")
     p.add_argument("--seed", type=int, default=12345)
     p.add_argument("--rmin", type=float, default=5.5,
                    help="radio interno en modo shell: se carga todo r >= rmin")
+    p.add_argument("--nq", type=int, default=65,
+                   help="modo outer: cuantos monomeros externos se cargan. "
+                        "Fija la carga total (y por lo tanto la concentracion "
+                        "de contraiones) sin depender de cuantos monomeros "
+                        "tenga la estructura.")
     p.add_argument("--base", default=BASE_DEFAULT)
     p.add_argument("-o", "--out", required=True)
     a = p.parse_args()
@@ -96,6 +101,15 @@ def main():
         n = len(ids)
         c = [sum(pos[i][k] for i in ids) / n for k in range(3)]
         chosen = {i for i in ids if math.dist(pos[i], c) >= a.rmin}
+    elif a.mode == "outer":
+        # Los nq monomeros mas alejados del centro de masa. El modo "surface"
+        # depende de una lista que solo existe para el microgel de cadena; este
+        # es geometrico, sirve para cualquier estructura, y al fijar el NUMERO
+        # de cargas deja la carga total (y lambda_D de los contraiones) igual
+        # entre corridas con estructuras distintas.
+        n = len(ids)
+        c = [sum(pos[i][k] for i in ids) / n for k in range(3)]
+        chosen = set(sorted(ids, key=lambda i: -math.dist(pos[i], c))[:a.nq])
 
     for i in ids:
         q = a.q if i in chosen else 0.0

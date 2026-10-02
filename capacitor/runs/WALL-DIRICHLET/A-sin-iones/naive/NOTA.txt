@@ -1,0 +1,25 @@
+psi-000000001.001-001 de esta carpeta NO viene de la implementación real de
+Ludwig: se generó con un parche TEMPORAL de src/psi_petsc.c, solo para esta
+comparación, que desactiva el "factor 2" de la ec. 15/12 del paper (Asta et
+al. 2019) en los enlaces fluido-pared:
+
+  - psi_solver_petsc_matrix_set: coef = wlaplacian[p] * epsilon * (1.0 + wall)
+    -> (1.0 + 0*wall)   [sin duplicar el enlace de pared]
+  - psi_solver_petsc_rhs_set:    resta 2.0 * wlaplacian[p] * epsilon * psi_wall
+    -> resta 1.0 * wlaplacian[p] * epsilon * psi_wall
+
+Esto reproduce el esquema "ingenuo" de la sección 1.1 del documento
+(claude/PAREDES_POTENCIAL_CONSTANTE.md): tratar el nodo sólido como un vecino
+normal a distancia h, es decir, la pared queda efectivamente en el nodo
+sólido (z=1) en vez de en el plano medio (z=1.5).
+
+Se usó solo para obtener puntos REALES de PETSc que confirman la línea
+teórica "wall at solid node" del panel (b) de A_capacitor_sin_iones.png
+(antes esa línea era solo la fórmula analítica, sin un punto de PETSc real
+encima). Coincide con la teoría ingenua a 1.2e-13.
+
+El parche se revirtió inmediatamente después de esta corrida (confirmado con
+git diff y una corrida de regresión bit-exacta contra la salida de
+producción, diff = 0.0). Ludwig.exe NUNCA quedó compilado con este parche
+fuera de esa única corrida. No usar este archivo para nada que no sea el
+panel (b) de la figura de prueba A.

@@ -158,6 +158,37 @@ psi_fft_deconv_t deconv_g = PSI_FFT_DECONV_NONE; // PSI_FFT_DECONV_NONE PSI_FFT_
 static int interlacing_mode_ = 0;
 /* CHANGE END - 20260425 */
 
+/*CHANGE INIT - 20260922 truncated Gaussian kernel parameters from input.
+ *   subgrid_gauss_support  n      full support width (lattice units, > 1,
+ *                                 need not be integer). Default 6.
+ *   subgrid_gauss_sigma    sigma  Gaussian width. Default n/6 (cut at 3 sigma).
+ * Called from both kernel parses (halo sizing and run setup) so that
+ * subgrid_get_range() sees the same support in both. */
+static void ludwig_gauss_kernel_rt(pe_t* pe, rt_t* rt, int verbose) {
+  double support = 6.0;
+  double sigma = -1.0;
+  rt_double_parameter(rt, "subgrid_gauss_support", &support);
+  rt_double_parameter(rt, "subgrid_gauss_sigma", &sigma);
+  if (support <= 1.0) {
+    pe_info(pe, "subgrid_gauss_support: %g\n", support);
+    pe_fatal(pe, "subgrid_gauss_support must be > 1. "
+                 "Please check and try again!\n");
+  }
+  if (rt_key_present(rt, "subgrid_gauss_sigma") && sigma <= 0.0) {
+    pe_info(pe, "subgrid_gauss_sigma: %g\n", sigma);
+    pe_fatal(pe, "subgrid_gauss_sigma must be > 0. "
+                 "Please check and try again!\n");
+  }
+  subgrid_set_gauss(support, sigma);
+  if (verbose) {
+    subgrid_get_gauss(&support, &sigma);
+    pe_info(pe, "Gaussian kernel: support %g (cut at |r| = %g), sigma %g "
+                "(cut at %.2f sigma)\n",
+            support, 0.5 * support, sigma, 0.5 * support / sigma);
+  }
+}
+/*CHANGE END - 20260922 */
+
 /*CHANGE INIT - 20260920 output frequency for the per-particle csv files
  * particle_force.csv and particle_Esub.csv were written every step, which is
  * one line per colloid per step: ~370 MB over a 30k-step, 127-monomer run,
@@ -167,6 +198,13 @@ static int interlacing_mode_ = 0;
  * reproduces the previous every-step behaviour, so existing inputs are
  * unaffected. */
 static int pforce_io_freq_ = 1;
+/*CHANGE INIT - 20260926 constant-potential walls: parsed in ludwig_rt(),
+ * attached just before the time loop (see ludwig_walls_attach). */
+static int    wall_pending_ = 0;
+static int    wall_axis_ = -1;
+static double wall_psi_[2] = { 0.0, 0.0 };
+static char   wall_axis_str_[8] = "";
+/*CHANGE END - 20260926 */
 static int pforce_io_step(int step) {
   return (step == 1 || (step % pforce_io_freq_) == 0);
 }
@@ -342,6 +380,36 @@ static int ludwig_rt(ludwig_t* ludwig) {
     psi_rt_init_rho(pe, rt, ludwig->psi, ludwig->map);
   }
 
+  /*CHANGE INIT - 20260926 constant-potential (Dirichlet) walls for PETSc.
+   *   electrokinetics_wall_potential  psi_lo_psi_hi   (units of psi)
+   *   electrokinetics_wall_axis       x|y|z           (lower/upper half)
+   * Absent keys: the original fully periodic solver.
+   * Only read and checked here. The walls are attached to the solver just
+   * before the time loop (ludwig_walls_attach): the Poisson solver is created
+   * before the map exists, and the pm_sr measured reference, built in
+   * ludwig_run(), must be calibrated with the PERIODIC solver -- it is the
+   * bulk table, and it is cached under a name that does not record walls. */
+  if (ludwig->psi && rt_key_present(rt, "electrokinetics_wall_potential")) {
+    rt_double_nvector(rt, "electrokinetics_wall_potential", 2, wall_psi_,
+                      RT_FATAL);
+    rt_string_parameter(rt, "electrokinetics_wall_axis", wall_axis_str_,
+                        sizeof(wall_axis_str_));
+    if (strcmp(wall_axis_str_, "x") == 0) wall_axis_ = X;
+    if (strcmp(wall_axis_str_, "y") == 0) wall_axis_ = Y;
+    if (strcmp(wall_axis_str_, "z") == 0) wall_axis_ = Z;
+    if (wall_axis_ < 0) {
+      pe_fatal(pe, "electrokinetics_wall_potential needs "
+               "electrokinetics_wall_axis x|y|z\n");
+    }
+    if (ludwig->psi->solver.psolver != PSI_POISSON_SOLVER_PETSC
+        || ludwig->poisson == NULL) {
+      pe_fatal(pe, "electrokinetics_wall_potential is only implemented for "
+               "electrokinetics_solver_type petsc\n");
+    }
+    wall_pending_ = 1;
+  }
+  /*CHANGE END - 20260926 */
+
   wall_rt_init(pe, cs, rt, ludwig->lb, ludwig->map, &ludwig->wall);
   colloids_init_rt(pe, rt, cs, &ludwig->collinfo, &ludwig->cio,
        &ludwig->interact, ludwig->wall, ludwig->map,
@@ -492,7 +560,30 @@ static int ludwig_rt(ludwig_t* ludwig) {
     // psi_electroneutral(ludwig->psi, ludwig->map);
     double rho_el;              /* Charge density */
     rt_double_parameter(rt, "electrokinetics_init_rho_el", &rho_el);
-    psi_electroneutral(ludwig->psi, ludwig->map, ludwig->collinfo, rho_el);
+    /*CHANGE INIT - 20260926 optional with constant-potential walls.
+     *   electrokinetics_electroneutral  yes|no   (default yes)
+     * With Dirichlet walls the Poisson problem is well posed for any net
+     * charge (the walls carry the compensating charge), so the counterions
+     * that make the fluid neutral can be left out. Without walls a net charge
+     * is not meaningful (the periodic solvers remove the mean charge), so
+     * "no" is refused there.
+     * Original (unconditional):
+     *   psi_electroneutral(ludwig->psi, ludwig->map, ludwig->collinfo, rho_el); */
+    {
+      char en[BUFSIZ] = "yes";
+      rt_string_parameter(rt, "electrokinetics_electroneutral", en, BUFSIZ);
+      if (strcmp(en, "no") == 0) {
+        if (wall_pending_ == 0) {
+          pe_fatal(pe, "electrokinetics_electroneutral no needs "
+                   "electrokinetics_wall_potential (walls)\n");
+        }
+        pe_info(pe, "Electroneutrality NOT imposed (walls carry the net charge)\n");
+      }
+      else {
+        psi_electroneutral(ludwig->psi, ludwig->map, ludwig->collinfo, rho_el);
+      }
+    }
+    /*CHANGE END - 20260926 */
     psi_halo_rho(ludwig->psi);  /* sync host->device after electroneutrality */
     /*CHANGE END - Subgrid charge */
   }
@@ -841,6 +932,43 @@ static int interlacing_one_grid(ludwig_t* lud,
  *  ludwig_run
  *
  *****************************************************************************/
+/*CHANGE INIT - 20260926 constant-potential walls */
+/*****************************************************************************
+ *
+ *  ludwig_walls_attach
+ *
+ *  Attach the walls read in ludwig_rt() to the PETSc Poisson solver. Called
+ *  once, just before the time loop, after the pm_sr tables are built.
+ *
+ *****************************************************************************/
+
+static void ludwig_walls_attach(ludwig_t* ludwig) {
+
+  pe_t* pe = ludwig->pe;
+  int ifail = 0;
+
+  if (wall_pending_ == 0) return;
+
+  ifail = psi_solver_petsc_wall_set((psi_solver_petsc_t*)ludwig->poisson,
+                                    ludwig->map, wall_axis_, wall_psi_);
+  if (ifail == -1) pe_fatal(pe, "Wall potential: variable permittivity "
+                            "is not supported\n");
+  if (ifail == -2) pe_fatal(pe, "Wall potential: electric_e0 must be zero "
+                            "with walls\n");
+  if (ifail == -3) pe_fatal(pe, "Wall potential: the map has no boundary "
+                            "sites (set porous_media_init wall_x|y|z)\n");
+  if (ifail != 0) pe_fatal(pe, "Wall potential: setup failed (%d)\n", ifail);
+
+  pe_info(pe, "\n");
+  pe_info(pe, "Constant-potential walls (PETSc, Asta et al. 2019)\n");
+  pe_info(pe, "Wall axis:                %15s\n", wall_axis_str_);
+  pe_info(pe, "Potential lower wall:     %15.7e\n", wall_psi_[0]);
+  pe_info(pe, "Potential upper wall:     %15.7e\n", wall_psi_[1]);
+
+  wall_pending_ = 0;
+}
+/*CHANGE END - 20260926 */
+
 void ludwig_run(const char* inputfile) {
 
   char    filename[FILENAME_MAX];
@@ -920,8 +1048,15 @@ void ludwig_run(const char* inputfile) {
       /*CHANGE INIT - 20260630 Hann spread/gather kernel */
       else if (strcmp(kstr, "hann")     == 0) kernel_g = SUBGRID_KERNEL_HANN;
       /*CHANGE END - 20260630 */
+      /*CHANGE INIT - 20260922 truncated Gaussian kernel */
+      else if (strcmp(kstr, "gauss")    == 0) kernel_g = SUBGRID_KERNEL_GAUSS;
+      /*CHANGE INIT - 20260923 Peskin stretched to support 8 */
+      else if (strcmp(kstr, "peskin8")  == 0) kernel_g = SUBGRID_KERNEL_PESKIN8;
+      /*CHANGE END - 20260923 */
+      /*CHANGE END - 20260922 */
+      /*CHANGE 20260922: "gauss" added to the list of names */
       else pe_fatal(ludwig->pe,
-                    "Unknown subgrid_kernel '%s' (use peskin4|peskin6|bspline4|bspline6|kb4|hann)\n",
+                    "Unknown subgrid_kernel '%s' (use peskin4|peskin6|bspline4|bspline6|kb4|hann|gauss|peskin8)\n",
                     kstr);
       pe_info(ludwig->pe, "Subgrid kernel set from input: %s\n", kstr);
     }
@@ -945,6 +1080,9 @@ void ludwig_run(const char* inputfile) {
       }
     }
     /*CHANGE END - 20260630 */
+    /*CHANGE INIT - 20260922 truncated Gaussian kernel parameters */
+    if (kernel_g == SUBGRID_KERNEL_GAUSS) ludwig_gauss_kernel_rt(ludwig->pe, ludwig->rt, 1);
+    /*CHANGE END - 20260922 */
   }
   /*CHANGE END - 20260629 */
 
@@ -1281,6 +1419,13 @@ void ludwig_run(const char* inputfile) {
       if (pm_sr_ref_measured && pm_sr_target_shape != 0)
         pe_fatal(ludwig->pe,
                  "pm_sr_pair_ref measured currently supports only the Gaussian target\n");
+      /*CHANGE INIT - 20260926 with constant-potential walls the measured
+       * reference is still calibrated with the PERIODIC solver: the walls are
+       * attached after this block (ludwig_walls_attach). So the table is the
+       * bulk one and the pm_sr_meshref cache stays valid for periodic runs.
+       * It does NOT describe the particle-wall (image) short range: that is
+       * plan phase 3. (An earlier version refused this combination.) */
+      /*CHANGE END - 20260926 */
 
       if (pm_sr_ref_measured) {
         pe_info(ludwig->pe, "  pair reference  = measured on the mesh\n");
@@ -1298,6 +1443,10 @@ void ludwig_run(const char* inputfile) {
     }
   }
   /*CHANGE END - 20260625 PM short-range correction tables */
+
+  /*CHANGE INIT - 20260926 constant-potential walls (after the pm_sr tables) */
+  ludwig_walls_attach(ludwig);
+  /*CHANGE END - 20260926 */
 
   while (physics_control_next_step(ludwig->phys)) {
 
@@ -3197,8 +3346,15 @@ int free_energy_init_rt(ludwig_t* ludwig) {
         else if (strcmp(kstr, "bspline6") == 0) kernel_g = SUBGRID_KERNEL_BSPLINE6;
         else if (strcmp(kstr, "kb4")      == 0) kernel_g = SUBGRID_KERNEL_KB4;
         else if (strcmp(kstr, "hann")     == 0) kernel_g = SUBGRID_KERNEL_HANN;
+        /*CHANGE INIT - 20260922 truncated Gaussian kernel */
+        else if (strcmp(kstr, "gauss")    == 0) kernel_g = SUBGRID_KERNEL_GAUSS;
+        /*CHANGE INIT - 20260923 Peskin stretched to support 8 */
+        else if (strcmp(kstr, "peskin8")  == 0) kernel_g = SUBGRID_KERNEL_PESKIN8;
+        /*CHANGE END - 20260923 */
+        /*CHANGE END - 20260922 */
+        /*CHANGE 20260922: "gauss" added to the list of names */
         else pe_fatal(pe,
-              "Unknown subgrid_kernel '%s' (use peskin4|peskin6|bspline4|bspline6|kb4|hann)\n",
+              "Unknown subgrid_kernel '%s' (use peskin4|peskin6|bspline4|bspline6|kb4|hann|gauss|peskin8)\n",
               kstr);
       }
       if (kernel_g == SUBGRID_KERNEL_HANN) {
@@ -3212,6 +3368,9 @@ int free_energy_init_rt(ludwig_t* ludwig) {
           subgrid_set_hann_order((double) hann_n);
         }
       }
+      /*CHANGE INIT - 20260922 Gaussian support must be known before sizing the halo */
+      if (kernel_g == SUBGRID_KERNEL_GAUSS) ludwig_gauss_kernel_rt(pe, rt, 0);
+      /*CHANGE END - 20260922 */
       int krange = subgrid_get_range(kernel_g);
       if (krange > nhalo) {
         pe_info(pe, "Increasing halo width to %d to cover subgrid kernel "

@@ -58,6 +58,9 @@ int psi_solver_petsc_var_epsilon_initialise(psi_t* psi, var_epsilon_t epsilon,
               psi_solver_petsc_t* solver);
 int psi_solver_petsc_var_epsilon_matrix_set(psi_solver_petsc_t* solver);
 int psi_solver_petsc_var_epsilon_rhs_set(psi_solver_petsc_t* solver);
+/*CHANGE INIT - 20260926 constant-potential walls */
+int psi_solver_petsc_wall_charge_compute(psi_solver_petsc_t* solver);
+/*CHANGE END - 20260926 */
 
 
 /*****************************************************************************
@@ -185,6 +188,18 @@ int psi_solver_petsc_var_epsilon_solve(psi_solver_petsc_t* solver, int nt) {
   return -1;
 }
 
+/*CHANGE INIT - 20260926 constant-potential walls: stubs without PETSc */
+int psi_solver_petsc_wall_set(psi_solver_petsc_t* solver, map_t* map,
+                              int axis, const double psi_wall[2]) {
+  return -1;
+}
+
+int psi_solver_petsc_wall_charge(const psi_solver_petsc_t* solver,
+                                 double q[2], double* q_fluid) {
+  return -1;
+}
+/*CHANGE END - 20260926 */
+
 #else
 
 #include "petscdmda.h"
@@ -198,7 +213,53 @@ struct psi_solver_petsc_block_s {
   Vec x;          /* Unknown (potential) */
   Vec b;          /* Right-hand side */
   KSP ksp;        /* Krylov solver context */
+  /*CHANGE INIT - 20260926 constant-potential walls (all zero = periodic) */
+  map_t* map;            /* non-NULL once psi_solver_petsc_wall_set() ran */
+  int wall_axis;         /* X, Y or Z: which half a wall site belongs to */
+  double wall_psi[2];    /* prescribed potential, lower / upper half */
+  double wall_diag;      /* diagonal of the decoupled Dirichlet rows */
+  double wall_q[2];      /* induced charge, lower / upper wall (last solve) */
+  double fluid_q;        /* sum of rho_elec over fluid sites (last solve) */
+  /*CHANGE END - 20260926 */
 };
+
+/*CHANGE INIT - 20260926 constant-potential walls: helpers.
+ * Arguments are LOCAL lattice coordinates; halo values are allowed (the map
+ * halo is refreshed in psi_solver_petsc_wall_set()). */
+
+static int petsc_wall_site(const psi_solver_petsc_t* solver,
+                           int ic, int jc, int kc) {
+  int status = MAP_FLUID;
+  int index = cs_index(solver->psi->cs, ic, jc, kc);
+  map_status(solver->block->map, index, &status);
+  return (status == MAP_BOUNDARY);
+}
+
+/* A wall site belongs to the lower (0) or upper (1) electrode according to
+ * which half of the box it lies in along wall_axis. Halo coordinates are
+ * wrapped back into 1..ntotal first. */
+
+static int petsc_wall_side(const psi_solver_petsc_t* solver,
+                           int ic, int jc, int kc) {
+  int ntotal[3] = { 0 };
+  int noffset[3] = { 0 };
+  int lc[3] = { ic, jc, kc };
+  int a = solver->block->wall_axis;
+  cs_ntotal(solver->psi->cs, ntotal);
+  cs_nlocal_offset(solver->psi->cs, noffset);
+  {
+    int n = ntotal[a];
+    int g = noffset[a] + lc[a];
+    g = ((g - 1) % n + n) % n + 1;
+    return (2 * g <= n) ? 0 : 1;
+  }
+}
+
+static double petsc_wall_value(const psi_solver_petsc_t* solver,
+                               int ic, int jc, int kc) {
+  return solver->block->wall_psi[petsc_wall_side(solver, ic, jc, kc)];
+}
+/*CHANGE END - 20260926 */
 
 /*****************************************************************************
  *
@@ -354,6 +415,15 @@ int psi_solver_petsc_matrix_set(psi_solver_petsc_t* solver) {
 
   psi_epsilon(solver->psi, &epsilon);
 
+  /*CHANGE INIT - 20260926 constant-potential walls.
+   * Rebuilding (wall_set runs after initialise) must start from zero values:
+   * the nonzero pattern is frozen (MAT_NEW_NONZERO_LOCATIONS false) and a row
+   * that now writes fewer entries would otherwise keep the old ones. */
+  int offset[3] = { 0 };
+  cs_nlocal_offset(solver->psi->cs, offset);
+  if (solver->block->map) MatZeroEntries(solver->block->a);
+  /*CHANGE END - 20260926 */
+
   for (int k = zs; k < ze; k++) {
     for (int j = ys; j < ye; j++) {
       for (int i = xs; i < xe; i++) {
@@ -366,6 +436,48 @@ int psi_solver_petsc_matrix_set(psi_solver_petsc_t* solver) {
         row.j = j;
         row.k = k;
         /*CHANGE END*/
+
+        /*CHANGE INIT - 20260926 constant-potential walls (Asta et al. 2019,
+         * eq. 15). Wall site: decoupled row D x = D psi_wall (rhs_set).
+         * Fluid site: each link to a wall site is doubled, and its column is
+         * ELIMINATED (moved to the right-hand side in rhs_set) so the matrix
+         * stays symmetric -- CG + boomeramg need that. The diagonal can no
+         * longer be read from wlaplacian[0]: it is minus the sum of the
+         * scaled links, rebuilt per site. */
+        if (solver->block->map) {
+          int ic = i - offset[X] + 1;
+          int jc = j - offset[Y] + 1;
+          int kc = k - offset[Z] + 1;
+
+          if (petsc_wall_site(solver, ic, jc, kc)) {
+            v[0] = solver->block->wall_diag;
+            MatSetValuesStencil(solver->block->a, 1, &row, 1, &row, v,
+                                INSERT_VALUES);
+          }
+          else {
+            double diag = 0.0;
+            int np = 1;                    /* entry 0 is the diagonal */
+            col[0] = row;
+            for (int p = 1; p < s->npoints; p++) {
+              int wall = petsc_wall_site(solver, ic + s->cv[p][X],
+                                         jc + s->cv[p][Y], kc + s->cv[p][Z]);
+              double coef = s->wlaplacian[p] * epsilon * (1.0 + wall);
+              diag -= coef;
+              if (!wall) {
+                col[np].i = i + s->cv[p][X];
+                col[np].j = j + s->cv[p][Y];
+                col[np].k = k + s->cv[p][Z];
+                v[np] = coef;
+                np += 1;
+              }
+            }
+            v[0] = diag;
+            MatSetValuesStencil(solver->block->a, 1, &row, np, col, v,
+                                INSERT_VALUES);
+          }
+          continue;
+        }
+        /*CHANGE END - 20260926 */
 
         for (int p = 0; p < s->npoints; p++) {
           col[p].i = i + s->cv[p][X];
@@ -389,6 +501,15 @@ int psi_solver_petsc_matrix_set(psi_solver_petsc_t* solver) {
   /* Set the matrix, and the nullspace */
   KSPSetOperators(solver->block->ksp, solver->block->a, solver->block->a);
 
+  /*CHANGE INIT - 20260926 constant-potential walls: a Dirichlet wall makes
+   * the operator non-singular, so the constant-mode nullspace must go.
+   * Original (unconditional):
+   *   MatNullSpaceCreate(...); MatSetNullSpace(a, nullsp); ... */
+  if (solver->block->map) {
+    MatSetNullSpace(solver->block->a, NULL);
+  }
+  else
+  /*CHANGE END - 20260926 */
   {
     MatNullSpace nullsp;
     MatNullSpaceCreate(PETSC_COMM_WORLD, PETSC_TRUE, 0, NULL, &nullsp);
@@ -421,6 +542,10 @@ int psi_solver_petsc_solve(psi_solver_petsc_t* solver, int ntimestep) {
    * MatSetNullSpace does not project the null space from the RHS/solution when
    * using GPU matrices. Explicit projection via MatNullSpaceRemove on b and x
    * ensures CG sees a consistent SPD system (no constant-mode contamination). */
+  /*CHANGE INIT - 20260926 ... but not with walls: there is no nullspace then,
+   * and projecting out the mean would shift the prescribed wall potential. */
+  if (solver->block->map == NULL)
+  /*CHANGE END - 20260926 */
   {
     MatNullSpace nullsp;
     MatNullSpaceCreate(PETSC_COMM_WORLD, PETSC_TRUE, 0, NULL, &nullsp);
@@ -448,6 +573,19 @@ int psi_solver_petsc_solve(psi_solver_petsc_t* solver, int ntimestep) {
 
   psi_solver_petsc_da_to_psi(solver);
 
+  /*CHANGE INIT - 20260926 constant-potential walls: induced charge */
+  if (solver->block->map) {
+    psi_solver_petsc_wall_charge_compute(solver);
+    if (ntimestep % solver->psi->solver.nfreq == 0) {
+      pe_t* pe = solver->psi->pe;
+      double* q = solver->block->wall_q;
+      pe_info(pe, "Wall charge lower %22.15e upper %22.15e\n", q[0], q[1]);
+      pe_info(pe, "Fluid charge      %22.15e total %22.15e\n",
+              solver->block->fluid_q, q[0] + q[1] + solver->block->fluid_q);
+    }
+  }
+  /*CHANGE END - 20260926 */
+
   return 0;
 }
 
@@ -466,6 +604,7 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver) {
   int offset[3] = { 0 };
   double e0[3] = { 0 };
   double*** rho_3d = { 0 };
+  double fluid_q_local = 0.0;   /*CHANGE 20260926 constant-potential walls */
 
   assert(solver);
 
@@ -492,11 +631,54 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver) {
         double eunit = solver->psi->e;
         double beta = solver->psi->beta;
 
+        /*CHANGE INIT - 20260926 constant-potential walls.
+         * Wall site: the row is D x = b, so b = D psi_wall.
+         * Fluid site: move each eliminated wall column to the RHS,
+         * b -= A_fw psi_wall with A_fw = 2 wlaplacian[p] epsilon. */
+        if (solver->block->map) {
+          if (petsc_wall_site(solver, ic, jc, kc)) {
+            rho_3d[k][j][i] = solver->block->wall_diag
+                            * petsc_wall_value(solver, ic, jc, kc);
+            continue;
+          }
+          {
+            stencil_t* s = solver->psi->stencil;
+            double epsilon = 0.0;
+            psi_epsilon(solver->psi, &epsilon);
+            psi_rho_elec(solver->psi, index, &rho_elec);
+            rho_3d[k][j][i] = rho_elec * eunit * beta;
+            fluid_q_local += rho_elec;
+            for (int p = 1; p < s->npoints; p++) {
+              int icn = ic + s->cv[p][X];
+              int jcn = jc + s->cv[p][Y];
+              int kcn = kc + s->cv[p][Z];
+              if (petsc_wall_site(solver, icn, jcn, kcn)) {
+                rho_3d[k][j][i] -= 2.0 * s->wlaplacian[p] * epsilon
+                                 * petsc_wall_value(solver, icn, jcn, kcn);
+              }
+            }
+          }
+          continue;
+        }
+        /*CHANGE END - 20260926 */
+
         psi_rho_elec(solver->psi, index, &rho_elec);
         rho_3d[k][j][i] = rho_elec * eunit * beta;
       }
     }
   }
+
+  /*CHANGE INIT - 20260926 constant-potential walls: total fluid charge, for
+   * the neutrality check wall_q[0] + wall_q[1] + fluid_q = 0. An external
+   * field e0 is refused in psi_solver_petsc_wall_set(): the code below
+   * assumes a periodic system. */
+  if (solver->block->map) {
+    MPI_Comm comm = MPI_COMM_NULL;
+    cs_cart_comm(cs, &comm);
+    MPI_Allreduce(&fluid_q_local, &solver->block->fluid_q, 1, MPI_DOUBLE,
+                  MPI_SUM, comm);
+  }
+  /*CHANGE END - 20260926 */
 
   /* Modify right hand side for external electric field */
   /* The system must be periodic, so no need to check. */
@@ -891,6 +1073,195 @@ int psi_solver_petsc_da_to_psi(psi_solver_petsc_t* solver) {
 
   return 0;
 }
+
+/*CHANGE INIT - 20260926 constant-potential walls */
+/*****************************************************************************
+ *
+ *  psi_solver_petsc_wall_set
+ *
+ *  Turn MAP_BOUNDARY sites into constant-potential walls (Asta et al. 2019,
+ *  arXiv:1907.04732, sec. II-C). Sites in the lower half of the box along
+ *  `axis` are held at psi_wall[0], the upper half at psi_wall[1], in the same
+ *  units as the psi field. Must be called once the map is final (it is
+ *  created after the solver). The matrix is rebuilt here, once: the walls do
+ *  not move.
+ *
+ *  Returns 0 on success; -1 variable permittivity (not supported), -2 an
+ *  external field e0 is set (rhs_set assumes periodicity for it), -3 the
+ *  map has no MAP_BOUNDARY site.
+ *
+ *****************************************************************************/
+
+int psi_solver_petsc_wall_set(psi_solver_petsc_t* solver, map_t* map,
+                              int axis, const double psi_wall[2]) {
+
+  assert(solver);
+  assert(map);
+  assert(axis == X || axis == Y || axis == Z);
+
+  if (solver->super.impl != &vt_) return -1;
+  if (solver->psi->e0[X] || solver->psi->e0[Y] || solver->psi->e0[Z]) {
+    return -2;
+  }
+
+  {
+    int nwall = 0;
+    map_volume_allreduce(map, MAP_BOUNDARY, &nwall);
+    if (nwall == 0) return -3;
+  }
+
+  /* Neighbour status is read in the halo */
+  map_halo(map);
+
+  {
+    double epsilon = 0.0;
+    stencil_t* s = solver->psi->stencil;
+    psi_epsilon(solver->psi, &epsilon);
+
+    solver->block->map = map;
+    solver->psi->wall_map = map;   /* same wall rule in psi_electric_field */
+    solver->block->wall_axis = axis;
+    solver->block->wall_psi[0] = psi_wall[0];
+    solver->block->wall_psi[1] = psi_wall[1];
+    /* Same size as a fluid diagonal, so Jacobi/AMG see comparable rows */
+    solver->block->wall_diag = epsilon * s->wlaplacian[0];
+  }
+
+  /* The field itself holds the prescribed value at wall sites: it is the
+   * initial guess, and what any code reading psi sees before a solve. */
+  {
+    int nlocal[3] = { 0 };
+    cs_nlocal(solver->psi->cs, nlocal);
+    for (int ic = 1; ic <= nlocal[X]; ic++) {
+      for (int jc = 1; jc <= nlocal[Y]; jc++) {
+        for (int kc = 1; kc <= nlocal[Z]; kc++) {
+          if (petsc_wall_site(solver, ic, jc, kc)) {
+            int index = cs_index(solver->psi->cs, ic, jc, kc);
+            psi_psi_set(solver->psi, index,
+                        petsc_wall_value(solver, ic, jc, kc));
+          }
+        }
+      }
+    }
+  }
+
+  psi_solver_petsc_matrix_set(solver);
+  KSPSetUp(solver->block->ksp);
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  psi_solver_petsc_wall_charge_compute
+ *
+ *  Induced charge on each wall, in the units of rho_elec (summed over
+ *  sites), from Gauss's law through the wall mid-plane:
+ *
+ *    q = (epsilon / e beta) sum_{links wall w -> fluid f} 2 wlaplacian[p]
+ *                                                     (psi_f - psi_w)
+ *
+ *  This is the paper's eq. 16 with the SYMMETRIC boundary rule (factor 2 on
+ *  every link joining a wall and a fluid site, seen from the wall side).
+ *  Their compact eq. 15 read literally at a wall site gives exactly zero,
+ *  and the unmodified eq. 12 gives half the charge; both were checked
+ *  numerically (2026-09-26). By construction q[0] + q[1] + fluid_q = 0 to
+ *  solver tolerance. Wall-wall links are skipped: across the periodic
+ *  boundary they join the two electrodes, which is not a physical link.
+ *
+ *****************************************************************************/
+
+int psi_solver_petsc_wall_charge_compute(psi_solver_petsc_t* solver) {
+
+  int xs, ys, zs, xw, yw, zw;
+  int offset[3] = { 0 };
+  double q_local[2] = { 0.0, 0.0 };
+  double epsilon = 0.0;
+  double eunit = solver->psi->e;
+  double beta = solver->psi->beta;
+  stencil_t* s = solver->psi->stencil;
+  const double*** x3 = NULL;
+  Vec xl;
+
+  assert(solver);
+  assert(solver->block->map);
+
+  psi_epsilon(solver->psi, &epsilon);
+  cs_nlocal_offset(solver->psi->cs, offset);
+  DMDAGetCorners(solver->block->da, &xs, &ys, &zs, &xw, &yw, &zw);
+
+  /* Ghosted copy of the solution (stencil width 1), read on the host as
+   * in psi_solver_petsc_da_to_psi() */
+  VecBindToCPU(solver->block->x, PETSC_TRUE);
+  DMGetLocalVector(solver->block->da, &xl);
+  VecBindToCPU(xl, PETSC_TRUE);
+  DMGlobalToLocalBegin(solver->block->da, solver->block->x, INSERT_VALUES, xl);
+  DMGlobalToLocalEnd(solver->block->da, solver->block->x, INSERT_VALUES, xl);
+  DMDAVecGetArrayRead(solver->block->da, xl, &x3);
+
+  for (int k = zs; k < zs + zw; k++) {
+    int kc = k - offset[Z] + 1;
+    for (int j = ys; j < ys + yw; j++) {
+      int jc = j - offset[Y] + 1;
+      for (int i = xs; i < xs + xw; i++) {
+        int ic = i - offset[X] + 1;
+        if (!petsc_wall_site(solver, ic, jc, kc)) continue;
+        {
+          int side = petsc_wall_side(solver, ic, jc, kc);
+          for (int p = 1; p < s->npoints; p++) {
+            int icn = ic + s->cv[p][X];
+            int jcn = jc + s->cv[p][Y];
+            int kcn = kc + s->cv[p][Z];
+            if (petsc_wall_site(solver, icn, jcn, kcn)) continue;
+            q_local[side] += 2.0 * s->wlaplacian[p]
+              * (x3[k + s->cv[p][Z]][j + s->cv[p][Y]][i + s->cv[p][X]]
+                 - x3[k][j][i]);
+          }
+        }
+      }
+    }
+  }
+
+  DMDAVecRestoreArrayRead(solver->block->da, xl, &x3);
+  VecBindToCPU(xl, PETSC_FALSE);
+  DMRestoreLocalVector(solver->block->da, &xl);
+  VecBindToCPU(solver->block->x, PETSC_FALSE);
+
+  q_local[0] *= epsilon / (eunit * beta);
+  q_local[1] *= epsilon / (eunit * beta);
+
+  {
+    MPI_Comm comm = MPI_COMM_NULL;
+    cs_cart_comm(solver->psi->cs, &comm);
+    MPI_Allreduce(q_local, solver->block->wall_q, 2, MPI_DOUBLE, MPI_SUM,
+                  comm);
+  }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  psi_solver_petsc_wall_charge
+ *
+ *  Charge on the lower/upper wall and in the fluid at the last solve.
+ *
+ *****************************************************************************/
+
+int psi_solver_petsc_wall_charge(const psi_solver_petsc_t* solver,
+                                 double q[2], double* q_fluid) {
+
+  assert(solver);
+
+  if (solver->block->map == NULL) return -1;
+
+  q[0] = solver->block->wall_q[0];
+  q[1] = solver->block->wall_q[1];
+  if (q_fluid) *q_fluid = solver->block->fluid_q;
+
+  return 0;
+}
+/*CHANGE END - 20260926 */
 
 /*****************************************************************************
  *

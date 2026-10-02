@@ -46,5 +46,19 @@ int psi_solver_petsc_solve_with_subgrid(psi_solver_petsc_t * solver,
                                          int ntimestep);
 /*CHANGE END - Add subgrid particle charges to PETSc RHS */
 
+/*CHANGE INIT - 20260926 constant-potential (Dirichlet) walls, following
+ * Asta, Palaia, Trizac, Levesque & Rotenberg, arXiv:1907.04732, sec. II-C.
+ * MAP_BOUNDARY sites are held at a prescribed potential; the Laplacian at a
+ * fluid site doubles every link that reaches a wall site (their eq. 15), which
+ * puts the wall at the mid-plane between the last fluid and first solid node
+ * (second order). Without a call to psi_solver_petsc_wall_set() the solver is
+ * the original fully periodic one. */
+#include "map.h"
+int psi_solver_petsc_wall_set(psi_solver_petsc_t * solver, map_t * map,
+                              int axis, const double psi_wall[2]);
+int psi_solver_petsc_wall_charge(const psi_solver_petsc_t * solver,
+                                 double q[2], double * q_fluid);
+/*CHANGE END - 20260926 */
+
 #endif
 

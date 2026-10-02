@@ -1,0 +1,53 @@
+# PETSc solver options for Ludwig electrokinetics
+# Este archivo es leido automaticamente por PETSc al iniciar.
+# Debe estar en el directorio de ejecucion (donde corre Ludwig.exe).
+#
+# Para activar, copiar al directorio de resultados junto con input y Ludwig.exe
+# o colocar en $HOME para que aplique globalmente.
+#
+# Referencia: https://petsc.org/release/manual/ksp/
+
+# --- Matrices y vectores en GPU ---
+-vec_type cuda
+-mat_type aijcusparse
+
+# --- Tipo de solver lineal ---
+# NOTA con aijcusparse (instalacion actual: --with-cuda sin paquetes extra):
+#   Precondicionadores compatibles: jacobi, none
+#   Incompatibles: eisenstat, gamg, hypre, bjacobi+ilu (requieren recompilar PETSc)
+#
+# pipecg: variante de CG con mejor estabilidad numerica en GPU (menos perdida
+#         de ortogonalidad que cg estandar)
+# -ksp_type pipecg
+-ksp_type cg
+
+# Tamanio del subespacio Krylov para GMRES (default: 30)
+# -ksp_gmres_restart 100
+
+# --- Precondicionador ---
+# jacobi: unico compatible con aijcusparse en esta instalacion
+# -pc_type jacobi
+
+# Opciones que requieren recompilar PETSc con paquetes adicionales:
+# -pc_type gamg
+-pc_type hypre 
+-pc_hypre_type boomeramg 
+# -pc_type eisenstat                          (no soportado en seqaijcusparse)
+# -pc_type bjacobi / -sub_pc_type ilu         (solo CPU)
+
+# --- Tolerancias ---
+# NOTA: rtol=1e-28 (del input de Ludwig) es inalcanzable en float64 y hace que
+# CG pierda ortogonalidad. El residual alcanzable con jacobi+cusparse es ~1e-11.
+-ksp_rtol 5.0e-17
+# -ksp_atol 1.0e-15
+# -ksp_max_it 10000
+
+# --- Diagnostico (comentar en produccion) ---
+# Muestra residual en cada iteracion
+# -ksp_monitor
+
+# Muestra resumen al final de cada solve
+# -ksp_converged_reason
+
+# Muestra configuracion completa del solver al inicio
+# -ksp_view

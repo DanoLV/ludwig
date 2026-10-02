@@ -508,6 +508,11 @@ int psi_force_gradmu_e_ewald(psi_t* psi, fe_t* fe, hydro_t* hydro,
               else if (kernel == SUBGRID_KERNEL_PESKIN6) {
                 dr = d_peskin6(r[X]) * d_peskin6(r[Y]) * d_peskin6(r[Z]);
               }
+              /*CHANGE INIT - 20260922 Gaussian kernel */
+              else if (kernel == SUBGRID_KERNEL_GAUSS) {
+                dr = d_gauss(r[X]) * d_gauss(r[Y]) * d_gauss(r[Z]);
+              }
+              /*CHANGE END - 20260922 */
 
               psi_electric_field(psi, index, e);
 
@@ -655,6 +660,11 @@ int psi_force_gradmu_e_ewald_offset(psi_t* psi, fe_t* fe, hydro_t* hydro,
               else if (kernel == SUBGRID_KERNEL_PESKIN6) {
                 dr = d_peskin6(rx) * d_peskin6(ry) * d_peskin6(rz);
               }
+              /*CHANGE INIT - 20260922 Gaussian kernel */
+              else if (kernel == SUBGRID_KERNEL_GAUSS) {
+                dr = d_gauss(rx) * d_gauss(ry) * d_gauss(rz);
+              }
+              /*CHANGE END - 20260922 */
               /*CHANGE INIT - 20260710 trilinear: pointwise E at integer offsets */
               else if (kernel == SUBGRID_KERNEL_TRILINEAR) {
                 dr = d_trilinear(rx) * d_trilinear(ry) * d_trilinear(rz);

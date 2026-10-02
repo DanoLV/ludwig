@@ -79,7 +79,14 @@ int test_colloid_suite(void) {
   /* I assert that the colloid struct is 512 bytes. I.e., don't
    * change it without sorting out the padding. */
   test_assert(sizeof(colloid_state_t) == 512);
-  assert(NPAD_INT ==  7);
+  /*CHANGE INIT - 20260929 stale check, unrelated to the OS update.
+   * NPAD_INT went from 7 to 3 in colloid.h on 20260114 ("extra bonds for
+   * microgel polymer networks"), which also updated sref above (intpad
+   * {30,31,32} has 3 entries), but left this hardcoded assert unchanged --
+   * it aborted the whole unit test binary before any suite could run.
+   * Original: assert(NPAD_INT == 7); */
+  assert(NPAD_INT ==  3);
+  /*CHANGE END - 20260929 */
   assert(NPAD_DBL ==  4);
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -204,7 +211,10 @@ int test_colloid_compare(colloid_state_t * s1, colloid_state_t * s2) {
   test_assert(s1->isfixeds == s2->isfixeds);
   test_assert(s1->type     == s2->type);
 
-  assert(NBOND_MAX == 2);
+  /*CHANGE INIT - 20260929 same stale-constant issue as NPAD_INT above:
+   * NBOND_MAX went from 2 to 6 on 20260114. Original: assert(NBOND_MAX == 2); */
+  assert(NBOND_MAX == 6);
+  /*CHANGE END - 20260929 */
   for (int n = 0; n < NBOND_MAX; n++) {
     test_assert(s1->bond[n] == s2->bond[n]);
   }

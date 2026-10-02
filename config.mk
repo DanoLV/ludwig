@@ -56,4 +56,14 @@ LDFLAGS = -arch=sm_89
 MPI_INC_PATH = -I/usr/local/ompi/include
 MPI_LIB_PATH = -L/usr/local/ompi/lib -Xlinker -rpath -Xlinker /usr/local/ompi/lib -lmpi
 
-LAUNCH_MPIRUN_CMD = mpirun -np 1 -mca pml ucx
+# CHANGE INIT - 20260929 an OS update bumped libucx0 to 1.20.0, ABI-incompatible
+# with this Open MPI 5.0.10's compiled-in ucx PML component: it registers and
+# opens fine but its init() fails at runtime ("select: init returned failure
+# for component ucx"), which used to abort every mpirun launch (-np 1 included)
+# and every regression test in tests/regression/*, since they all go through
+# LAUNCH_MPIRUN_CMD. Dropping the forced "-mca pml ucx" lets mpirun fall back
+# to ob1 automatically, which works (verified: bit-identical PETSc+GPU run,
+# tests/regression/d3q19-short). UCX only matters for InfiniBand/multi-node;
+# this machine is single-node/single-GPU, so ob1 has no practical downside here.
+# Original: LAUNCH_MPIRUN_CMD = mpirun -np 1 -mca pml ucx
+LAUNCH_MPIRUN_CMD = mpirun -np 1

@@ -1,0 +1,8 @@
+OBSOLETA (2026-09-26). Verificaba que con paredes se rechazara
+pm_sr_pair_ref measured, porque la calibracion usaba el solver con paredes.
+Ahora las paredes se enganchan DESPUES de construir las tablas
+(ludwig_walls_attach en ludwig.c), asi que la calibracion es periodica y la
+combinacion esta permitida. La caja 4x4 de esta prueba es ademas demasiado
+chica para calibrar con r_cut = 6 ("r_cut too large for the box").
+El orden correcto (calibracion -> paredes) se ve en el run.log de cualquier
+posicion de C-corr-hann08/.

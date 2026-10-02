@@ -99,6 +99,13 @@ static double i0_series(double x);
 static double subgrid_hann_order_ = 4.0;
 /*CHANGE END - 20260630 */
 
+/*CHANGE INIT - 20260922 truncated Gaussian kernel parameters */
+/* support = full support width n (lattice units), weights vanish for
+ * |r| >= n/2. sigma = Gaussian width. Set from input via subgrid_set_gauss(). */
+static double subgrid_gauss_support_ = 6.0;
+static double subgrid_gauss_sigma_ = 1.0;
+/*CHANGE END - 20260922 */
+
 /*CHANGE INIT - 20260425 forward declare for interlacing offset variant */
 int subgrid_charge_from_grid_offset(colloids_info_t* cinfo, psi_t* obj,
 									 distributed_charge_klein_t** charge,
@@ -518,6 +525,14 @@ int subgrid_charge_from_particles(colloids_info_t* cinfo, psi_t* obj, distribute
 									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
 								}
 								/*CHANGE END - 20260630 */
+								/*CHANGE INIT - 20260922 Gaussian kernel */
+								else if (kernel == SUBGRID_KERNEL_GAUSS) {
+									dr = d_gauss(r[X]) * d_gauss(r[Y]) * d_gauss(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN8) {
+									dr = d_peskin8(r[X]) * d_peskin8(r[Y]) * d_peskin8(r[Z]);
+								}
+								/*CHANGE END - 20260922 */
 
 								q0_dr = p_colloid->s.q0 * dr;
 								q1_dr = p_colloid->s.q1 * dr;
@@ -741,6 +756,10 @@ int subgrid_scatter_fluid_offset(colloids_info_t* cinfo, psi_t* obj,
 							/*CHANGE INIT - 20260630 Hann kernel */
 							else if (kernel == SUBGRID_KERNEL_HANN)     dr = d_hann(dx) * d_hann(dy) * d_hann(dz);
 							/*CHANGE END - 20260630 */
+							/*CHANGE INIT - 20260922 Gaussian kernel */
+							else if (kernel == SUBGRID_KERNEL_GAUSS)    dr = d_gauss(dx) * d_gauss(dy) * d_gauss(dz);
+							else if (kernel == SUBGRID_KERNEL_PESKIN8)  dr = d_peskin8(dx) * d_peskin8(dy) * d_peskin8(dz);
+							/*CHANGE END - 20260922 */
 							else dr = 0.0;
 							if (dr == 0.0) continue;
 
@@ -953,6 +972,14 @@ int subgrid_charge_from_grid_offset(colloids_info_t* cinfo, psi_t* obj,
 						dr = d_hann(dx) * d_hann(dy) * d_hann(dz);
 					}
 					/*CHANGE END - 20260630 */
+					/*CHANGE INIT - 20260922 Gaussian kernel */
+					else if (kernel == SUBGRID_KERNEL_GAUSS) {
+						dr = d_gauss(dx) * d_gauss(dy) * d_gauss(dz);
+					}
+					else if (kernel == SUBGRID_KERNEL_PESKIN8) {
+						dr = d_peskin8(dx) * d_peskin8(dy) * d_peskin8(dz);
+					}
+					/*CHANGE END - 20260922 */
 					// if (kernel == SUBGRID_KERNEL_BSPLINE6) {
 					// 	dr = d_bspline6(r0[X] - (double)i2) 
 					// 		* d_bspline6(r0[Y] - (double)j2)
@@ -1549,6 +1576,14 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
 								}
 								/*CHANGE END - 20260630 */
+								/*CHANGE INIT - 20260922 Gaussian kernel */
+								else if (kernel == SUBGRID_KERNEL_GAUSS) {
+									dr = d_gauss(r[X]) * d_gauss(r[Y]) * d_gauss(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN8) {
+									dr = d_peskin8(r[X]) * d_peskin8(r[Y]) * d_peskin8(r[Z]);
+								}
+								/*CHANGE END - 20260922 */
 
 								force_aux[X] = force[X] * dr;
 								force_aux[Y] = force[Y] * dr;
@@ -1559,9 +1594,27 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 						}
 					}
 
-					pc->fex[X] += force[X];
-					pc->fex[Y] += force[Y];
-					pc->fex[Z] += force[Z];
+					/*CHANGE INIT - 20260926 add the force to the OWNER copy only.
+					 * The cell loop includes the halo cells (0 and ncell+1),
+					 * which hold periodic copies of particles in the outermost
+					 * cell. That is right for the fluid reaction above: each copy
+					 * scatters only to its LOCAL nodes (the node range is clipped
+					 * to [1, nlocal]), so the copies together cover the kernel
+					 * once. But every copy added the FULL force to its fex, and
+					 * the halo sum (colloid_sums.c, dynamics message) adds the
+					 * copies' fex into the owner: a particle in a face cell got
+					 * 2x the electrostatic force, 4x on an edge, 8x in a corner.
+					 * Found 2026-09-26 (capacitor/local/WALL-DIRICHLET, test C:
+					 * F*beta/Esub = 2 exactly for z0 <= 5, 1 above; cell 4.86).
+					 * Original:
+					 *   pc->fex[X] += force[X]; (same for Y, Z), for every copy */
+					if (ic >= 1 && ic <= ncell[X] && jc >= 1 && jc <= ncell[Y]
+					    && kc >= 1 && kc <= ncell[Z]) {
+						pc->fex[X] += force[X];
+						pc->fex[Y] += force[Y];
+						pc->fex[Z] += force[Z];
+					}
+					/*CHANGE END - 20260926 */
 				}
 			}
 		}
@@ -1732,6 +1785,14 @@ int subgrid_update_forces_electrokinetics_ewald(colloids_info_t* cinfo,
 									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
 								}
 								/*CHANGE END - 20260630 */
+								/*CHANGE INIT - 20260922 Gaussian kernel */
+								else if (kernel == SUBGRID_KERNEL_GAUSS) {
+									dr = d_gauss(r[X]) * d_gauss(r[Y]) * d_gauss(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN8) {
+									dr = d_peskin8(r[X]) * d_peskin8(r[Y]) * d_peskin8(r[Z]);
+								}
+								/*CHANGE END - 20260922 */
 
 								/* Force on particle from electric field at this site index*/
 								force_aux[X] = force[X] * dr;
@@ -2446,6 +2507,14 @@ int subgrid_update_Esub(colloids_info_t* cinfo,
 									dr = d_hann(r[X]) * d_hann(r[Y]) * d_hann(r[Z]);
 								}
 								/*CHANGE END - 20260630 */
+								/*CHANGE INIT - 20260922 Gaussian kernel */
+								else if (kernel == SUBGRID_KERNEL_GAUSS) {
+									dr = d_gauss(r[X]) * d_gauss(r[Y]) * d_gauss(r[Z]);
+								}
+								else if (kernel == SUBGRID_KERNEL_PESKIN8) {
+									dr = d_peskin8(r[X]) * d_peskin8(r[Y]) * d_peskin8(r[Z]);
+								}
+								/*CHANGE END - 20260922 */
 
 
 								psi_electric_field(psi, index, e);
@@ -3055,6 +3124,10 @@ int subgrid_get_range(subgrid_kernel_t kernel)
 	/*CHANGE INIT - 20260710 trilinear (interpolating) kernel */
 	else if (kernel == SUBGRID_KERNEL_TRILINEAR) return 1;
 	/*CHANGE END - 20260710 */
+	/*CHANGE INIT - 20260922 Gaussian kernel range = ceil(n/2) */
+	else if (kernel == SUBGRID_KERNEL_GAUSS)    return (int) ceil(0.5 * subgrid_gauss_support_);
+	else if (kernel == SUBGRID_KERNEL_PESKIN8)  return 4;   /* CHANGE 20260923 */
+	/*CHANGE END - 20260922 */
 	else                                        return drange_;
 
 }
@@ -3685,6 +3758,35 @@ int subgrid_wall_lubrication(colloids_info_t* cinfo, wall_t* wall) {
 
 /*****************************************************************************
  *
+ *  d_peskin8
+ *
+ *  Peskin's 4-point function stretched to a support of 8 lattice units:
+ *
+ *      w(r) = (1/s) * phi(r/s),   s = 2
+ *
+ *  with phi the standard 4-point kernel of d_peskin (support |r| <= 2).
+ *  The 1/s keeps the continuum integral at 1; more importantly, stretching
+ *  by an INTEGER factor also preserves the two discrete properties Hockney
+ *  & Eastwood ask of an assignment function (Sec. 5-3): partition of unity
+ *  sum_i w(i-c) = 1 and a vanishing first moment sum_i (i-c) w(i-c) = 0,
+ *  for any sub-grid offset c. Reason: phi's construction puts zeros of its
+ *  transform at every non-zero multiple of pi, so the zeros the Poisson
+ *  summation needs at 2*pi*m/s are still zeros when s is an integer.
+ *  Verified numerically: both sums hold to ~1e-16 for s = 2 and s = 3, and
+ *  the first moment breaks (~2e-2) for s = 1.5.
+ *  Effective width (variance) 1.44771, the same as Hann-8 (1.44605) to
+ *  0.1%, so the two are directly comparable.
+ *
+ *****************************************************************************/
+
+double d_peskin8(double r) {
+
+	const double s = 2.0;
+	return d_peskin(r / s) / s;
+}
+
+/*****************************************************************************
+ *
  *  d_peskin
  *
  *  Approximation to \delta(r) according to Peskin.
@@ -3989,6 +4091,70 @@ double d_hann(double r) {
 	return (1.0 / n) * (1.0 + cos(2.0 * pi * r / n));
 }
 /*CHANGE END - 20260630 Hann spread/gather kernel */
+
+/*CHANGE INIT - 20260922 truncated Gaussian spread/gather kernel */
+/*****************************************************************************
+ *
+ *  subgrid_set_gauss
+ *
+ *  Set the truncated Gaussian kernel: support = full support width n
+ *  (lattice units, weights vanish for |r| >= n/2) and sigma = Gaussian
+ *  width. sigma <= 0 selects the default sigma = n/6 (cut at 3 sigma).
+ *  n need not be an integer; n > 1 guarantees at least one node inside
+ *  the support for any sub-grid offset.
+ *
+ *****************************************************************************/
+void subgrid_set_gauss(double support, double sigma) {
+	assert(support > 1.0);
+	subgrid_gauss_support_ = support;
+	subgrid_gauss_sigma_ = (sigma > 0.0) ? sigma : support / 6.0;
+}
+
+void subgrid_get_gauss(double* support, double* sigma) {
+	if (support) *support = subgrid_gauss_support_;
+	if (sigma) *sigma = subgrid_gauss_sigma_;
+}
+
+/*****************************************************************************
+ *
+ *  d_gauss
+ *
+ *  Truncated Gaussian used as a regularised delta for spread/gather:
+ *
+ *      g(r) = exp(-r^2/2s^2) - exp(-R^2/2s^2),   |r| < R = n/2
+ *           = 0                                  otherwise
+ *
+ *      w(r) = g(r) / sum_m g(r + m),   m integer
+ *
+ *  The constant shift makes g continuous at the cut, so nodes enter and
+ *  leave the support smoothly (no jump in the force when a particle moves).
+ *  The denominator is the sum of g over every node seen by the same
+ *  particle: r + m runs over all node offsets, so it is identical for all
+ *  nodes of one particle and w is an exact partition of unity per axis
+ *  (and, being separable, in 3D). Unlike Peskin/B-splines the first moment
+ *  is not exactly zero; the residual is ~exp(-2 pi^2 s^2) (negligible for
+ *  s >~ 1) plus the effect of the truncation.
+ *
+ *****************************************************************************/
+double d_gauss(double r) {
+	double rc = 0.5 * subgrid_gauss_support_;
+	if (fabs(r) >= rc) return 0.0;
+
+	double a = 0.5 / (subgrid_gauss_sigma_ * subgrid_gauss_sigma_);
+	double gcut = exp(-a * rc * rc);
+	/* r itself may lie anywhere in (-R, R), so the other nodes are up to
+	 * 2R away from it. */
+	int mmax = (int) ceil(2.0 * rc) + 1;
+	double sum = 0.0;
+
+	for (int m = -mmax; m <= mmax; m++) {
+		double x = r + m;
+		if (fabs(x) < rc) sum += exp(-a * x * x) - gcut;
+	}
+
+	return (exp(-a * r * r) - gcut) / sum;
+}
+/*CHANGE END - 20260922 truncated Gaussian spread/gather kernel */
 
 /*****************************************************************************
  *
@@ -5078,6 +5244,10 @@ static double pm_sr_kernel_weight_1d(double dr, subgrid_kernel_t kernel) {
   /*CHANGE INIT - 20260630 Hann kernel */
   case SUBGRID_KERNEL_HANN:     return d_hann(dr);
   /*CHANGE END - 20260630 */
+  /*CHANGE INIT - 20260922 Gaussian kernel */
+  case SUBGRID_KERNEL_GAUSS:    return d_gauss(dr);
+  case SUBGRID_KERNEL_PESKIN8:  return d_peskin8(dr);  /* CHANGE 20260923 */
+  /*CHANGE END - 20260922 */
   case SUBGRID_KERNEL_KB4:      return d_kb4(dr);
   case SUBGRID_KERNEL_PESKIN4:
   default:                      return d_peskin(dr);
@@ -5582,6 +5752,41 @@ int pm_sr_correct_phi(colloids_info_t* cinfo, psi_t* psi,
  *  neighbour appears to leave the table's linear regime. Needs a genuinely
  *  separate colloid-colloid correction term instead of reusing this table.
  *****************************************************************************/
+/*CHANGE INIT - 20260926 constant-potential walls (psi_petsc.c).
+ * The particle-node correction reaches r_cut (~6) from the particle, past
+ * the kernel support. With walls it must not use: (1) wall sites, and (2)
+ * fluid sites reached THROUGH the periodic boundary when that boundary is a
+ * wall -- their halo copy is the fluid on the other side of the electrode.
+ * (i,j,k) are local coordinates (halo allowed). Returns 1 to skip. */
+static int pm_sr_node_behind_wall(const psi_t* psi, int i, int j, int k) {
+
+  int status = MAP_FLUID;
+  int lc[3] = { i, j, k };
+  int ntotal[3] = { 0 };
+  int noffset[3] = { 0 };
+
+  map_status(psi->wall_map, cs_index(psi->cs, i, j, k), &status);
+  if (status == MAP_BOUNDARY) return 1;
+
+  cs_ntotal(psi->cs, ntotal);
+  cs_nlocal_offset(psi->cs, noffset);
+
+  for (int a = 0; a < 3; a++) {
+    int g = noffset[a] + lc[a];
+    if (g >= 1 && g <= ntotal[a]) continue;
+    {
+      /* Crossed the periodic boundary along a: look at the boundary layer
+       * this rank owns (global 1 if we went below, ntotal if above). */
+      int b[3] = { i, j, k };
+      b[a] = (g < 1) ? 1 - noffset[a] : ntotal[a] - noffset[a];
+      map_status(psi->wall_map, cs_index(psi->cs, b[0], b[1], b[2]), &status);
+      if (status == MAP_BOUNDARY) return 1;
+    }
+  }
+  return 0;
+}
+/*CHANGE END - 20260926 */
+
 int pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
                                   psi_t* psi, hydro_t* hydro,
                                   const pm_sr_table_t* table,
@@ -5661,6 +5866,10 @@ int pm_sr_apply_force_correction(colloids_info_t* cinfo, map_t* map,
                   dEcx = dE * rx; dEcy = dE * ry; dEcz = dE * rz;
                 }
                 if (!hit) continue;
+
+                /*CHANGE INIT - 20260926 walls: see pm_sr_node_behind_wall */
+                if (psi->wall_map && pm_sr_node_behind_wall(psi, i, j, k)) continue;
+                /*CHANGE END - 20260926 */
 
                 int idx = cs_index(cinfo->cs, i, j, k);
 
@@ -6068,12 +6277,34 @@ static int pm_sr_mesh_pair_esub_x(psi_t* psi, psi_solver_t* solver,
  *  variant. Delete the file if those change.
  *
  *****************************************************************************/
+/*CHANGE INIT - 20260922 kernel shape parameter in the cache key.
+ * The "hann" slot of the header holds the kernel's shape parameter: the
+ * Hann order, or the support width for the Gaussian (whose sigma goes into
+ * the file name). Other kernels keep writing the Hann order, so existing
+ * cache files remain valid.
+ * Original:
+ *   snprintf(buf, n, "pm_sr_meshref_k%d_n%g_L%dx%dx%d_rc%g_nr%d.dat",
+ *            (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
+ *            r_cut, nr); */
+static double pm_sr_meshref_kparam(subgrid_kernel_t kernel) {
+  return (kernel == SUBGRID_KERNEL_GAUSS) ? subgrid_gauss_support_
+                                          : subgrid_hann_order_;
+}
+
 static void pm_sr_meshref_filename(char* buf, size_t n, subgrid_kernel_t kernel,
                                     const int ntotal[3], int nr, double r_cut) {
-  snprintf(buf, n, "pm_sr_meshref_k%d_n%g_L%dx%dx%d_rc%g_nr%d.dat",
-           (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
-           r_cut, nr);
+  if (kernel == SUBGRID_KERNEL_GAUSS) {
+    snprintf(buf, n, "pm_sr_meshref_k%d_n%g_s%g_L%dx%dx%d_rc%g_nr%d.dat",
+             (int) kernel, subgrid_gauss_support_, subgrid_gauss_sigma_,
+             ntotal[X], ntotal[Y], ntotal[Z], r_cut, nr);
+  }
+  else {
+    snprintf(buf, n, "pm_sr_meshref_k%d_n%g_L%dx%dx%d_rc%g_nr%d.dat",
+             (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
+             r_cut, nr);
+  }
 }
+/*CHANGE END - 20260922 */
 
 static int pm_sr_meshref_load(const char* fname, subgrid_kernel_t kernel,
                                const int ntotal[3], int nr, double r_cut,
@@ -6086,7 +6317,8 @@ static int pm_sr_meshref_load(const char* fname, subgrid_kernel_t kernel,
   int nread = fscanf(fp, "# pm_sr_meshref v1 kernel=%d hann=%lf nx=%d ny=%d nz=%d"
                          " nr=%d r_cut=%lf epsilon=%lf psolver=%d",
                      &k_f, &hann_f, &nx_f, &ny_f, &nz_f, &nr_f, &rc_f, &eps_f, &ps_f);
-  if (nread != 9 || k_f != (int) kernel || hann_f != subgrid_hann_order_ ||
+  /*CHANGE 20260922: was hann_f != subgrid_hann_order_ */
+  if (nread != 9 || k_f != (int) kernel || hann_f != pm_sr_meshref_kparam(kernel) ||
       nx_f != ntotal[X] || ny_f != ntotal[Y] || nz_f != ntotal[Z] ||
       nr_f != nr || rc_f != r_cut || ps_f != psolver) {
     fclose(fp);
@@ -6108,7 +6340,8 @@ static void pm_sr_meshref_save(const char* fname, subgrid_kernel_t kernel,
   if (!fp) return;
   fprintf(fp, "# pm_sr_meshref v1 kernel=%d hann=%.10g nx=%d ny=%d nz=%d"
               " nr=%d r_cut=%.10g epsilon=%.10g psolver=%d\n",
-          (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
+          /*CHANGE 20260922: was subgrid_hann_order_ */
+          (int) kernel, pm_sr_meshref_kparam(kernel), ntotal[X], ntotal[Y], ntotal[Z],
           nr, r_cut, epsilon, psolver);
   for (int i = 0; i < nr; i++) fprintf(fp, "%.15e\n", f[i]);
   fclose(fp);

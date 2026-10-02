@@ -1,0 +1,128 @@
+##############################################################################
+#
+#  Solido poroso neutro (L = 48) - relajacion a equilibrio mecanico
+#
+#  Red de puntos subgrid (sin carga) generada con util/porous_solid_cube:
+#    lado 48, periodica en x,y,z, enlaces armonicos en [3,4] LU (media 3.5)
+#  Sin carga: solo hidrodinamica + potenciales de enlace/repulsion.
+#  Los coloides estan libres (ninguno fijo).
+#
+##############################################################################
+
+N_start 0
+N_cycles 3000
+
+##############################################################################
+#
+#  System and MPI
+#
+##############################################################################
+
+size 48_48_48
+grid 1_1_1
+
+##############################################################################
+#
+#  Fluid parameters
+#
+##############################################################################
+
+fluid_rho0 0.8
+viscosity 0.05
+viscosity_bulk 0.05
+
+lb_relaxation_scheme M10
+lb_fluctuations 0
+temperature 0.00001
+
+##############################################################################
+#
+#  Free energy
+#
+#  El bucle principal de Ludwig requiere el objeto psi (electrokinetics),
+#  por lo que se usa fe_electro con carga TOTAL CERO: ni los coloides (q0=0)
+#  ni el fluido (rho_el=0) tienen carga, asi que todas las fuerzas
+#  electrostaticas son nulas y la dinamica es puramente hidrodinamica +
+#  enlaces + repulsion. (Mismo esquema que MGEL-REF-neutro.)
+#
+##############################################################################
+
+free_energy fe_electro
+
+electric_e0 0.0_0.0_0.0
+
+electrokinetics_init uniform
+electrokinetics_epsilon 1.0e4
+electrokinetics_init_rho_el 0.000E+00
+electrokinetics_rel_tol     1.0e-18
+electrokinetics_abs_tol     1.0e-18
+electrokinetics_multisteps 1
+electrokinetics_solver_stencil 27
+electrokinetics_solver_type fft
+
+fe_force_method phi_gradmu_correction
+pm_sr_correction  no
+
+# Kernel Hann de orden 4 (menor soporte, mas barato que el 8): la posicion de
+# equilibrio no depende del kernel, solo la dinamica intermedia.
+subgrid_kernel    hann
+subgrid_hann_order 4
+interlacing_mode  0
+
+###############################################################################
+#
+#  Colloid parameters
+#
+###############################################################################
+
+colloid_init     from_file
+
+# Enlaces armonicos: r0 = centro del rango de generacion [3,4] LU.
+# La geometria de equilibrio NO depende de k (solo de r0): k solo fija la
+# velocidad de relajacion. k = 2e-3 es cercano al limite de estabilidad del
+# acoplamiento explicito particula-fluido (con Hann-4: k = 4e-3 y 1e-2 divergen
+# en los primeros pasos, "Colloid velocity exceeded max"). Para produccion se
+# puede volver a poner el k deseado sobre la configuracion ya relajada.
+bond_harmonic_on 1
+bond_harmonic_k  2.0e-3
+bond_harmonic_r0 3.5
+
+# Repulsion de esfera blanda (evita solapamiento de puntos no enlazados)
+soft_sphere_on      1
+soft_sphere_epsilon 1.0e-5
+soft_sphere_sigma   1.0
+soft_sphere_nu      12
+soft_sphere_cutoff  1.8
+
+###############################################################################
+#
+#  Periodic conditions / boundaries
+#
+###############################################################################
+
+periodicity 1_1_1
+
+###############################################################################
+#
+#  Output frequency and type
+#
+###############################################################################
+
+default_io_mode   mpiio
+default_io_format ascii
+
+freq_statistics     20
+vel_io_freq         1000000
+freq_config         1000
+config_at_end       yes
+
+colloid_io_freq 100
+colloid_io_format_output ASCII
+
+###############################################################################
+#
+#  Miscellaneous
+#
+###############################################################################
+
+random_seed 8361235

@@ -1,0 +1,7 @@
+Intento de correr la prueba A con 2 procesos MPI (grid 1_1_2, dominio partido
+en z). No se pudo: el build de GPU exige una GPU por proceso MPI y esta maquina
+tiene una sola ("Expecting at least one GPU per MPI task", ver run.log).
+La prueba multi-proceso queda PENDIENTE (p. ej. en MareNostrum 5).
+Para repetirla: mpirun -np 2 ./Ludwig.exe con esta misma entrada y comparar
+psi-000000001.001-001 contra ../A-sin-iones/ (debe ser identico a precision de
+maquina).

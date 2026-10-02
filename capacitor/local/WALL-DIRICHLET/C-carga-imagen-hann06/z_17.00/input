@@ -1,0 +1,202 @@
+##############################################################################
+#
+#  Microgel polymer test
+#  Monomers are subgrid particles.      
+#
+##############################################################################
+
+N_start 0
+N_cycles 1
+
+##############################################################################
+#
+#  System and MPI
+# 
+##############################################################################
+
+size 32_32_34
+grid 1_1_1
+# N_halo  yes
+
+##############################################################################
+#
+#  Fluid parameters
+#
+##############################################################################
+
+# hydrodynamics off
+
+fluid_rho0 0.8
+viscosity 0.05
+viscosity_bulk 0.05
+
+lb_relaxation_scheme M10
+# lb_relaxation_scheme BGK
+lb_fluctuations 0
+# temperature      0.0002
+temperature 0.00001
+# temperature      0.5
+# force 0.0_0.0_-0.00000001
+
+##############################################################################
+#
+#  Free energy parameters
+#
+###############################################################################
+free_energy fe_electro
+
+# External field
+electric_e0 0.0_0.0_0.0
+
+electrokinetics_init uniform
+# # electrokinetics_z0      +1
+# # electrokinetics_z1      -1
+# electrokinetics_d0      0.005
+# electrokinetics_d1      0.005
+# # electrokinetics_eunit   0.5
+# # electrokinetics_epsilon     1.0e4c
+# electrokinetics_epsilon 1.0e4
+electrokinetics_epsilon 1.0e4
+# electrokinetics_init_rho_el 2.0e-3
+electrokinetics_init_rho_el 0.0
+electrokinetics_rel_tol     1.0e-18
+electrokinetics_abs_tol     1.0e-18
+# # electrokinetics_maxits   10000
+# #electrokinetics_diffacc  0
+electrokinetics_multisteps 1
+electrokinetics_solver_stencil 27
+
+electrokinetics_solver_type petsc
+# # electrokinetics_solver_type #petsc sor fft
+# electrokinetics_fft_laplacian discrete #discrete analytic    
+
+fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence ewald ewald_gaussian ewald_gaussian_dual
+
+# subgrid_kernel hann # hann peskin4 peskin6
+# subgrid_hann_order 12
+# pm_sr_correction yes
+# # pm_sr_rcut 8
+
+pm_sr_correction no
+pm_sr_sigma 1.084536
+pm_sr_pair_ref measured
+pm_sr_rcut        6.0      # default del codigo: 2 + krange
+# pm_sr_nvoxel      8        # resolución sub-voxel al construir la tabla
+# pm_sr_nr3d        32       # resolución de la tabla 3D
+subgrid_kernel    hann     # kernel de spread/gather
+subgrid_hann_order 6
+
+
+interlacing_mode    0         # 0 = modo normal, 1 = red desplazada
+# interlacing_offset  0.844     # valor fijo, o la palabra: random
+# interlacing_offset  random  
+# interlacing_seed    12345      # solo para random
+
+#Ewald parameters
+# ewald_rc 6.0
+# ewald_alpha 1.0
+# ewald_gaussian_sigma 1.0
+# ewald_gaussian_sigma_f 0.0 # ewald_gaussian_sigma_fluid
+# ewald_gaussian_sigma_p 0.5 # ewald_gaussian_sigma_particle
+
+
+###############################################################################
+#
+#  Colloid parameter8
+#
+###############################################################################
+
+colloid_init     from_file
+# colloid_rebuild_freq 1
+# colloid_gravity           0.0_0.0_-0.000005  # vector
+
+# lennard_jones_on          1                 # integer 0/1 off/on
+# lj_epsilon                1.0e-09         # energy units
+# lj_sigma                  0.1               # potential length scale
+# lj_cutoff                 0.8               # a centre-centre separation
+# lj_unbonded               1
+
+# bond_harmonic_on 1
+# bond_harmonic_k  5.0e-3
+# bond_harmonic_r0 4.0
+
+# angle_harmonic_on 1
+# angle_harmonic_k 1.0e-04
+# angle_harmonic_theta0 2.0944  #1.5708
+
+# ++_on 1
+# angle_dihedral_k 4.810896e-05_4.810896e-05_4.810896e-05
+# angle_dihedral_phi0 3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142
+# angle_dihedral_mu 2_2_2_2_2_2_2_2_2_2_2_2_2_2_2_2
+
+######################################
+# colloid_init              input_one
+# colloid_one_bc            subgrid #bbl #subgrid
+
+# colloid_one_a0            0.05
+# colloid_one_ah            0.05
+# colloid_one_al            0.5
+# colloid_one_r             11.0_11.0_11.0
+# colloid_one_q0            1.0
+
+###############################################################################
+#
+#  Periodic conditions / boundaries
+#
+###############################################################################
+
+periodicity 1_1_1
+
+###############################################################################
+#
+#  Walls / boundaries
+#
+###############################################################################
+# porous_media_file     yes
+# porous_media_io_grid  1_1_1
+# porous_media_data     status_with_sigma
+
+# boundary_walls 	      1_1_1
+# boundary_walls_slip_active yes
+# boundary_walls_slip_fraction_bot 0.0_0.99_0.0
+# boundary_walls_slip_fraction_top 0.0_0.99_0.0
+
+###############################################################################
+#
+#  Output frequency and type
+#
+###############################################################################
+
+default_io_mode   mpiio
+default_io_format ascii
+
+freq_statistics 1
+vel_io_freq 1000
+# psi_io_freq         5
+freq_config 1
+config_at_end     yes
+
+##############################################################################
+#
+#  colloid i/o
+#
+##############################################################################
+
+colloid_io_freq 1
+colloid_io_format_output ASCII
+
+###############################################################################
+#
+#  Miscellaneous
+#
+###############################################################################
+
+random_seed 8361235
+pforce_io_freq 1
+
+freq_psi_resid 1
+
+# --- paredes a potencial constante (Asta et al. 2019), a tierra ---
+porous_media_init wall_z
+electrokinetics_wall_axis z
+electrokinetics_wall_potential 0.0_0.0

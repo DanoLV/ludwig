@@ -102,6 +102,9 @@ static int sf_kernel_from_name(const char *name, subgrid_kernel_t *kernel) {
     /*CHANGE INIT - 20260706 Hann kernel in PM self-force utility */
     else if (strcmp(name, "hann")     == 0) *kernel = SUBGRID_KERNEL_HANN;
     /*CHANGE END - 20260706 Hann kernel in PM self-force utility */
+    /*CHANGE INIT - 20260922 Gaussian kernel in PM self-force utility */
+    else if (strcmp(name, "gauss")    == 0) *kernel = SUBGRID_KERNEL_GAUSS;
+    /*CHANGE END - 20260922 */
     else return -1;
     return 0;
 }
@@ -133,8 +136,9 @@ int main(int argc, char **argv) {
     const char *kernel_name = "peskin4";
     if (argc > 1) {
         if (sf_kernel_from_name(argv[1], &kernel) != 0) {
+            /*CHANGE 20260922: gauss added to the list */
             fprintf(stderr, "Unknown kernel '%s' "
-                    "(use peskin4|peskin6|bspline4|bspline6|kb4|hann)\n",
+                    "(use peskin4|peskin6|bspline4|bspline6|kb4|hann|gauss)\n",
                     argv[1]);
             return 1;
         }
@@ -153,6 +157,21 @@ int main(int argc, char **argv) {
         }
         subgrid_set_hann_order((double) hann_order);
     }
+    /*CHANGE INIT - 20260922 Gaussian kernel: argv[2] = support width n
+     * (default 6), argv[3] = sigma (default n/6). */
+    double gauss_support = 6.0;
+    double gauss_sigma = -1.0;
+    if (kernel == SUBGRID_KERNEL_GAUSS) {
+        if (argc > 2) gauss_support = atof(argv[2]);
+        if (argc > 3) gauss_sigma = atof(argv[3]);
+        if (gauss_support <= 1.0 || (argc > 3 && gauss_sigma <= 0.0)) {
+            fprintf(stderr, "gauss needs support > 1 and sigma > 0\n");
+            return 1;
+        }
+        subgrid_set_gauss(gauss_support, gauss_sigma);
+        subgrid_get_gauss(&gauss_support, &gauss_sigma);
+    }
+    /*CHANGE END - 20260922 */
     /* Halo width from the kernel support radius (order-dependent for hann) */
     /* int nhalo = (kernel == SUBGRID_KERNEL_PESKIN6 ||
                     kernel == SUBGRID_KERNEL_BSPLINE6) ? 3 : 2; */
@@ -235,6 +254,12 @@ int main(int argc, char **argv) {
         printf("# PM self-force: %s (order %d) spread/gather + FFT Poisson\n",
                kernel_name, hann_order);
     }
+    /*CHANGE INIT - 20260922 Gaussian kernel */
+    else if (kernel == SUBGRID_KERNEL_GAUSS) {
+        printf("# PM self-force: %s (support %g, sigma %g) spread/gather + FFT Poisson\n",
+               kernel_name, gauss_support, gauss_sigma);
+    }
+    /*CHANGE END - 20260922 */
     else
     /*CHANGE END - 20260706 Hann kernel in PM self-force utility */
     printf("# PM self-force: %s spread/gather + FFT Poisson\n", kernel_name);

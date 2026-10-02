@@ -74,6 +74,11 @@ struct psi_s {
   /* Options */
   psi_options_t options;            /* Overall options (currently a copy) */
 
+  /*CHANGE INIT - 20260926 constant-potential walls. Set by
+   * psi_solver_petsc_wall_set(); NULL (calloc) = no walls. Lets
+   * psi_electric_field() apply the same wall rule as the Poisson solver. */
+  map_t* wall_map;                  /* MAP_BOUNDARY sites are walls */
+  /*CHANGE END - 20260926 */
 };
 
 

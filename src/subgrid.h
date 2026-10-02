@@ -60,6 +60,12 @@ double d_peskin6(double r);
 double d_hann(double r);
 void subgrid_set_hann_order(double n);
 /*CHANGE END - 20260630 */
+/*CHANGE INIT - 20260922 truncated Gaussian spread/gather kernel */
+double d_gauss(double r);
+double d_peskin8(double r);
+void subgrid_set_gauss(double support, double sigma);
+void subgrid_get_gauss(double* support, double* sigma);
+/*CHANGE END - 20260922 */
 
 typedef enum {
   SUBGRID_KERNEL_PESKIN4 = 0,
@@ -74,8 +80,14 @@ typedef enum {
    * Trilinear is a delta at integer offsets, so fluid scatter/gather with an
    * integer mesh shift reduces to an exact node relabelling (required for the
    * integer-shift identity test of the interlacing machinery). */
-  SUBGRID_KERNEL_TRILINEAR = 6
+  SUBGRID_KERNEL_TRILINEAR = 6,
   /*CHANGE END - 20260710 */
+  /*CHANGE INIT - 20260922 truncated Gaussian kernel id */
+  SUBGRID_KERNEL_GAUSS = 7,
+  /*CHANGE END - 20260922 */
+  /*CHANGE INIT - 20260923 Peskin 4-point function stretched to support 8 */
+  SUBGRID_KERNEL_PESKIN8 = 8
+  /*CHANGE END - 20260923 */
 } subgrid_kernel_t;
 
 int subgrid_charge_from_grid(colloids_info_t* cinfo, psi_t* obj, distributed_charge_klein_t** charge,
