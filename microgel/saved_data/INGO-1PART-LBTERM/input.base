@@ -1,0 +1,116 @@
+##############################################################################
+#
+#  INGO-1PART-LBTERM  (2026-11-12)
+#
+#  One subgrid charge q=+1 with Ingo Tischler's parameters (ESPResSo test
+#  "charged polymer with implicit counterions", Table 1), thermal LB on,
+#  continuum counterions (z=-1, no salt) advected by the fluid.
+#  Purpose: see how far the LB thermal fluctuations move the particle per
+#  step (compare with drmax = 0.8 LU in colloids.c) and how the NP field
+#  behaves with central advection at cell Peclet ~ 15.
+#
+#  Unit mapping (user's choice): 1 LU length = a = 1 [x] = 2.5 A,
+#                                1 LU time   = 0.01 [t]  (= Ingo's dt),
+#                                1 LU mass   = rho a^3 with rho = 1.
+#  Then: kT = 1 [E] -> kT_lu = 1 * 0.01^2 = 1.0e-4
+#        nu = 1 [x]^2/[t] -> eta_lu = rho*nu*0.01 = 0.01
+#        D_ion = 6.515e-2 [x]^2/[t] -> 6.515e-4 LU
+#        lB = 2.84 LU
+#  Initial position: random in the central cell [13.5,14.5)^3, see
+#  posicion_inicial.txt (seed and values).
+#
+##############################################################################
+
+N_start  0
+N_cycles 1000
+
+##############################################################################
+#
+#  System
+#
+##############################################################################
+
+size 27_27_27            # L = floor((1/c)^(1/3)) = floor(27.7) with c = 4.7e-5 (Ingo eq. 5, N=1)
+grid 1_1_1
+periodicity 1_1_1
+
+##############################################################################
+#
+#  Fluid (thermal LB = Ingo's thermostat)
+#
+##############################################################################
+
+fluid_rho0      1.0      # rho = 1 (Ingo)
+viscosity       0.01     # eta = rho*nu*dt/a^2 = 1*1*0.01 (LB relaxation time 3*eta/rho+0.5 = 0.53)
+viscosity_bulk  0.01     # same as shear (as in previous runs)
+
+lb_relaxation_scheme M10
+lb_fluctuations on       # thermal noise in the LB (also turns on the subgrid random kick)
+temperature     1.0e-4   # kT_lu = kT * (0.01 [t])^2 / (rho a^5)
+
+##############################################################################
+#
+#  Electrokinetics
+#
+##############################################################################
+
+free_energy fe_electro
+electric_e0 0.0_0.0_0.0
+
+electrokinetics_init        uniform
+electrokinetics_init_rho_el 0.0      # no salt: only counterions, added by electroneutrality
+                                     # (total charge -1 spread over the fluid -> c ~ 1/27^3 = 5.1e-5)
+electrokinetics_epsilon     280.2024 # lB = e^2/(4 pi eps kT) = 2.84  ->  eps = 1/(4 pi 1e-4 2.84)
+
+# Ion diffusivity: physical D = 6.515e-4 LU. Ludwig's NP flux sums over all stencil
+# links without 1/A0, so the input is D/A0 with A0(D3Q27) = 6.137828:
+#   electrokinetics_d = 6.515e-4 / 6.137828 = 1.0614504e-4   (D_physical = d * A0 = 6.515e-4)
+electrokinetics_d0          1.0614504e-4
+electrokinetics_d1          1.0614504e-4
+
+electrokinetics_rel_tol     1.0e-18
+electrokinetics_abs_tol     1.0e-18
+electrokinetics_multisteps  1
+electrokinetics_solver_stencil 27     # D3Q27 (sets A0 above)
+electrokinetics_solver_type fft       # periodic box
+
+fe_force_method phi_gradmu_correction
+
+##############################################################################
+#
+#  Subgrid charge
+#
+##############################################################################
+
+subgrid_kernel     hann
+subgrid_hann_order 8      # user's choice (Ingo used CIC / Hann-3 / Hann-5)
+pm_sr_correction   no     # single particle: no pair short-range correction needed
+interlacing_mode   0
+
+# Particle in config.cds.init.001-001: q0 = +1, bc = subgrid, free (isfixedr = 0),
+# al = 0.4950778 (user's template), ah = 0.3078881 chosen so that
+#   drag = (1/(6 pi eta)) (1/ah - 1/al) = D_bare/kT = 6.515e-4/1e-4 = 6.515  (= 1/gamma, Ingo's bare friction)
+colloid_init from_file
+
+##############################################################################
+#
+#  Output
+#
+##############################################################################
+
+default_io_mode   mpiio
+default_io_format ascii
+
+freq_statistics   100
+colloid_io_freq   1       # position every step (needed for displacement per step)
+colloid_io_format_output ASCII
+freq_config       1000
+config_at_end     yes
+
+##############################################################################
+#
+#  Miscellaneous
+#
+##############################################################################
+
+random_seed 1794497       # LB noise seed

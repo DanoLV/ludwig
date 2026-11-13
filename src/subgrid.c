@@ -246,6 +246,12 @@ int subgrid_force_from_particles(colloids_info_t* cinfo, hydro_t* hydro,
 	subgrid_wall_lubrication(cinfo, wall);
 	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
 
+	/*CHANGE INIT - 20261111 hydrodynamics no: without fluid there is nothing
+	 * to spread the particle force onto. The total external force on each
+	 * particle (lubrication + halo sum above) is kept. */
+	if (hydro == NULL) return 0;
+	/*CHANGE END - 20261111 */
+
 	/* While there is no device implementation, must copy back-and forth
 	 * the force. */
 
@@ -1434,8 +1440,13 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 	/* While there is no device implementation, must copy back-and forth
 	 * the force. */
-	assert(hydro);
-	hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+	/*CHANGE INIT - 20261111 hydrodynamics no: hydro may be NULL; only the
+	 * fluid-side copies and the spreading of the force to the fluid are
+	 * skipped (the force on the particle is computed as before). */
+	// assert(hydro);
+	// hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+	if (hydro) hydro_memcpy(hydro, tdpMemcpyDeviceToHost);
+	/*CHANGE END - 20261111 */
 
 	// // INIT VERSION - Ewald											
 	// /* Calculate electric forces on particles and accumulate total force */
@@ -1621,6 +1632,35 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 	}
 	/*CHANGE END - 20260422 kernel parameter for subgrid_update_forces_electrokinetics */
 
+	/*CHANGE INIT - 20261028 halo copies must not re-add the earlier fex.
+	 * subgrid_force_from_particles() already ran this same (symmetric) halo
+	 * sum on fex = bonds + pairs + angles + lubrication, which leaves the
+	 * owner AND each periodic copy holding the total T. The owner then gets
+	 * the electrostatic force E above, and the sum below added the copy's T
+	 * again: owner = T + E + T. Every particle in an outermost colloid cell
+	 * moved with 2x its bond/pair force (momentum not conserved). Found
+	 * 2026-10-28 with a chain across the periodic boundary
+	 * (capacitor/local/WALL-DIRICHLET/F-campo-tangencial/T4): monomers in
+	 * x-edge cells had exactly twice the bond force; the field, Esub and
+	 * the fluid were identical. Zeroing the copies makes the sum add only
+	 * what this function put there (nothing, since 20260926), and it still
+	 * hands every copy the owner's total for subgrid_update(). */
+	for (ic = 0; ic <= ncell[X] + 1; ic++) {
+		for (jc = 0; jc <= ncell[Y] + 1; jc++) {
+			for (kc = 0; kc <= ncell[Z] + 1; kc++) {
+				if (ic >= 1 && ic <= ncell[X] && jc >= 1 && jc <= ncell[Y]
+				    && kc >= 1 && kc <= ncell[Z]) continue;
+				colloids_info_cell_list_head(cinfo, ic, jc, kc, &pc);
+				for (; pc; pc = pc->next) {
+					if (pc->s.bc != COLLOID_BC_SUBGRID) continue;
+					pc->fex[X] = 0.0; pc->fex[Y] = 0.0; pc->fex[Z] = 0.0;
+					pc->tex[X] = 0.0; pc->tex[Y] = 0.0; pc->tex[Z] = 0.0;
+				}
+			}
+		}
+	}
+	/*CHANGE END - 20261028 */
+
 	colloid_sums_halo(cinfo, COLLOID_SUM_FORCE_EXT_ONLY);
 
 	/* Now apply all accumulated external electric forces to hydro by index */
@@ -1634,7 +1674,10 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 			new_force[Y] = klein_sum(entry->force[Y]);
 			new_force[Z] = klein_sum(entry->force[Z]);
 
-			hydro_f_local_add(hydro, entry->cs_index, new_force);
+			/*CHANGE INIT - 20261111 hydrodynamics no */
+			// hydro_f_local_add(hydro, entry->cs_index, new_force);
+			if (hydro) hydro_f_local_add(hydro, entry->cs_index, new_force);
+			/*CHANGE END - 20261111 */
 
 		}
 
@@ -1643,7 +1686,10 @@ int subgrid_update_forces_electrokinetics(colloids_info_t* cinfo,
 
 	}
 
-	hydro_memcpy(hydro, tdpMemcpyHostToDevice);
+	/*CHANGE INIT - 20261111 hydrodynamics no */
+	// hydro_memcpy(hydro, tdpMemcpyHostToDevice);
+	if (hydro) hydro_memcpy(hydro, tdpMemcpyHostToDevice);
+	/*CHANGE END - 20261111 */
 
 	return 0;
 
@@ -3117,7 +3163,12 @@ int subgrid_get_range(subgrid_kernel_t kernel)
 	else if (kernel == SUBGRID_KERNEL_BSPLINE4) return 1;
 	else if (kernel == SUBGRID_KERNEL_PESKIN4)  return 1;
 	else if (kernel == SUBGRID_KERNEL_KB4)      return 1;
-	else if (kernel == SUBGRID_KERNEL_PESKIN6)  return 2;
+	/*CHANGE INIT - 20261104 stretched Peskin6: support |r| < 3s, range 3s - 1
+	 * (same convention as the original s = 1 value 2, see the floor/ceil in
+	 * subgrid_get_lattice_index_range). Original:
+	 * else if (kernel == SUBGRID_KERNEL_PESKIN6)  return 2; */
+	else if (kernel == SUBGRID_KERNEL_PESKIN6)  return 3 * subgrid_get_peskin6_stretch() - 1;
+	/*CHANGE END - 20261104 */
 	/*CHANGE INIT - 20260630 Hann kernel range = ceil(n/2) */
 	else if (kernel == SUBGRID_KERNEL_HANN)     return (int) ceil(0.5 * subgrid_hann_order_);
 	/*CHANGE END - 20260630 */
@@ -3974,7 +4025,12 @@ static double peskin6_phi_segment(int segment, double r) {
  * at floor+m (m in {-2..3}) gets phi_segment(3 - m, off). This gives
  * Sum = 1 and the correct first moment (centre of mass = off) for ALL
  * offsets, including integers, and is symmetric d6(s)=d6(-s). */
-double d_peskin6(double s) {
+/*CHANGE INIT - 20261104 Peskin6 stretched by an integer factor.
+ * The unstretched kernel is now d_peskin6_unit(); d_peskin6() below maps
+ * w(r) = phi6(r/s)/s, s = subgrid_peskin6_stretch_ (default 1: unchanged).
+ * Original: double d_peskin6(double s) { ... } (body unchanged below). */
+static double d_peskin6_unit(double s) {
+/*CHANGE END - 20261104 */
 	if (fabs(s) >= 3.0) return 0.0;
 
 	double off = s - floor(s);          /* fractional offset in [0,1) */
@@ -3985,6 +4041,44 @@ double d_peskin6(double s) {
 	return peskin6_phi_segment(segment, off);
 }
 /*CHANGE END - 20260630 Fix d_peskin6 node-segment mapping */
+
+/*CHANGE INIT - 20261104 Peskin6 stretched by an integer factor */
+/*****************************************************************************
+ *
+ *  d_peskin6
+ *
+ *  Bao et al. (2016) 6-point kernel stretched to a support of 6s lattice
+ *  units (|r| < 3s), as d_peskin8 does with the 4-point one:
+ *
+ *      w(r) = (1/s) * phi6(r/s),   s = positive integer (subgrid_peskin6_stretch)
+ *
+ *  For INTEGER s every discrete moment condition of phi6 carries over: split
+ *  the nodes i into the s residue classes i = s m + j; within each class the
+ *  nodes sit on the unit grid of phi6 at offset (j - c)/s, so
+ *      sum_i w(i - c) = (1/s) sum_j sum_m phi6(m + (j - c)/s) = (1/s) s = 1,
+ *  and likewise sum_i (i - c) w(i - c) = 0 for any sub-grid offset c.
+ *  (Non-integer s breaks this.) The continuous shape is phi6 scaled by s:
+ *  physical width fixed under refinement dx -> dx/2 by doubling s.
+ *  Width (2nd moment) of phi6: sigma^2 = K = 59/60 - sqrt(29)/20 (the second
+ *  moment condition of Bao et al.), so sigma = s sqrt(K) = 0.84503 s.
+ *
+ *****************************************************************************/
+static int subgrid_peskin6_stretch_ = 1;
+
+void subgrid_set_peskin6_stretch(int s) {
+	assert(s >= 1);
+	subgrid_peskin6_stretch_ = s;
+}
+
+int subgrid_get_peskin6_stretch(void) {
+	return subgrid_peskin6_stretch_;
+}
+
+double d_peskin6(double r) {
+	const double s = (double) subgrid_peskin6_stretch_;
+	return d_peskin6_unit(r / s) / s;
+}
+/*CHANGE END - 20261104 */
 /*CHANGE END - 20260424 Peskin 6-point kernel */
 
 /*CHANGE INIT - 20260424 Kaiser-Bessel order-4 kernel */
@@ -4083,13 +4177,52 @@ void subgrid_set_hann_order(double n) {
  *  the particle<->mesh coupling (see ek_particle_coupling note).
  *
  *****************************************************************************/
+/*CHANGE INIT - 20261104 Hann window with an even exponent p.
+ *
+ *      w(r) = cos^p(pi r/n) / (n C_p),   |r| < n/2,   C_p = (p-1)!!/p!!
+ *
+ * (C_p n = int cos^p(pi r/n) dr over the support, Wallis integral). p = 2 is
+ * the original Hann window: cos^2(pi r/n) = [1 + cos(2 pi r/n)]/2, C_2 = 1/2.
+ * For even p, cos^p(pi r/n) is a sum of the harmonics cos(2 pi m r/n),
+ * m = 0..p/2, so its transform vanishes at all non-zero lattice frequencies
+ * when n is an integer >= p/2 + 1: exact partition of unity for any offset,
+ * as for p = 2. w and its first p - 1 derivatives vanish at |r| = n/2:
+ * C^(p-1) (p = 2: C^1, p = 4: C^3). The first moment is not exactly zero for
+ * any p (it is zero by symmetry for offsets 0 and 1/2), but its error falls
+ * fast with p (n = 8: 5.0e-3 nodes for p = 2, 3.4e-4 for p = 4).
+ * Width: sigma^2 = n^2 (1/12 - 1/(2 pi^2)) for p = 2, n^2 (1/12 - 5/(8 pi^2))
+ * for p = 4. Odd p is not allowed (half-period harmonics: no exact sum). */
+static int subgrid_hann_power_ = 2;
+static double subgrid_hann_cp_ = 0.5;
+
+void subgrid_set_hann_power(int p) {
+	assert(p >= 2 && p % 2 == 0);
+	subgrid_hann_power_ = p;
+	subgrid_hann_cp_ = 1.0;
+	for (int k = 2; k <= p; k += 2) subgrid_hann_cp_ *= (double) (k - 1) / k;
+}
+
+int subgrid_get_hann_power(void) {
+	return subgrid_hann_power_;
+}
+
+/* Original:
+ * double d_hann(double r) {
+ *	double n = subgrid_hann_order_;
+ *	double t = fabs(r);
+ *	if (t >= 0.5 * n) return 0.0;
+ *	PI_DOUBLE(pi);
+ *	return (1.0 / n) * (1.0 + cos(2.0 * pi * r / n));
+ * } */
 double d_hann(double r) {
 	double n = subgrid_hann_order_;
 	double t = fabs(r);
 	if (t >= 0.5 * n) return 0.0;
 	PI_DOUBLE(pi);
-	return (1.0 / n) * (1.0 + cos(2.0 * pi * r / n));
+	if (subgrid_hann_power_ == 2) return (1.0 / n) * (1.0 + cos(2.0 * pi * r / n));
+	return pow(cos(pi * r / n), subgrid_hann_power_) / (n * subgrid_hann_cp_);
 }
+/*CHANGE END - 20261104 */
 /*CHANGE END - 20260630 Hann spread/gather kernel */
 
 /*CHANGE INIT - 20260922 truncated Gaussian spread/gather kernel */
@@ -5254,6 +5387,43 @@ static double pm_sr_kernel_weight_1d(double dr, subgrid_kernel_t kernel) {
   }
 }
 
+/*CHANGE INIT - 20261014 default pm_sr_sigma from the kernel's 2nd moment */
+/*****************************************************************************
+ *
+ *  pm_sr_kernel_sigma
+ *
+ *  Per-axis width of the active spread/gather kernel, from the second moment
+ *  of its continuous 1D weight:
+ *
+ *      sigma^2 = int x^2 w(x) dx / int w(x) dx
+ *
+ *  This is the variance-matched Gaussian width used as the pm_sr reference
+ *  (for Hann-n it reproduces n*sqrt(1/12 - 1/(2 pi^2)): 1.0846 for n = 6,
+ *  1.4461 for n = 8). Dividing by int w makes it valid for kernels that are
+ *  only normalised per particle (KB4). Uses the kernel's current order /
+ *  support, so call it after the kernel has been configured from input.
+ *
+ *****************************************************************************/
+double pm_sr_kernel_sigma(subgrid_kernel_t kernel) {
+
+  const int nquad = 200000;              /* midpoint rule over the support */
+  double xmax = (double) subgrid_get_range(kernel) + 1.0;
+  double h = 2.0 * xmax / nquad;
+  double m0 = 0.0;
+  double m2 = 0.0;
+
+  for (int i = 0; i < nquad; i++) {
+    double x = -xmax + (i + 0.5) * h;
+    double w = pm_sr_kernel_weight_1d(x, kernel);
+    m0 += w;
+    m2 += x * x * w;
+  }
+
+  assert(m0 > 0.0);
+  return sqrt(m2 / m0);
+}
+/*CHANGE END - 20261014 */
+
 /* -------------------------------------------------------------------------
  * Internal: analytic Gaussian phi and E (unit charge, epsilon given)
  * ------------------------------------------------------------------------- */
@@ -6287,6 +6457,17 @@ static int pm_sr_mesh_pair_esub_x(psi_t* psi, psi_solver_t* solver,
  *            (int) kernel, subgrid_hann_order_, ntotal[X], ntotal[Y], ntotal[Z],
  *            r_cut, nr); */
 static double pm_sr_meshref_kparam(subgrid_kernel_t kernel) {
+  /*CHANGE INIT - 20261104 Peskin6 stretch in the cache key (s = 1 keeps the
+   * old key). Original:
+   * return (kernel == SUBGRID_KERNEL_GAUSS) ? subgrid_gauss_support_
+   *                                         : subgrid_hann_order_; */
+  if (kernel == SUBGRID_KERNEL_PESKIN6 && subgrid_peskin6_stretch_ != 1)
+    return 6.0 * subgrid_peskin6_stretch_;
+  /*CHANGE END - 20261104 */
+  /*CHANGE INIT - 20261104 Hann exponent in the cache key (p = 2 keeps the old key) */
+  if (kernel == SUBGRID_KERNEL_HANN && subgrid_hann_power_ != 2)
+    return 1000.0 * subgrid_hann_power_ + subgrid_hann_order_;
+  /*CHANGE END - 20261104 */
   return (kernel == SUBGRID_KERNEL_GAUSS) ? subgrid_gauss_support_
                                           : subgrid_hann_order_;
 }

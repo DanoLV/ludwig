@@ -1,0 +1,69 @@
+{
+ "_info": {
+  "input_base_de": "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-dist_6-posx_0.2-libre/PM-FFT-dimero",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-dist_6-posx_0.2-libre-bond_4.0-k_5.0E-03/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-dist_6-posx_0.2-libre-bond_4.0-k_5.0E-03-n_2000-s_1-L_32-q_1.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_5.0E-04-stencil_27": {
+  "input_set": {
+   "bond_harmonic_on": "1",
+   "bond_harmonic_k": "5.0e-3",
+   "bond_harmonic_r0": "4.0"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-dist_6-posx_0.2-libre/PM-FFT-dimero": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-dist_6-posx_0.2/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-dist_6-posx_0.2-n_2000-s_1-L_32-q_1.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_5.0E-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n",
+   "74": "                       1\n"
+  }
+ },
+ "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-posx_0.2/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-posx_0.2-n_2000-s_1-L_32-q_1.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "2.4E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n",
+   "36": "   1.420000000000000e+01    1.600000000000000e+01    1.600000000000000e+01\n",
+   "74": "                       1\n",
+   "104": "   1.820000000000000e+01    1.600000000000000e+01    1.600000000000000e+01\n"
+  }
+ },
+ "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-posx_0.2/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-posx_0.2-n_2000-s_1-L_32-q_1.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_5.0E-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n",
+   "36": "   1.420000000000000e+01    1.600000000000000e+01    1.600000000000000e+01\n",
+   "74": "                       1\n",
+   "104": "   1.820000000000000e+01    1.600000000000000e+01    1.600000000000000e+01\n"
+  }
+ },
+ "old/dimero/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0/PM-FFT-dimero-SR_C_no-hann4-halo-interlacing_0-n_2000-s_1-L_32-q_1.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "2.4E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n",
+   "36": "   1.400000000000000e+01    1.600000000000000e+01    1.600000000000000e+01\n",
+   "74": "                       1\n",
+   "104": "   1.800000000000000e+01    1.600000000000000e+01    1.600000000000000e+01\n"
+  }
+ }
+}

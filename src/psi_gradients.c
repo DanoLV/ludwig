@@ -83,6 +83,18 @@ int psi_electric_field(psi_t * psi, int index, double e[3]) {
         double fac = 1.0;
         map_status(psi->wall_map, index1, &status1);
         if (status1 == MAP_BOUNDARY) fac = 2.0;
+        /*CHANGE INIT - 20261028 tangential e0 with walls. The doubled link
+         * reads the wall at the link MIDPOINT (half a spacing away), but the
+         * wall node stores its value at r + c. With the ramp
+         * psi_wall = psi_w - e0.r (psi_petsc.c) they differ by e0.c/2 on a
+         * diagonal link; without it the tangential field in the first fluid
+         * layer came out 7/6 too large (T0, F-campo-tangencial). Zero when
+         * e0 = 0, and the normal component is unchanged (the +-c tangential
+         * links cancel). */
+        if (status1 == MAP_BOUNDARY) {
+          psi1 += 0.5*(psi->e0[X]*cx + psi->e0[Y]*cy + psi->e0[Z]*cz);
+        }
+        /*CHANGE END - 20261028 */
         e[X] -= s->wgradients[p]*cx*(psi1 - psi00)*fac;
         e[Y] -= s->wgradients[p]*cy*(psi1 - psi00)*fac;
         e[Z] -= s->wgradients[p]*cz*(psi1 - psi00)*fac;

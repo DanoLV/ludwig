@@ -1,0 +1,181 @@
+{
+ "_info": {
+  "input_base_de": "SS-SCAN-repulsion/nu12_eps1.0e-3",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "SS-SCAN-repulsion/A_eps1.0e-1": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000",
+   "soft_sphere_epsilon": "1.0e-1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/A_eps1.0e0": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000",
+   "soft_sphere_epsilon": "1.0e0"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/A_eps2.0e-1": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000",
+   "soft_sphere_epsilon": "2.0e-1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/A_eps5.0e-2": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000",
+   "soft_sphere_epsilon": "5.0e-2"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/B_r1.2": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.199999999999999e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SS-SCAN-repulsion/B_r1.35": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.350000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SS-SCAN-repulsion/B_r1.45": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.449999999999999e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SS-SCAN-repulsion/B_r1.6": {
+  "input_set": {
+   "N_cycles": "300",
+   "freq_config": "300",
+   "colloid_io_freq": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.600000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SS-SCAN-repulsion/nu12_eps1.0e-2": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-2"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu12_eps1.0e-3": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu12_eps1.0e-4": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu12_eps1.0e-5": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-5"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu12_eps1.0e-6": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu6_eps1.0e-2": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-2",
+   "soft_sphere_nu": "6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu6_eps1.0e-3": {
+  "input_set": {
+   "soft_sphere_nu": "6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu6_eps1.0e-4": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-4",
+   "soft_sphere_nu": "6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu6_eps1.0e-5": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-5",
+   "soft_sphere_nu": "6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SS-SCAN-repulsion/nu6_eps1.0e-6": {
+  "input_set": {
+   "soft_sphere_epsilon": "1.0e-6",
+   "soft_sphere_nu": "6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

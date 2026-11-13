@@ -1,0 +1,38 @@
+{
+ "_info": {
+  "input_base_de": "RING-anillo/corr_no",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "RING-anillo/corr_no": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "RING-anillo/corr_yes": {
+  "input_set": {
+   "pm_sr_correction": "yes"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "RING-anillo/efield_no": {
+  "input_set": {
+   "electric_e0": "0.05_0.0_0.0"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "RING-anillo/efield_yes": {
+  "input_set": {
+   "electric_e0": "0.05_0.0_0.0",
+   "pm_sr_correction": "yes"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

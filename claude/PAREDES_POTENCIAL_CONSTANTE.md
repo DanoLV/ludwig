@@ -399,7 +399,7 @@ Combinaciones rechazadas con un mensaje de error (no se ignoran en silencio):
 |---|---|
 | solver distinto de `petsc` | solo está implementado en PETSc |
 | permitividad variable (`fe_electro_symmetric` con ε₁ ≠ ε₂) | no implementado en ese camino |
-| `electric_e0` ≠ 0 | el término de campo externo del RHS supone periodicidad |
+| `electric_e0` con componente normal a las paredes | es un voltaje entre placas: usar `electrokinetics_wall_potential` (el `e0` tangencial sí está soportado desde 2026-10-28) |
 | mapa sin nodos `MAP_BOUNDARY` | no hay paredes |
 | `electrokinetics_electroneutral no` sin paredes | la carga neta no tiene sentido en un sistema periódico |
 
@@ -647,7 +647,7 @@ Campo en el nodo junto a la pared:
 Una partícula subgrid con q = +1, sin sal y sin corrección `pm_sr` (PM puro),
 en una caja 32 × 32 × 34 con las dos paredes a potencial 0, a distancias d de
 la pared inferior entre 0.5 y 16 (un paso por posición). Teoría (detalle en el
-`README.md` de la carpeta): carga inducida por Shockley–Ramo, y campo de
+`README.md` de la carpeta): carga inducida por reciprocidad de Green (Jackson, Problema 1.13, p. 52), y campo de
 imagen como serie de Fourier en x,y con Dirichlet en z, incluyendo las
 imágenes laterales de la caja periódica. El fondo de contraiones que agrega
 `psi_electroneutral` cancela exactamente el término k = 0. Script:
@@ -656,7 +656,7 @@ imágenes laterales de la caja periódica. El fondo de contraiones que agrega
 | | Hann-8 | Hann-6 |
 |---|---|---|
 | distancia mínima sin tocar la pared, d ≥ n/2 − ½ | 3.5 | 2.5 |
-| carga inducida vs Shockley–Ramo | 1.2 × 10⁻¹⁴ | 1.5 × 10⁻¹⁴ |
+| carga inducida vs reciprocidad (Jackson 1.13) | 1.2 × 10⁻¹⁴ | 1.5 × 10⁻¹⁴ |
 | carga perdida en la pared | 3 × 10⁻¹⁴ | 3 × 10⁻¹⁴ |
 | campo de imagen: error en la distancia mínima | 1.5% | 1.0% |
 | campo de imagen: error mediano | 0.03% | 0.12% |
@@ -723,10 +723,11 @@ obsoleta (`guarda-pmsr-obsoleta/NOTA.txt`).
   `hydrodynamics off`. `porous_media_init wall_z` marca el mapa como medio
   poroso, y `wall_rt_init` arma el bounce-back para ese caso, pero la
   combinación no se probó.
-- **Nernst-Planck cerca de la pared** (pendiente anotado). Los flujos iónicos
-  saltean los vecinos que no son fluido (`nernst_planck.c`), así que NP nunca
-  lee ψ de la pared, y el perfil de Boltzmann en equilibrio salió exacto. Lo
-  que falta verificar es la **dinámica** de carga cerca de la pared.
+- **Nernst-Planck cerca de la pared.** Verificado el 2026-10-02 con la prueba E
+  (`capacitor/local/WALL-DIRICHLET/E-paper-asta-carga-A0/`): τ = 4132.7 pasos
+  contra 4145.2 del PNP linealizado (0.3%). Requiere dividir
+  `electrokinetics_d0/d1` por A₀ (3.828 con 19 puntos, 6.138 con 27): Ludwig no
+  lo hace (ver README de esa carpeta).
 
 **Limitación previa observada (sistemas periódicos, sin arreglar):** el rango
 de nodos de la corrección partícula–nodo se recorta al dominio local y solo
@@ -738,9 +739,6 @@ sí a sólidos que llenan la caja, como el del capacitor, cuando tengan carga.
 **No implementado:**
 
 - permitividad variable (`wall_set` devuelve −1);
-- campo externo `electric_e0` con paredes (en Ludwig ese campo entra como un
-  salto de potencial en el RHS, incompatible con electrodos metálicos; para
-  electroósmosis tangencial habría que aplicarlo como fuerza de volumen);
 - electrodos con potencial distinto a lo largo de la pared (hoy: mitad
   inferior / mitad superior de la caja);
 - paredes que cambian durante la corrida (la matriz se arma una vez);
@@ -771,3 +769,28 @@ estos sistemas:
   capa de partículas a distancia mínima fija de cada pared, ancladas solo en
   la dirección normal (preparación de la fase 2: espacio libre de sólido junto
   al electrodo, sin renormalizar el kernel).
+
+---
+
+## 8. Campo externo tangencial `e0` con paredes (2026-10-28)
+
+Un conductor ideal no admite campo tangencial, así que la pared **sigue la
+rampa** del campo aplicado: ψ_pared(r) = ψ_w − e0·(r − r_centro). Por
+linealidad equivale a resolver con paredes constantes y sumar e0 uniforme (el
+canal electroosmótico estándar). `e0` entra como el salto habitual de Ludwig
+(ψ(x+L) = ψ(x) − e0 L, `psi_halo_psijump`); la componente de `e0` normal a las
+paredes se rechaza.
+
+Cambios (`CHANGE 20261028`):
+
+- `psi_petsc.c`: `petsc_wall_value` incluye la rampa con la coordenada sin
+  envolver (un nodo de pared del halo recibe la rampa continuada = valor
+  periódico + salto); nuevo `petsc_e0_jump`; en `rhs_set` el salto se suma
+  link por link solo para vecinos de fluido (el bloque por caras queda para el
+  caso sin paredes); el diagnóstico de carga de pared corrige el salto.
+- `psi_gradients.c` (`psi_electric_field`): el link duplicado a pared lee la
+  pared en el PUNTO MEDIO, ψ_nodo + e0·c/2. Sin esto Ex en la primera capa de
+  fluido salía ×7/6.
+
+Validación en `capacitor/local/WALL-DIRICHLET/F-campo-tangencial/` (README):
+T0 (sin carga) da E = e0 x̂ − ΔV/L_z ẑ exacto (1e-14) en todo el fluido.

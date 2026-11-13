@@ -45,6 +45,7 @@ double d_bspline6(double r);
 double d_kb4(double r);
 double d_peskin6(double r);
 /*CHANGE END - 20260422 B-spline deconvolution kernels */
+int subgrid_get_peskin6_stretch(void);   /* CHANGE 20261104 */
 
 /* Only compile if using CUDA */
 #ifdef __NVCC__
@@ -1154,7 +1155,11 @@ int psi_solver_fft_set_influence_ewald(psi_solver_fft_t* solver,
           }
         }
         else if (deconv == PSI_FFT_DECONV_PESKIN6) {
-          for (int m = -3; m <= 3; m++) {
+          /*CHANGE INIT - 20261104 stretched Peskin6: support |m| < 3s.
+           * Original: for (int m = -3; m <= 3; m++) { */
+          const int m6 = 3 * subgrid_get_peskin6_stretch();
+          for (int m = -m6; m <= m6; m++) {
+          /*CHANGE END - 20261104 */
             double w = d_peskin6((double)m);
             px += w * cos(kx * m);
             py += w * cos(ky * m);

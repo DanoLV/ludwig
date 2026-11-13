@@ -1,0 +1,960 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_28.00",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T0-campo/dV": {
+  "input_set": {
+   "vel_io_freq": "1",
+   "freq_config": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T0-campo/tierra": {
+  "input_set": {
+   "electrokinetics_wall_potential": "0.0_0.0",
+   "vel_io_freq": "1",
+   "freq_config": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_28.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.800000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_28.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.850000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_29.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.900000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_29.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.950000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_30.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.000000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_30.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.050000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_31.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.100000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_31.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.150000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_32.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.200000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_32.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   5.000000000000000e-01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_33.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.000000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_33.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.500000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_34.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.000000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_34.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.500000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_35.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.000000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_35.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.500000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_36.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   4.000000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_36.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   4.500000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/borde_37.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   5.000000000000000e+00    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_28.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.200000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_28.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.250000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_29.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.300000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_29.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.350000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_30.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.400000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_30.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.450000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_31.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.500000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_31.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.550000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_32.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.600000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_32.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.650000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_33.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.700000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_33.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.750000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_34.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.800000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_34.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.850000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_35.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.900000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_35.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.950000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_36.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.000000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_36.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.050000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-x/ref_37.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.100000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_28.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.800000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_28.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.850000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_29.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.900000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_29.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.950000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_30.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.000000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_30.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.050000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_31.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.100000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_31.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.150000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_32.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.200000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_32.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    5.000000000000000e-01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_33.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.000000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_33.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.500000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_34.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.000000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_34.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.500000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_35.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.000000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_35.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    3.500000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_36.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    4.000000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_36.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    4.500000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/borde_37.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    5.000000000000000e+00    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_28.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.200000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_28.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.250000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_29.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.300000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_29.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.350000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_30.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.400000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_30.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.450000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_31.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.500000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_31.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.550000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_32.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.600000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_32.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.650000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_33.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.700000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_33.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.750000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_34.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.800000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_34.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.850000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_35.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.900000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_35.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    1.950000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_36.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.000000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_36.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.050000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T1-fija-y/ref_37.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.630000000000000e+01    2.100000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T2-libre/LD6_borde": {
+  "input_set": {
+   "N_cycles": "6000",
+   "electrokinetics_init_rho_el": "1.38888889e-03",
+   "vel_io_freq": "6000",
+   "freq_config": "6000",
+   "colloid_io_freq": "50",
+   "pforce_io_freq": "50"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       0\n",
+   "36": "   2.700000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T2-libre/LD6_ref": {
+  "input_set": {
+   "N_cycles": "6000",
+   "electrokinetics_init_rho_el": "1.38888889e-03",
+   "vel_io_freq": "6000",
+   "freq_config": "6000",
+   "colloid_io_freq": "50",
+   "pforce_io_freq": "50"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       0\n",
+   "36": "   1.100000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T2-libre/sin-electrolito_borde": {
+  "input_set": {
+   "N_cycles": "6000",
+   "vel_io_freq": "6000",
+   "freq_config": "6000",
+   "colloid_io_freq": "50",
+   "pforce_io_freq": "50"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       0\n",
+   "36": "   2.700000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T2-libre/sin-electrolito_ref": {
+  "input_set": {
+   "N_cycles": "6000",
+   "vel_io_freq": "6000",
+   "freq_config": "6000",
+   "colloid_io_freq": "50",
+   "pforce_io_freq": "50"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       0\n",
+   "36": "   1.100000000000000e+01    1.630000000000000e+01    9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T4-polimero/borde": {
+  "input_set": {
+   "N_cycles": "6000",
+   "size": "64_32_34",
+   "bond_harmonic_on": "1",
+   "bond_harmonic_k": "1.0e-6",
+   "bond_harmonic_r0": "3.0",
+   "vel_io_freq": "6000",
+   "freq_config": "6000",
+   "colloid_io_freq": "50",
+   "pforce_io_freq": "50"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {
+   "36": "   5.080000000000000e+01    1.730000000000000e+01    1.240000000000000e+01\n",
+   "104": "   5.348244530960000e+01    1.684030230590000e+01    1.366220647720000e+01\n",
+   "172": "   5.632407408180000e+01    1.588385316350000e+01    1.376394614020000e+01\n",
+   "240": "   5.903386815670000e+01    1.531000750340000e+01    1.261168001210000e+01\n",
+   "308": "   6.169333682240000e+01    1.564635637910000e+01    1.126479625700000e+01\n",
+   "376": "   5.269807829000001e-01    1.658366218550000e+01    1.096161358800000e+01\n",
+   "444": "   3.266221442300000e+00    1.726017028670000e+01    1.198087675270000e+01\n",
+   "512": "   5.909050135700000e+00    1.705390225430000e+01    1.338547989810000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/T4-polimero/ref": {
+  "input_set": {
+   "N_cycles": "6000",
+   "size": "64_32_34",
+   "bond_harmonic_on": "1",
+   "bond_harmonic_k": "1.0e-6",
+   "bond_harmonic_r0": "3.0",
+   "vel_io_freq": "6000",
+   "freq_config": "6000",
+   "colloid_io_freq": "50",
+   "pforce_io_freq": "50"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/T4_borde": {
+  "input_set": {
+   "N_cycles": "20",
+   "size": "64_32_34",
+   "bond_harmonic_on": "1",
+   "bond_harmonic_k": "1.0e-6",
+   "bond_harmonic_r0": "3.0",
+   "vel_io_freq": "6000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {
+   "36": "   5.080000000000000e+01    1.730000000000000e+01    1.240000000000000e+01\n",
+   "104": "   5.348244530960000e+01    1.684030230590000e+01    1.366220647720000e+01\n",
+   "172": "   5.632407408180000e+01    1.588385316350000e+01    1.376394614020000e+01\n",
+   "240": "   5.903386815670000e+01    1.531000750340000e+01    1.261168001210000e+01\n",
+   "308": "   6.169333682240000e+01    1.564635637910000e+01    1.126479625700000e+01\n",
+   "376": "   5.269807829000001e-01    1.658366218550000e+01    1.096161358800000e+01\n",
+   "444": "   3.266221442300000e+00    1.726017028670000e+01    1.198087675270000e+01\n",
+   "512": "   5.909050135700000e+00    1.705390225430000e+01    1.338547989810000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/T4_ref": {
+  "input_set": {
+   "N_cycles": "20",
+   "size": "64_32_34",
+   "bond_harmonic_on": "1",
+   "bond_harmonic_k": "1.0e-6",
+   "bond_harmonic_r0": "3.0",
+   "vel_io_freq": "6000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_b_0.5": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   5.000000000000000e-01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_b_0.500000001": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   5.000000010000000e-01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_b_0.5001": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   5.001000000000000e-01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_b_0.75": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   7.500000000000000e-01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_b_32.4999": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.249990000000000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_b_32.499999999": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.249999999900000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_r_0.5": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.650000000000000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_r_0.500000001": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.650000000100000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_r_0.5001": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.650010000000000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_r_0.75": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.675000000000000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_r_32.4999": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.649990000000000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/F-campo-tangencial/debug/x05_r_32.499999999": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.649999999900000e+01 1.630000000000000e+01 9.369999999999999e+00\n",
+   "47": "   1.000000000000000e+00\n"
+  }
+ }
+}

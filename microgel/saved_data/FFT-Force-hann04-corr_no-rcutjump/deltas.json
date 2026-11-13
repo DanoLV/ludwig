@@ -1,0 +1,45 @@
+{
+ "_info": {
+  "input_base_de": "FFT-Force-hann04-corr_no-rcutjump/FFT-Force-hann04-corr_no-rcutjump-r3.7",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "FFT-Force-hann04-corr_no-rcutjump/FFT-Force-hann04-corr_no-rcutjump-r3.7": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.170000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no-rcutjump/FFT-Force-hann04-corr_no-rcutjump-r3.9": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.190000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no-rcutjump/FFT-Force-hann04-corr_no-rcutjump-r4.0": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.200000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no-rcutjump/FFT-Force-hann04-corr_no-rcutjump-r4.1": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no-rcutjump/FFT-Force-hann04-corr_no-rcutjump-r4.3": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

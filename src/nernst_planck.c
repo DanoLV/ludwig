@@ -68,6 +68,22 @@
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>  /* CHANGE 20261112: strcmp (advection scheme) */
+#include <stdint.h>  /* CHANGE 20261112: int8_t */
+
+/*CHANGE INIT - 20261112 Lattice (FLLA) advection: state shared by
+ * nernst_planck_lattice_flux_compute() (called in ludwig.c after bounce-back,
+ * just before propagation) and the GPU NP driver (next time step). */
+static int     np_adv_scheme_   = 0;     /* 0 = centred (default), 1 = flla,
+                                            2 = flla_mass */
+static double* np_rhostar_d_    = NULL;  /* rho_LB* (pre-propagation), interior */
+static int     np_mflux_valid_  = 0;     /* 1 once a lattice flux is stored */
+static int     np_lb_nvel_      = 0;     /* LB model velocities (e.g. 19) */
+static double* np_mflux_d_      = NULL;  /* m[index][alpha] on device */
+static int8_t* np_lbcv_d_       = NULL;  /* LB cv[alpha][3] on device */
+static int*    np_lbopp_d_      = NULL;  /* opposite direction of alpha */
+static int*    np_lb2np_d_      = NULL;  /* NP stencil index p of LB alpha */
+/*CHANGE END - 20261112 */
 
 #include "pe.h"
 #include "coords.h"
@@ -369,6 +385,12 @@ int nernst_planck_driver_d3qx(psi_t* psi, fe_t* fe, hydro_t* hydro,
   int ia;
 
   double** flx = NULL;
+
+  /*CHANGE INIT - 20261112 FLLA advection is implemented in the GPU driver only */
+  if (hydro && np_adv_scheme_ >= 1) {
+    pe_fatal(psi->pe, "electrokinetics_advection flla/flla_mass: GPU NP driver only\n");
+  }
+  /*CHANGE END - 20261112 */
 
   psi_nk(psi, &nk);
 
@@ -1098,6 +1120,17 @@ int np_advective_fluxes(psi_t* psi, hydro_t* hydro, double** flx) {
 
           u = 0.5 * ((u0[X] + u1[X]) * cx + (u0[Y] + u1[Y]) * cy + (u0[Z] + u1[Z]) * cz);
 
+          /*CHANGE INIT - 20261112 Advective link-flux normalisation.
+           * The unweighted sum over all stencil links gives
+           * sum_p flux_p = (M/2) div(rho u), M = sum_p c_x^2 (D3Q7: 1, D3Q19: 5,
+           * D3Q27: 9), so ions were advected M/2 times faster than the fluid on
+           * D3Q19/D3Q27. Weight each link with W_p = 2 wgradients[p], so that
+           * (1/2) sum_p W_p c_i c_j = delta_ij (same convention as the 20251203
+           * Laplacian fix). D3Q7 is unchanged (W_p = 1). */
+          /* Original: (no weight) */
+          u *= 2.0 * s->wgradients[p];
+          /*CHANGE END - 20261112 */
+
           for (int n = 0; n < psi->nk; n++) {
             double rho0 = rho[addr_rank1(psi->nsites, psi->nk, index0, n)];
             double rho1 = rho[addr_rank1(psi->nsites, psi->nk, index1, n)];
@@ -1219,6 +1252,9 @@ __global__ static void np_advective_fluxes_kernel(
     double*  rho_d,      /* psi->rho->target->data  */
     double*  u_d,        /* hydro->u->target->data  */
     int8_t*  cv_d,       /* stencil cv[npoints][3], row-major flat */
+    /*CHANGE INIT - 20261112 Advective link-flux normalisation (see np_advective_fluxes) */
+    double*  wadv_d,     /* W_p = 2 wgradients[p] */
+    /*CHANGE END - 20261112 */
     double*  flx_gpu)
 {
   int kc = blockIdx.x * blockDim.x + threadIdx.x + 1;
@@ -1247,6 +1283,10 @@ __global__ static void np_advective_fluxes_kernel(
     u1[Z] = u_d[addr_rank1(nsites, 3, index1, Z)];
 
     double u = 0.5*((u0[X]+u1[X])*cx + (u0[Y]+u1[Y])*cy + (u0[Z]+u1[Z])*cz);
+    /*CHANGE INIT - 20261112 Advective link-flux normalisation (see np_advective_fluxes) */
+    /* Original: (no weight) */
+    u *= wadv_d[p];
+    /*CHANGE END - 20261112 */
 
     for (int n = 0; n < nk; n++) {
       double rho0 = rho_d[addr_rank1(nsites, nk, index0, n)];
@@ -1418,6 +1458,298 @@ __global__ static void np_update_rho_kernel(
   }
 }
 
+/*CHANGE INIT - 20261112 Lattice (FLLA) advection of the ions.
+ *
+ * Reference: B. DeVincentis, J. Thomas, "Application of flux limiters to
+ * passive scalar advection for the lattice Boltzmann method", Comput. Math.
+ * Appl. 144, 1-11 (2023), doi:10.1016/j.camwa.2023.05.031.
+ *
+ * The scalar q (here the ion number density rho_k of each species, i.e. their
+ * q = rho_LB * q_hat, eqs. 9-10) is updated as (their eqs. 11-12, LU, dt=dx=1)
+ *
+ *   q_i(t+1) = q_i(t) + sum_alpha m_ij * qbar_ij,      j = i + c_alpha,
+ *
+ * with the fluid flux from j into i taken from the LB distribution (eq. 21):
+ *
+ *   m_ij = f_abar(x_j)/rho_LB(x_j) - f_alpha(x_i)/rho_LB(x_i),
+ *
+ * where f are the post-collision distributions (computed just before
+ * propagation; Dubois & Lallemand 2008, Prop. 2, show that these net link
+ * fluxes are exactly the LB mass fluxes). The interface value qbar_ij is the
+ * linear reconstruction with flux limiter (eqs. 13-19):
+ *
+ *   u_alpha = (u_i + u_j)/2 . c_alpha/|c_alpha|                (eq. 13)
+ *   upwind point "up" chosen by the sign of u_alpha (Fig. 1)
+ *   r = (q_up - q_{up-1}) / (q_{up+1} - q_up)                  (eq. 18)
+ *   qbar = q_up + 0.5 phi(r) (q_{up+1} - q_up) (1 - |u_alpha| dt/|c_alpha|)
+ *                                                              (eq. 19)
+ *   phi = superbee: max(0, min(1, 2r), min(2, r))  (least diffusive TVD
+ *         limiter in their Sec. 4.1; user's choice 2026-11-12)
+ *
+ * Alternative formulation (electrokinetics_advection flla_mass, added
+ * 2026-11-12 at the user's request): transport the ions with the
+ * unnormalised LB mass flux (Dubois & Lallemand 2008, Prop. 2, eq. 17)
+ *   J_ij = f_abar(x_j) - f_alpha(x_i)        (mass from j into i)
+ * and reconstruct the concentration per unit mass c = rho_k/rho_LB* (rho_LB*
+ * = pre-propagation density of the same LB step) with the same limiter:
+ *   rho_k,i(t+1) = rho_k,i + sum_alpha J_ij cbar_ij.
+ * If c is uniform, rho_k,i(t+1) = c (rho*_i + sum J) = c rho_LB,i(t+1)
+ * exactly, for any limiter. The DeVincentis formulation (flla) keeps a
+ * uniform field only up to the LB density differences between nodes.
+ * flla_mass reads rho* with periodic wrapping inside the local domain
+ * (single MPI rank only, as np_antisym_kernel).
+ *
+ * Ludwig convention: flx is the outward flux from site i along NP stencil
+ * link p and rho_k -= sum_p flx*dt, so flx = -m_ij * qbar_ij. The LB links
+ * (e.g. D3Q19) must be a subset of the NP stencil links (e.g. D3Q27).
+ *****************************************************************************/
+
+__device__ static inline double np_superbee(double r) {
+  double a = fmin(1.0, 2.0*r);
+  double b = fmin(2.0, r);
+  return fmax(0.0, fmax(a, b));
+}
+
+/* m[index][alpha] = f_abar(x+c)/rho(x+c) - f_alpha(x)/rho(x), interior sites */
+
+__global__ static void np_lattice_mflux_kernel(cs_t* cs, int* nlocal,
+                                               int nsites, int ndist, int nvel,
+                                               const int8_t* cv, const int* opp,
+                                               const double* f, double* mflux,
+                                               int mode, double* rhostar) {
+  int kc = blockIdx.x * blockDim.x + threadIdx.x + 1;
+  int jc = blockIdx.y * blockDim.y + threadIdx.y + 1;
+  int ic = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+  if (ic > nlocal[X] || jc > nlocal[Y] || kc > nlocal[Z]) return;
+
+  int index0 = cs_index(cs, ic, jc, kc);
+  double rho0 = 0.0;
+  for (int p = 0; p < nvel; p++) rho0 += f[LB_ADDR(nsites, ndist, nvel, index0, 0, p)];
+
+  mflux[addr_rank1(nsites, nvel, index0, 0)] = 0.0;
+  rhostar[index0] = rho0;   /* flla_mass: rho_LB* of this LB step */
+
+  for (int a = 1; a < nvel; a++) {
+    int index1 = cs_index(cs, ic + cv[3*a + X], jc + cv[3*a + Y], kc + cv[3*a + Z]);
+    double fin  = f[LB_ADDR(nsites, ndist, nvel, index1, 0, opp[a])];
+    double fout = f[LB_ADDR(nsites, ndist, nvel, index0, 0, a)];
+    if (mode == 2) {
+      /* flla_mass: unnormalised mass flux from j into i */
+      mflux[addr_rank1(nsites, nvel, index0, a)] = fin - fout;
+    }
+    else {
+      double rho1 = 0.0;
+      for (int p = 0; p < nvel; p++) rho1 += f[LB_ADDR(nsites, ndist, nvel, index1, 0, p)];
+      mflux[addr_rank1(nsites, nvel, index0, a)] = fin/rho1 - fout/rho0;
+    }
+  }
+}
+
+/* Index of (ic,jc,kc) wrapped periodically into the local interior
+ * (flla_mass reads rho* there; single MPI rank only). */
+
+__device__ static inline int np_wrap_index(cs_t* cs, const int* nlocal,
+                                           int ic, int jc, int kc) {
+  ic = ((ic - 1) % nlocal[X] + nlocal[X]) % nlocal[X] + 1;
+  jc = ((jc - 1) % nlocal[Y] + nlocal[Y]) % nlocal[Y] + 1;
+  kc = ((kc - 1) % nlocal[Z] + nlocal[Z]) % nlocal[Z] + 1;
+  return cs_index(cs, ic, jc, kc);
+}
+
+/* Advective NP fluxes from the stored lattice flux (FLLA, superbee).
+ * mode 1 (flla): q = rho_k, flux = -m qbar.
+ * mode 2 (flla_mass): q = c = rho_k/rho*, flux = -J cbar. */
+
+__global__ static void np_advective_fluxes_flla_kernel(
+    cs_t* cs, int* nlocal, int nsites, int nk, int npoints, int nvel,
+    const int8_t* lbcv, const int* lb2np, const double* mflux,
+    const double* rho_d, const double* u_d, const char* status_d,
+    double dt, double* flx_gpu, int mode, const double* rhostar) {
+
+  int kc = blockIdx.x * blockDim.x + threadIdx.x + 1;
+  int jc = blockIdx.y * blockDim.y + threadIdx.y + 1;
+  int ic = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+  if (ic > nlocal[X] || jc > nlocal[Y] || kc > nlocal[Z]) return;
+
+  int nflux = npoints - 1;
+  int index0 = cs_index(cs, ic, jc, kc);
+  if ((int)status_d[index0] != MAP_FLUID) return;
+
+  for (int a = 1; a < nvel; a++) {
+    int cx = lbcv[3*a + X];
+    int cy = lbcv[3*a + Y];
+    int cz = lbcv[3*a + Z];
+    double cmod = sqrt((double)(cx*cx + cy*cy + cz*cz));
+
+    int index1 = cs_index(cs, ic + cx, jc + cy, kc + cz);         /* j        */
+    if ((int)status_d[index1] != MAP_FLUID) continue;
+    int indexm = cs_index(cs, ic - cx, jc - cy, kc - cz);         /* i - c    */
+    int indexp = cs_index(cs, ic + 2*cx, jc + 2*cy, kc + 2*cz);   /* j + c    */
+
+    /* eq. 13: fluid velocity at the midpoint along the link */
+    double ua = 0.0;
+    ua += 0.5*(u_d[addr_rank1(nsites, 3, index0, X)] + u_d[addr_rank1(nsites, 3, index1, X)])*cx;
+    ua += 0.5*(u_d[addr_rank1(nsites, 3, index0, Y)] + u_d[addr_rank1(nsites, 3, index1, Y)])*cy;
+    ua += 0.5*(u_d[addr_rank1(nsites, 3, index0, Z)] + u_d[addr_rank1(nsites, 3, index1, Z)])*cz;
+    ua /= cmod;
+
+    /* Upwind (up), downwind (up+1) and second upwind (up-1) points (Fig. 1) */
+    int iup, idn, ium;
+    if (ua >= 0.0) { iup = index0; idn = index1; ium = indexm; }
+    else           { iup = index1; idn = index0; ium = indexp; }
+    int um_fluid = ((int)status_d[ium] == MAP_FLUID);
+
+    double m = mflux[addr_rank1(nsites, nvel, index0, a)];
+    double courant = fabs(ua)*dt/cmod;
+    int p = lb2np[a];
+
+    /* flla_mass: rho* at up, up+1, up-1 (wrapped into the interior) */
+    double rsup = 1.0, rsdn = 1.0, rsum = 1.0;
+    if (mode == 2) {
+      int w0 = np_wrap_index(cs, nlocal, ic, jc, kc);
+      int w1 = np_wrap_index(cs, nlocal, ic + cx, jc + cy, kc + cz);
+      int wm = np_wrap_index(cs, nlocal, ic - cx, jc - cy, kc - cz);
+      int wp = np_wrap_index(cs, nlocal, ic + 2*cx, jc + 2*cy, kc + 2*cz);
+      if (ua >= 0.0) { rsup = rhostar[w0]; rsdn = rhostar[w1]; rsum = rhostar[wm]; }
+      else           { rsup = rhostar[w1]; rsdn = rhostar[w0]; rsum = rhostar[wp]; }
+    }
+
+    for (int n = 0; n < nk; n++) {
+      double qup = rho_d[addr_rank1(nsites, nk, iup, n)]/rsup;
+      double qdn = rho_d[addr_rank1(nsites, nk, idn, n)]/rsdn;
+      double qum = (um_fluid) ? rho_d[addr_rank1(nsites, nk, ium, n)]/rsum : qup;
+      double sd  = qdn - qup;
+      double r   = (sd != 0.0) ? (qup - qum)/sd : 0.0;                /* eq. 18 */
+      double qbar = qup + 0.5*np_superbee(r)*sd*(1.0 - courant);   /* eq. 19 */
+      flx_gpu[FLX_GPU(nsites, nk, nflux, index0, n, p - 1)] = -m*qbar;
+    }
+  }
+}
+
+/*****************************************************************************
+ *
+ *  nernst_planck_advection_scheme_set
+ *
+ *****************************************************************************/
+
+int nernst_planck_advection_scheme_set(pe_t* pe, const char* name) {
+
+  if (strcmp(name, "centred") == 0) {
+    np_adv_scheme_ = 0;
+  }
+  else if (strcmp(name, "flla") == 0) {
+    np_adv_scheme_ = 1;
+  }
+  else if (strcmp(name, "flla_mass") == 0) {
+    np_adv_scheme_ = 2;
+    if (pe_mpi_size(pe) > 1) {
+      pe_fatal(pe, "electrokinetics_advection flla_mass: single MPI rank only\n");
+    }
+  }
+  else {
+    pe_fatal(pe, "electrokinetics_advection must be centred, flla or flla_mass\n");
+  }
+  pe_info(pe, "NP advection scheme:        %s\n", name);
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  nernst_planck_lattice_flux_compute
+ *
+ *  Store m[index][alpha] from the post-collision distributions. Must be
+ *  called after collision, lb_halo and bounce-back, before propagation.
+ *  Read-only on the LB data.
+ *
+ *****************************************************************************/
+
+int nernst_planck_lattice_flux_compute(lb_t* lb, psi_t* psi) {
+
+  if (np_adv_scheme_ == 0) return 0;
+
+  assert(lb);
+  assert(psi);
+
+  int nsites = lb->nsite;
+  int nvel   = lb->nvel;
+  int nlocal[3];
+  cs_nlocal(psi->cs, nlocal);
+
+  if (lb->ndist != 1) pe_fatal(psi->pe, "flla advection: ndist must be 1\n");
+
+  if (np_mflux_d_ == NULL) {
+    int nhalo = 0;
+    cs_nhalo(psi->cs, &nhalo);
+    if (nhalo < 2) pe_fatal(psi->pe, "flla advection needs nhalo >= 2\n");
+
+    /* LB velocities, opposite directions and map to NP stencil links */
+    int8_t* cv  = (int8_t*) malloc(3*nvel*sizeof(int8_t));
+    int*    opp = (int*) malloc(nvel*sizeof(int));
+    int*    l2n = (int*) malloc(nvel*sizeof(int));
+    for (int a = 0; a < nvel; a++) {
+      for (int d = 0; d < 3; d++) cv[3*a + d] = lb->model.cv[a][d];
+      opp[a] = -1;
+      l2n[a] = -1;
+      for (int b = 0; b < nvel; b++) {
+        if (lb->model.cv[b][X] == -lb->model.cv[a][X] &&
+            lb->model.cv[b][Y] == -lb->model.cv[a][Y] &&
+            lb->model.cv[b][Z] == -lb->model.cv[a][Z]) opp[a] = b;
+      }
+      for (int p = 0; p < psi->stencil->npoints; p++) {
+        if (psi->stencil->cv[p][X] == lb->model.cv[a][X] &&
+            psi->stencil->cv[p][Y] == lb->model.cv[a][Y] &&
+            psi->stencil->cv[p][Z] == lb->model.cv[a][Z]) l2n[a] = p;
+      }
+      if (opp[a] < 0 || (a > 0 && l2n[a] < 1)) {
+        pe_fatal(psi->pe, "flla advection: LB link %d not in the NP stencil "
+                 "(use electrokinetics_solver_stencil >= LB model)\n", a);
+      }
+    }
+    tdpAssert(tdpMalloc((void**)&np_lbcv_d_,  3*nvel*sizeof(int8_t)));
+    tdpAssert(tdpMalloc((void**)&np_lbopp_d_, nvel*sizeof(int)));
+    tdpAssert(tdpMalloc((void**)&np_lb2np_d_, nvel*sizeof(int)));
+    tdpAssert(tdpMemcpy(np_lbcv_d_,  cv,  3*nvel*sizeof(int8_t), tdpMemcpyHostToDevice));
+    tdpAssert(tdpMemcpy(np_lbopp_d_, opp, nvel*sizeof(int), tdpMemcpyHostToDevice));
+    tdpAssert(tdpMemcpy(np_lb2np_d_, l2n, nvel*sizeof(int), tdpMemcpyHostToDevice));
+    free(l2n);
+    free(opp);
+    free(cv);
+
+    tdpAssert(tdpMalloc((void**)&np_mflux_d_, (size_t)nsites*nvel*sizeof(double)));
+    tdpAssert(tdpMemset(np_mflux_d_, 0, (size_t)nsites*nvel*sizeof(double)));
+    tdpAssert(tdpMalloc((void**)&np_rhostar_d_, (size_t)nsites*sizeof(double)));
+    tdpAssert(tdpMemset(np_rhostar_d_, 0, (size_t)nsites*sizeof(double)));
+    np_lb_nvel_ = nvel;
+  }
+
+  double* f_d = NULL;
+  tdpAssert(tdpMemcpy(&f_d, &lb->target->f, sizeof(double*), tdpMemcpyDeviceToHost));
+
+  int* nlocal_d = NULL;
+  tdpAssert(tdpMalloc((void**)&nlocal_d, 3*sizeof(int)));
+  tdpAssert(tdpMemcpy(nlocal_d, nlocal, 3*sizeof(int), tdpMemcpyHostToDevice));
+
+  dim3 block(4, 4, 4);  /* small blocks: register pressure in -G builds */
+  dim3 grid( (nlocal[Z] + block.x - 1) / block.x,
+             (nlocal[Y] + block.y - 1) / block.y,
+             (nlocal[X] + block.z - 1) / block.z );
+
+  np_lattice_mflux_kernel<<<grid, block>>>(psi->cs->target, nlocal_d, nsites,
+                                           lb->ndist, nvel, np_lbcv_d_,
+                                           np_lbopp_d_, f_d, np_mflux_d_,
+                                           np_adv_scheme_, np_rhostar_d_);
+  tdpAssert(tdpPeekAtLastError());
+  tdpAssert(tdpDeviceSynchronize());
+  tdpAssert(tdpFree(nlocal_d));
+
+  np_mflux_valid_ = 1;
+
+  return 0;
+}
+/*CHANGE END - 20261112 */
+
 /*****************************************************************************
  *
  *  nernst_planck_driver_d3qx_gpu
@@ -1464,6 +1796,19 @@ int nernst_planck_driver_d3qx_gpu(psi_t* psi, fe_t* fe, hydro_t* hydro,
   tdpAssert(tdpMemcpy(cv_d, cv_flat, cv_size, tdpMemcpyHostToDevice));
   free(cv_flat);
 
+  /*CHANGE INIT - 20261112 Advective link-flux weights W_p = 2 wgradients[p]
+   * (see np_advective_fluxes). */
+  double* wadv_d = NULL;
+  {
+    size_t w_size = (size_t)npoints * sizeof(double);
+    double* wadv = (double*)malloc(w_size);
+    for (int p = 0; p < npoints; p++) wadv[p] = 2.0 * psi->stencil->wgradients[p];
+    tdpAssert(tdpMalloc((void**)&wadv_d, w_size));
+    tdpAssert(tdpMemcpy(wadv_d, wadv, w_size, tdpMemcpyHostToDevice));
+    free(wadv);
+  }
+  /*CHANGE END - 20261112 */
+
   /* --- Copy valency and diffusivity to GPU --- */
   int*    valency_d      = NULL;
   double* diffusivity_d  = NULL;
@@ -1504,10 +1849,28 @@ int nernst_planck_driver_d3qx_gpu(psi_t* psi, fe_t* fe, hydro_t* hydro,
              (nlocal[X] + block.z - 1) / block.z );
 
   /* --- Kernel 1: advective fluxes --- */
+  /*CHANGE INIT - 20261112 Lattice (FLLA) advection, if selected. Before the
+   * first lattice flux exists (first call) no advection is applied. */
+  if (hydro && np_adv_scheme_ >= 1) {
+    if (np_mflux_valid_) {
+      /* 4x4x4 blocks: the FLLA kernel needs too many registers for 8x8x8
+       * in the debug (-G) build (cudaErrorLaunchOutOfResources). */
+      dim3 block4(4, 4, 4);
+      dim3 grid4( (nlocal[Z] + 3) / 4, (nlocal[Y] + 3) / 4, (nlocal[X] + 3) / 4 );
+      np_advective_fluxes_flla_kernel<<<grid4, block4>>>(
+          cs_d, nlocal_d, nsites, nk, npoints, np_lb_nvel_,
+          np_lbcv_d_, np_lb2np_d_, np_mflux_d_, rho_d, u_d, status_d, dt,
+          flx_gpu, np_adv_scheme_, np_rhostar_d_);
+      tdpAssert(tdpPeekAtLastError());
+      tdpAssert(tdpDeviceSynchronize());
+    }
+  }
+  else
+  /*CHANGE END - 20261112 */
   if (hydro) {
     np_advective_fluxes_kernel<<<grid, block>>>(
         cs_d, nlocal_d, nsites, nk, npoints,
-        rho_d, u_d, cv_d, flx_gpu);
+        rho_d, u_d, cv_d, wadv_d, flx_gpu);  /* CHANGE 20261112: + wadv_d */
     tdpAssert(tdpDeviceSynchronize());
   }
 
@@ -1538,6 +1901,7 @@ int nernst_planck_driver_d3qx_gpu(psi_t* psi, fe_t* fe, hydro_t* hydro,
   /* --- Free GPU temporaries --- */
   tdpAssert(tdpFree(flx_gpu));
   tdpAssert(tdpFree(cv_d));
+  tdpAssert(tdpFree(wadv_d));  /* CHANGE 20261112 */
   tdpAssert(tdpFree(valency_d));
   tdpAssert(tdpFree(diffusivity_d));
   tdpAssert(tdpFree(nlocal_d));

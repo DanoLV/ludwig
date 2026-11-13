@@ -1,0 +1,45 @@
+# Capacitor de placas con paredes a potencial constante (Asta et al. 2019).
+# Paredes MAP_BOUNDARY en z=1 y z=34 (porous_media_init wall_z); fluido en
+# z=2..33, asi que los planos medios estan en z=1.5 y z=33.5: L = 32.
+N_start 0
+N_cycles 1
+size 4_4_34
+grid 1_1_1
+periodicity 1_1_1
+hydrodynamics off
+viscosity 0.1
+temperature 0.00001
+isothermal_fluctuations off
+free_energy fe_electro
+fe_force_method phi_gradmu_correction
+colloid_init none
+boundary_walls 0_0_0
+porous_media_init wall_z
+electrokinetics_z0 +1
+electrokinetics_z1 -1
+# D0/D1 irrelevantes aca (rho_el=0, sin iones, 1 solo paso): no hay dinamica
+# de Nernst-Planck que corra. Igual, stencil=27 -> A0=6.137828 (ver memoria
+# nernst_planck_A0_stencil_factor); D_fisica_equivalente = 0.05*6.137828 =
+# 0.3069 si estos valores se usaran sin corregir en una corrida con iones.
+electrokinetics_d0 0.05
+electrokinetics_d1 0.05
+electrokinetics_eunit 1.0
+electrokinetics_epsilon 1.0e4
+electrokinetics_init uniform
+electrokinetics_init_rho_el 0.0
+electrokinetics_solver_type petsc
+electrokinetics_solver_stencil 27
+electrokinetics_rel_tol 1.0e-18
+electrokinetics_abs_tol 1.0e-18
+electrokinetics_wall_axis z
+electrokinetics_wall_potential 0.0_1.0e-6
+pm_sr_correction no
+freq_statistics 1
+freq_psi_resid 1
+freq_config 1
+config_at_end yes
+psi_io_mode mpiio
+psi_io_format ascii
+default_io_mode mpiio
+default_io_format ascii
+random_seed 8361235

@@ -10,10 +10,11 @@ carpetas con "input"), las carpetas compartidas de graficos/scripts que
 viven al lado de varias corridas (como en capacitor/local/WALL-DIRICHLET/
 graficos/) se copian solas, en su lugar natural.
 
-Pensado para que <proyecto>/runs/ sea lo unico que se sube a git de cada
-proyecto: lo minimo necesario para volver a correr cada simulacion
-(input, .petscrc, condiciones iniciales chicas, scripts) mas los graficos
-de resultado ya generados.
+Copia liviana LOCAL de las corridas: lo minimo necesario para volver a
+correr cada simulacion (input, .petscrc, condiciones iniciales chicas,
+scripts) mas los graficos de resultado ya generados.
+Desde 2026-11-13 runs/ NO va a git (ver .gitignore): a git van
+<proyecto>/Registro_simulaciones.xlsx y <proyecto>/saved_data/.
 
 No modifica nada bajo <proyecto>/local/ -- solo crea/actualiza
 <proyecto>/runs/. Se puede correr las veces que haga falta (p.ej. despues de

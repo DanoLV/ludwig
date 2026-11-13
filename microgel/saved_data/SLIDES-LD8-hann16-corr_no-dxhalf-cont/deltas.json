@@ -1,0 +1,32 @@
+{
+ "_info": {
+  "input_base_de": "SLIDES-LD8-hann16-corr_no-dxhalf-cont/r_05",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "SLIDES-LD8-hann16-corr_no-dxhalf-cont/r_05": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SLIDES-LD8-hann16-corr_no-dxhalf-cont/r_06": {
+  "input_set": {
+   "N_start": "10000",
+   "N_cycles": "10000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    2.750000000000000e+01    4.750000000000000e+01    4.750000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann16-corr_no-dxhalf-cont/r_07": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    2.950000000000000e+01    4.750000000000000e+01    4.750000000000000e+01\n"
+  }
+ }
+}

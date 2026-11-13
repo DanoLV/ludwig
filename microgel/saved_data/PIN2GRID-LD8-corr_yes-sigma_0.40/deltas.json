@@ -1,0 +1,29 @@
+{
+ "_info": {
+  "input_base_de": "PIN2GRID-LD8-corr_yes-sigma_0.40/hann04-pos_24.25_24.50_24.50",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "PIN2GRID-LD8-corr_yes-sigma_0.40/hann04-pos_24.25_24.50_24.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "PIN2GRID-LD8-corr_yes-sigma_0.40/hann08-pos_24.25_24.50_24.50": {
+  "input_set": {
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "PIN2GRID-LD8-corr_yes-sigma_0.40/hann12-pos_24.25_24.50_24.50": {
+  "input_set": {
+   "subgrid_hann_order": "12"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

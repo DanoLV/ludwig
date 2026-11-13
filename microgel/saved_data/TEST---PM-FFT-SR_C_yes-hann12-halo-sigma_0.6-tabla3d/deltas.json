@@ -1,0 +1,13 @@
+{
+ "_info": {
+  "input_base_de": "TEST---PM-FFT-SR_C_yes-hann12-halo-sigma_0.6-tabla3d/TEST---PM-FFT-SR_C_yes-hann12-halo-sigma_0.6-tabla3d-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "TEST---PM-FFT-SR_C_yes-hann12-halo-sigma_0.6-tabla3d/TEST---PM-FFT-SR_C_yes-hann12-halo-sigma_0.6-tabla3d-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

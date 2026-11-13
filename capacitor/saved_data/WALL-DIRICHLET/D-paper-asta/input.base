@@ -1,0 +1,105 @@
+# ===========================================================================
+# Replica del capacitor de placas paralelas de Asta et al. 2019 (seccion
+# III.A.1, Fig. 3a), para comparar DIRECTAMENTE con esa figura del paper.
+# Paredes a potencial constante (Dirichlet), implementacion propia de Ludwig
+# descrita en claude/PAREDES_POTENCIAL_CONSTANTE.md.
+#
+# Valores tomados tal cual del paper (en unidades de red, Dx = Dt = 1):
+#   - separacion entre electrodos:      L      = 76 Dx          (pag. 5)
+#   - longitud de Debye:                lambda_D = 6 Dx          (pag. 6, Fig. 3)
+#   - voltaje reducido entre placas:    beta*e*Dpsi = 0.1        (pag. 5)
+#   - difusividad de los iones:         D      = 0.05 Dx^2/Dt    (pag. 5)
+#   - relajacion BGK:                   tau = Dt -> viscosidad = 1/6 (pag. 5)
+#   - electrolito 1:1 (z+ = +1, z- = -1), mismo D para ambas especies
+#
+# El paper fija el voltaje con psi1=0.1, psi2=0.2 (kT/e); aclaran
+# explicitamente que solo importa la diferencia Dpsi=0.1, no los valores
+# absolutos. Por eso aca se usa psi_abajo=0, psi_arriba=0.1 (misma Dpsi),
+# siguiendo la convencion ya usada en A-sin-iones/ y B-debye-huckel/.
+#
+# "psi" en Ludwig ya es el potencial REDUCIDO (equivalente a beta*e*psi del
+# paper): por eso electrokinetics_wall_potential se pone directamente en
+# 0.1, NO en 0.1/beta como en las pruebas A y B anteriores (que usaban un
+# voltaje mucho mas chico, 1e-6, sin relacion con el del paper).
+# ===========================================================================
+
+N_start 0
+N_cycles 10000
+# El paper usa colision BGK (tau=Dt); esta version de Ludwig usa M10 (otro
+# esquema de relajacion), pero con hydrodynamics off el flujo no se acopla
+# al potencial/iones, asi que la dinamica de Poisson-Nernst-Planck -y el
+# numero de pasos para llegar al estacionario- no deberian depender de eso.
+#
+# El tiempo de carga del paper (ec. cerca de la Fig. 4a), tau_carga ~
+# L*lambda_D/(2D) = 76*6/(2*0.05) = 4560 pasos, sugeria necesitar ~40000
+# pasos (t/tau~9) para estar muy por debajo del error de red. Se verifico
+# directamente corriendo 5000 pasos y comparando contra la ec. 17 en cada
+# snapshot (cada 1000 pasos): el error ya cae al piso de discretizacion de
+# red (~1.5e-3, el mismo orden que en B-debye-huckel/) a partir del paso
+# 4000, y no mejora mas entre el 4000 y el 5000 (1.4557e-3 -> 1.5265e-3,
+# plano dentro del ruido). O sea que el estacionario se alcanza mucho antes
+# de lo que predecia tau_carga. Se deja 10000 pasos, el doble del punto de
+# convergencia medido, como margen de seguridad razonable.
+
+# --- Geometria: paredes MAP_BOUNDARY en z=1 y z=78 -------------------------
+# Planos medios (donde se impone el potencial) en z=1.5 y z=77.5:
+# L = 77.5 - 1.5 = 76 Dx, igual que en el paper.
+size 4_4_78
+grid 1_1_1
+periodicity 1_1_1
+boundary_walls 0_0_0
+porous_media_init wall_z
+
+# --- Fluido (sin hidrodinamica: solo se compara el perfil electrostatico, --
+# --- igual que la Fig. 3a del paper, que tampoco necesita flujo) -----------
+hydrodynamics off
+viscosity 0.166667
+temperature 0.00001
+isothermal_fluctuations off
+
+# --- Electrocinetica: electrolito 1:1, D=0.05 (igual que el paper) --------
+free_energy fe_electro
+fe_force_method phi_gradmu_correction
+colloid_init none
+electrokinetics_z0 +1
+electrokinetics_z1 -1
+# stencil=27 -> A0=6.137828 (ver memoria nernst_planck_A0_stencil_factor,
+# hallado 2026-10-01 corriendo E-paper-asta-carga-A0/, la prueba de dinamica
+# de carga). Este 0.05 NO esta corregido por A0: la D fisica real equivalente
+# es 0.05*6.137828=0.3069, o sea la dinamica de NP de esta corrida fue
+# ~6.14x mas rapida de lo fisico. No afecta el perfil ESTACIONARIO que se
+# valida aca (Fig. 3 del paper): el equilibrio no depende de la escala de D,
+# solo de llegar a flujo cero. Si lo que importa es el PERFIL, esto no
+# importa; si se quisiera ademas la escala de TIEMPO fisica correcta, habria
+# que usar electrokinetics_d0/d1 = 0.05/6.137828 = 0.008145897 (como en
+# E-paper-asta-carga-A0/input) y correr muchos mas pasos.
+electrokinetics_d0 0.05
+electrokinetics_d1 0.05
+electrokinetics_eunit 1.0
+electrokinetics_epsilon 1.0e4
+electrokinetics_init uniform
+# rho_s elegido para que lambda_D = 6 Dx con este epsilon:
+# lambda_D = (8 pi l_B rho_s)^-1/2, l_B = beta*e^2/(4 pi epsilon) = 0.795775
+# -> rho_s = 1/(36 * 8*pi*l_B) = 1.388889e-3
+electrokinetics_init_rho_el 1.388889e-3
+
+# --- Solver de Poisson con paredes a potencial constante -------------------
+electrokinetics_solver_type petsc
+electrokinetics_solver_stencil 27
+electrokinetics_rel_tol 1.0e-18
+electrokinetics_abs_tol 1.0e-18
+electrokinetics_wall_axis z
+# Dpsi reducido = 0.1, igual al beta*e*Dpsi = 0.1 del paper (ver nota arriba)
+electrokinetics_wall_potential 0.0_0.1
+pm_sr_correction no
+
+# --- Salida -----------------------------------------------------------------
+freq_statistics 2000
+freq_psi_resid 2000
+freq_config 2000
+config_at_end yes
+psi_io_mode mpiio
+psi_io_format ascii
+default_io_mode mpiio
+default_io_format ascii
+random_seed 8361235

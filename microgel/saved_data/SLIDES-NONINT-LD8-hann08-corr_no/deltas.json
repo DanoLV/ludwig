@@ -1,0 +1,213 @@
+{
+ "_info": {
+  "input_base_de": "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.00_24.00_24.00",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.000000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.10_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.010000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.20_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.020000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.30_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.030000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.40_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.040000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.50_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.050000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.60_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.060000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.70_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.070000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.80_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.080000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_10.90_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.090000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_11.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.100000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_8.50_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   8.500000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_8.60_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   8.600000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_8.70_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   8.699999999999999e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_8.80_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   8.800000000000001e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_8.90_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   8.900000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.000000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.10_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.100000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.20_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.199999999999999e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.30_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.300000000000001e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.40_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.400000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.50_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.500000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.60_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.600000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.70_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.80_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.800000000000001e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-NONINT-LD8-hann08-corr_no/pos_9.90_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.900000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ }
+}

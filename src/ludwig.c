@@ -588,6 +588,17 @@ static int ludwig_rt(ludwig_t* ludwig) {
     /*CHANGE END - Subgrid charge */
   }
 
+  /*CHANGE INIT - 20261112 NP advection scheme:
+   *   electrokinetics_advection  centred | flla | flla_mass   (default centred)
+   * flla = lattice advection with superbee limiter (DeVincentis & Thomas
+   * 2023), see nernst_planck.c. */
+  if (ludwig->psi) {
+    char adv[BUFSIZ] = "centred";
+    rt_string_parameter(rt, "electrokinetics_advection", adv, BUFSIZ);
+    nernst_planck_advection_scheme_set(pe, adv);
+  }
+  /*CHANGE END - 20261112 */
+
   if (ludwig->pch && ludwig->phi) {
     if (ludwig->pch->info.conserve == 2) {
       /* 2 is correction method requiring a reference sum. */
@@ -953,8 +964,9 @@ static void ludwig_walls_attach(ludwig_t* ludwig) {
                                     ludwig->map, wall_axis_, wall_psi_);
   if (ifail == -1) pe_fatal(pe, "Wall potential: variable permittivity "
                             "is not supported\n");
-  if (ifail == -2) pe_fatal(pe, "Wall potential: electric_e0 must be zero "
-                            "with walls\n");
+  /*CHANGE 20261028: only e0 normal to the walls is refused now */
+  if (ifail == -2) pe_fatal(pe, "Wall potential: electric_e0 must have no "
+                            "component along the wall axis\n");
   if (ifail == -3) pe_fatal(pe, "Wall potential: the map has no boundary "
                             "sites (set porous_media_init wall_x|y|z)\n");
   if (ifail != 0) pe_fatal(pe, "Wall potential: setup failed (%d)\n", ifail);
@@ -1080,6 +1092,36 @@ void ludwig_run(const char* inputfile) {
       }
     }
     /*CHANGE END - 20260630 */
+    /*CHANGE INIT - 20261104 Hann exponent p (w ~ cos^p) from input */
+    if (kernel_g == SUBGRID_KERNEL_HANN) {
+      int hp = 2;
+      if (rt_int_parameter(ludwig->rt, "subgrid_hann_power", &hp) == 1) {
+        if (hp < 2 || hp % 2 != 0)
+          pe_fatal(ludwig->pe, "subgrid_hann_power must be an even integer >= 2\n");
+        subgrid_set_hann_power(hp);
+      }
+      {
+        int hn = 0;
+        rt_int_parameter(ludwig->rt, "subgrid_hann_order", &hn);
+        if (hn > 0 && 2 * hn < subgrid_get_hann_power() + 2)
+          pe_fatal(ludwig->pe, "subgrid_hann_order must be >= subgrid_hann_power/2 + 1 "
+                               "for exact partition of unity\n");
+      }
+      pe_info(ludwig->pe, "Hann exponent: %d (w ~ cos^%d, C^%d)\n", subgrid_get_hann_power(),
+              subgrid_get_hann_power(), subgrid_get_hann_power() - 1);
+    }
+    /*CHANGE END - 20261104 */
+    /*CHANGE INIT - 20261104 Peskin6 integer stretch s (support 6s) from input */
+    if (kernel_g == SUBGRID_KERNEL_PESKIN6) {
+      int s6 = 1;
+      if (rt_int_parameter(ludwig->rt, "subgrid_peskin6_stretch", &s6) == 1) {
+        if (s6 < 1) pe_fatal(ludwig->pe, "subgrid_peskin6_stretch must be a positive integer\n");
+        subgrid_set_peskin6_stretch(s6);
+      }
+      pe_info(ludwig->pe, "Peskin6 stretch: %d (support %d lattice units)\n",
+              subgrid_get_peskin6_stretch(), 6 * subgrid_get_peskin6_stretch());
+    }
+    /*CHANGE END - 20261104 */
     /*CHANGE INIT - 20260922 truncated Gaussian kernel parameters */
     if (kernel_g == SUBGRID_KERNEL_GAUSS) ludwig_gauss_kernel_rt(ludwig->pe, ludwig->rt, 1);
     /*CHANGE END - 20260922 */
@@ -1351,7 +1393,14 @@ void ludwig_run(const char* inputfile) {
        * delta_E(r_cut) != 0 and the truncation produced a large step in the
        * field (observed: jump at r=8, ~65% error inside). With sigma fixed,
        * r_cut = 2+krange >= 4 always satisfies r_cut >= 2.9*sigma. */
-      double pm_sr_sigma = 0.7;
+      /*CHANGE INIT - 20261014 default sigma = width of the active kernel,
+       * from its 2nd moment (variance-matched Gaussian), which is the value
+       * the production runs set by hand. pm_sr_sigma in the input still
+       * overrides it. Original:
+       *   double pm_sr_sigma = 0.7; */
+      double pm_sr_sigma = pm_sr_kernel_sigma(kernel_g);
+      int    pm_sr_sigma_from_input = 0;
+      /*CHANGE END - 20261014 */
       double pm_sr_rcut  = (double)(2 + krange);
       int    pm_sr_nvoxel = 8;   /* sub-voxel resolution for PM estimate */
       int    pm_sr_nr3d   = 32;  /* nr for 3D table: resolution per axis */
@@ -1360,7 +1409,14 @@ void ludwig_run(const char* inputfile) {
       {
         double v;
         int    iv;
-        if (rt_double_parameter(ludwig->rt, "pm_sr_sigma", &v) == 1) pm_sr_sigma = v;
+        /*CHANGE INIT - 20261014 remember whether sigma came from the input.
+         * Original:
+         * if (rt_double_parameter(ludwig->rt, "pm_sr_sigma", &v) == 1) pm_sr_sigma = v; */
+        if (rt_double_parameter(ludwig->rt, "pm_sr_sigma", &v) == 1) {
+          pm_sr_sigma = v;
+          pm_sr_sigma_from_input = 1;
+        }
+        /*CHANGE END - 20261014 */
         if (rt_double_parameter(ludwig->rt, "pm_sr_rcut",  &v) == 1) pm_sr_rcut  = v;
         if (rt_int_parameter(ludwig->rt, "pm_sr_nvoxel", &iv) == 1)  pm_sr_nvoxel = iv;
         if (rt_int_parameter(ludwig->rt, "pm_sr_nr3d",   &iv) == 1)  pm_sr_nr3d   = iv;
@@ -1369,7 +1425,17 @@ void ludwig_run(const char* inputfile) {
       pe_info(ludwig->pe, "\n");
       pe_info(ludwig->pe, "Building PM short-range correction tables\n");
       pe_info(ludwig->pe, "  kernel half-support (krange) = %d\n", krange);
-      pe_info(ludwig->pe, "  sigma   = %.4g\n", pm_sr_sigma);
+      /*CHANGE INIT - 20261014 report where sigma came from; warn when r_cut
+       * is too short for the Gaussian reference to reach point Coulomb
+       * (needs r_cut >~ 2.9 sigma, see the 20260724 note above).
+       * Original:
+       * pe_info(ludwig->pe, "  sigma   = %.4g\n", pm_sr_sigma); */
+      pe_info(ludwig->pe, "  sigma   = %.4g (%s)\n", pm_sr_sigma,
+              pm_sr_sigma_from_input ? "input" : "kernel 2nd moment");
+      if (pm_sr_rcut < 2.9 * pm_sr_sigma)
+        pe_info(ludwig->pe, "  WARNING: r_cut < 2.9 sigma; the reference does "
+                "not reach point Coulomb at r_cut (truncation step in E)\n");
+      /*CHANGE END - 20261014 */
       pe_info(ludwig->pe, "  r_cut   = %.4g\n", pm_sr_rcut);
       pe_info(ludwig->pe, "  n_voxel = %d\n", pm_sr_nvoxel);
       pe_info(ludwig->pe, "  nr (3D) = %d\n", pm_sr_nr3d);
@@ -2199,6 +2265,14 @@ void ludwig_run(const char* inputfile) {
     /* There must be no halo updates between bounce back
      * and propagation, as the halo regions are active */
 
+    /*CHANGE INIT - 20261112 Store the LB link fluxes for FLLA ion advection
+     * (read-only on the distributions; no-op unless electrokinetics_advection
+     * flla). Post-collision, post-bounce-back, pre-propagation. */
+    if (ludwig->hydro && ludwig->psi) {
+      nernst_planck_lattice_flux_compute(ludwig->lb, ludwig->psi);
+    }
+    /*CHANGE END - 20261112 */
+
     if (ludwig->hydro) {
       TIMER_start(TIMER_PROPAGATE);
       lb_propagation(ludwig->lb);
@@ -2226,8 +2300,14 @@ void ludwig_run(const char* inputfile) {
         colloid_io_write(ludwig->cio, filename);
         /*CHANGE INIT - Total force calculation */
         /* Write total force to file */
-        stats_total_force_write(ludwig->hydro, ludwig->map, ludwig->collinfo,
-                                step, "./proceced_data/total_force.csv");
+        /*CHANGE INIT - 20261111 hydrodynamics no: total force needs the fluid */
+        // stats_total_force_write(ludwig->hydro, ludwig->map, ludwig->collinfo,
+        //                         step, "./proceced_data/total_force.csv");
+        if (ludwig->hydro) {
+          stats_total_force_write(ludwig->hydro, ludwig->map, ludwig->collinfo,
+                                  step, "./proceced_data/total_force.csv");
+        }
+        /*CHANGE END - 20261111 */
         /*CHANGE END - Total force calculation */
       }
     }
@@ -3368,6 +3448,15 @@ int free_energy_init_rt(ludwig_t* ludwig) {
           subgrid_set_hann_order((double) hann_n);
         }
       }
+      /*CHANGE INIT - 20261104 Peskin6 stretch must be known before sizing the halo */
+      if (kernel_g == SUBGRID_KERNEL_PESKIN6) {
+        int s6 = 1;
+        if (rt_int_parameter(rt, "subgrid_peskin6_stretch", &s6) == 1) {
+          if (s6 < 1) pe_fatal(pe, "subgrid_peskin6_stretch must be a positive integer\n");
+          subgrid_set_peskin6_stretch(s6);
+        }
+      }
+      /*CHANGE END - 20261104 */
       /*CHANGE INIT - 20260922 Gaussian support must be known before sizing the halo */
       if (kernel_g == SUBGRID_KERNEL_GAUSS) ludwig_gauss_kernel_rt(pe, rt, 0);
       /*CHANGE END - 20260922 */

@@ -1,0 +1,66 @@
+
+=== Test 1: 1D PNP capacitor (units: eps/r, D r^2, c/r^3) ===
+N=24 lambda_D=1.5 c0=0.01 eps=0.045 D=0.05 psi_w=+-0.02
+tau_Debye = 45  tau_RC = 360 LB steps, run 4000
+  r= 1: n_fine=  24  NP substeps/LB step=  1  (0.1 s)
+  r= 2: n_fine=  48  NP substeps/LB step=  1  (0.1 s)
+  r= 4: n_fine=  96  NP substeps/LB step=  4  (0.2 s)
+  r= 8: n_fine= 192  NP substeps/LB step= 13  (0.8 s)
+  r=16: n_fine= 384  NP substeps/LB step= 52  (4.9 s)
+
+  sigma_wall Debye-Hueckel (continuum) = 6.000001e-04
+   r   sigma_eq        err_vs_DH   err_vs_rmax  |psi-DH|_inf  neutrality   mass drift
+   1  5.692124e-04  -5.131e-02  -5.111e-02  3.276e-02     1.2e-14  -2.3e-16
+   2  5.918392e-04  -1.360e-02  -1.339e-02  1.088e-02     1.3e-14  +1.2e-16
+   4  5.979304e-04  -3.450e-03  -3.238e-03  3.090e-03     1.9e-14  +4.6e-16
+   8  5.994828e-04  -8.622e-04  -6.501e-04  8.202e-04     3.1e-14  -8.1e-16
+  16  5.998728e-04  -2.122e-04  +0.000e+00  2.111e-04     9.4e-14  +8.8e-14
+
+  transient sigma(t)/sigma_DH  (same LB times for every r)
+   r    t=10      t=50      t=200     t=800     t=4000  
+   1    0.14850  0.24367  0.50875  0.88191  0.94869
+   2    0.14883  0.24512  0.51590  0.90996  0.98640
+   4    0.15083  0.24707  0.51853  0.91736  0.99655
+   8    0.15129  0.24753  0.51918  0.91924  0.99914
+  16    0.15145  0.24767  0.51935  0.91971  0.99979
+
+=== Test 2: electro-osmosis, force restriction F_c = r*sum ===
+  max|u| analytic = 3.3014e-05; coarse-Stokes floor error (exact cell force) = 7.906e-02
+   r   |u-u_exact|/max   |u-u_floor|/max   |f_c-f_exact|/max|f|   (no x r factor: |u-u_floor|/max)
+   1   5.359e-02         4.616e-02         6.315e-02             4.616e-02
+   2   7.231e-02         1.221e-02         1.677e-02             5.285e-01
+   4   7.734e-02         3.103e-03         4.244e-03             7.849e-01
+   8   7.863e-02         7.826e-04         1.051e-03             9.149e-01
+  16   7.895e-02         1.999e-04         2.486e-04             9.802e-01
+
+=== Test 3: 2D advection, velocity prolongation (u_f = r u_c) ===
+  Taylor-Green N=16 U=0.02, 300 LB steps
+   r  prolong    rms div/(rU)   L2 err vs exact-u   mass drift
+   2  bilinear   2.561e-04      2.929e-02          -1.4e-16
+   2  constant   2.691e-02      4.607e-02          +1.4e-16
+   2  exact u    1.243e-16      (reference)
+   4  bilinear   3.494e-03      3.099e-02          +0.0e+00
+   4  constant   7.028e-02      8.419e-01          +2.8e-16
+   4  exact u    1.191e-16      (reference)
+  (L2 err normalised by how far the blob moved)
+
+=== Test 4: 3D particle force, FFT Poisson on fine grid ===
+  L=16, +1/-1 pair, Peskin-4, 16 random placements per d
+  A: kernel width = 1 fine node   B: width = r fine nodes (coarse width)
+   d  opt  r   mean|dF|/|F|   std|dF|/|F|   max|F1+F2|/|F|
+  2   A   1   3.339e-01     1.284e-02     2.3e-16
+  2   A   2   2.897e-02     9.514e-03     5.6e-16
+  2   A   4   7.998e-03     5.152e-03     2.9e-15
+  2   A   8   2.124e-03     1.490e-03     1.6e-14
+  2   B   1   3.339e-01     1.284e-02     2.3e-16
+  2   B   2   3.022e-01     5.340e-03     2.3e-16
+  2   B   4   2.950e-01     2.468e-03     1.6e-16
+  4   A   1   3.739e-02     1.425e-02     7.4e-16
+  4   A   2   1.012e-02     7.176e-03     2.7e-15
+  4   A   4   2.845e-03     1.864e-03     1.1e-14
+  4   A   8   7.276e-04     4.810e-04     7.7e-14
+  4   B   1   3.739e-02     1.425e-02     7.4e-16
+  4   B   2   9.304e-03     1.586e-03     6.3e-16
+  4   B   4   6.255e-03     1.259e-03     9.8e-16
+
+Figures in /home/danolv/Sim/ludwig/claude/ek_multigrid_poc/out

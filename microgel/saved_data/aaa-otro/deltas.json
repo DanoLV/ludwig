@@ -1,0 +1,11 @@
+{
+ "_info": {
+  "input_base_de": "aaa-otro",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "aaa-otro": {
+  "input_set": {},
+  "input_remove": []
+ }
+}

@@ -22,6 +22,7 @@
     "C_Cpp.dimInactiveRegions": false,
     "workbench.editorAssociations": {
         "*.png": "imagePreview.previewEditor",
-        "*.jpg": "imagePreview.previewEditor"
+        "*.jpg": "imagePreview.previewEditor",
+        "*.copilotmd": "vscode.markdown.preview.editor"
     }
 }

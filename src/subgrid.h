@@ -56,9 +56,17 @@ double d_kb4(double r);
 void subgrid_set_kb4_beta(double beta);
 double subgrid_kb4_norm_fluid(void);
 double d_peskin6(double r);
+/*CHANGE INIT - 20261104 Peskin6 stretched by an integer factor */
+void subgrid_set_peskin6_stretch(int s);
+int subgrid_get_peskin6_stretch(void);
+/*CHANGE END - 20261104 */
 /*CHANGE INIT - 20260630 Hann spread/gather kernel */
 double d_hann(double r);
 void subgrid_set_hann_order(double n);
+/*CHANGE INIT - 20261104 Hann window exponent p (cos^p) */
+void subgrid_set_hann_power(int p);
+int subgrid_get_hann_power(void);
+/*CHANGE END - 20261104 */
 /*CHANGE END - 20260630 */
 /*CHANGE INIT - 20260922 truncated Gaussian spread/gather kernel */
 double d_gauss(double r);
@@ -178,6 +186,9 @@ int  pm_sr_table_build_3d(double sigma, double r_cut, int nr, int n_voxel,
                            double epsilon, subgrid_kernel_t kernel,
                            pm_sr_table_t** ptable);
 void pm_sr_table_free(pm_sr_table_t** ptable);
+/*CHANGE INIT - 20261014 default pm_sr_sigma from the kernel's 2nd moment */
+double pm_sr_kernel_sigma(subgrid_kernel_t kernel);
+/*CHANGE END - 20261014 */
 int  pm_sr_table_interpolate(const pm_sr_table_t* t, double r,
                               double* delta_phi, double* delta_E,
                               double* delta_F);

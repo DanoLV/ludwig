@@ -1,0 +1,121 @@
+{
+ "_info": {
+  "input_base_de": "TEST-HIDRO-dx2/hidro_si",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "TEST-HIDRO-dx2/hidro_no": {
+  "input_set": {
+   "hydrodynamics": "no"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_no_exe36be1759": {
+  "input_set": {
+   "hydrodynamics": "no"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_no_exe45dc94bc": {
+  "input_set": {
+   "hydrodynamics": "no"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_no_exe45dc94bc-cont": {
+  "input_set": {
+   "N_start": "3000",
+   "hydrodynamics": "no"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_no_exe45dc94bc-cont2": {
+  "input_set": {
+   "N_start": "6000",
+   "hydrodynamics": "no"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_eta0.02": {
+  "input_set": {
+   "viscosity": "0.02",
+   "viscosity_bulk": "0.02"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_eta0.1": {
+  "input_set": {
+   "viscosity": "0.1",
+   "viscosity_bulk": "0.1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_eta0.2": {
+  "input_set": {
+   "viscosity": "0.2",
+   "viscosity_bulk": "0.2"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_eta0.5": {
+  "input_set": {
+   "viscosity": "0.5",
+   "viscosity_bulk": "0.5"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_eta1.0": {
+  "input_set": {
+   "viscosity": "1.0",
+   "viscosity_bulk": "1.0"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_eta2.0": {
+  "input_set": {
+   "viscosity": "2.0",
+   "viscosity_bulk": "2.0"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_exe36be1759": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "TEST-HIDRO-dx2/hidro_si_exe45dc94bc": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

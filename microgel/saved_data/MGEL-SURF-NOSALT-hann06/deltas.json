@@ -1,0 +1,13 @@
+{
+ "_info": {
+  "input_base_de": "MGEL-SURF-NOSALT-hann06",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "MGEL-SURF-NOSALT-hann06": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

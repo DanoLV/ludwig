@@ -1,0 +1,133 @@
+{
+ "_info": {
+  "input_base_de": "SLIDES-LD8-MEAS-hann06-corr_yes/pos_10.00_24.00_24.00",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_10.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.000000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_11.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.100000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_12.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.200000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_13.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.300000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_14.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.400000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_15.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.500000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_16.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.600000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_17.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.700000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_18.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.800000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_19.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.900000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_20.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.000000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_21.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.100000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_22.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.200000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_23.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.300000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_24.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SLIDES-LD8-MEAS-hann06-corr_yes/pos_9.00_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.000000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ }
+}

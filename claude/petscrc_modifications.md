@@ -1,10 +1,12 @@
 # Modificaciones para usar la configuración de `.petscrc` en PETSc/Ludwig
 
 Este documento describe todas las modificaciones realizadas en `src/psi_petsc.c` para que
-PETSc respete las opciones definidas en `microgel/local/.petscrc`, incluyendo vectores y
+PETSc respete las opciones definidas en `.petscrc`, incluyendo vectores y
 matrices en GPU (CUDA), el precondicionador BoomerAMG (hypre) y la tolerancia del solver.
 
-Archivo de referencia: [microgel/local/.petscrc](../microgel/local/.petscrc)
+Archivo de referencia: [.petscrc](../.petscrc) (raíz de Ludwig; hasta 2026-11-13 era
+`microgel/local/.petscrc`, idéntico, que dejó de estar en git al ignorarse `local/`).
+PETSc lee el `.petscrc` del directorio de ejecución: cada corrida necesita su copia.
 Archivo modificado:    [src/psi_petsc.c](../src/psi_petsc.c)
 
 ---

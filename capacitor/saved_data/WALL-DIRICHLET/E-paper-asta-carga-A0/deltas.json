@@ -1,0 +1,11 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/E-paper-asta-carga-A0",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/E-paper-asta-carga-A0": {
+  "input_set": {},
+  "input_remove": []
+ }
+}

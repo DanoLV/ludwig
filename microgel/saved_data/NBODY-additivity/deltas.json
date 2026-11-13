@@ -1,0 +1,166 @@
+{
+ "_info": {
+  "input_base_de": "NBODY-additivity/p12",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "NBODY-additivity/p12": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "47": "   1.000000000000000e+00\n",
+   "115": "   1.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/p123": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {
+   "104": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n",
+   "172": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/p1234": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "NBODY-additivity/p124": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {
+   "104": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/p13": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "47": "   1.000000000000000e+00\n",
+   "104": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n",
+   "115": "   1.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/p134": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {}
+ },
+ "NBODY-additivity/p14": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "47": "   1.000000000000000e+00\n",
+   "104": "   2.410000000000000e+01   2.490000000000000e+01   2.830000000000000e+01\n",
+   "115": "   1.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/p23": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n",
+   "47": "   1.000000000000000e+00\n",
+   "104": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n",
+   "115": "   1.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/p234": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {
+   "36": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/p24": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n",
+   "47": "   1.000000000000000e+00\n",
+   "104": "   2.410000000000000e+01   2.490000000000000e+01   2.830000000000000e+01\n",
+   "115": "   1.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/p34": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n",
+   "47": "   1.000000000000000e+00\n",
+   "104": "   2.410000000000000e+01   2.490000000000000e+01   2.830000000000000e+01\n",
+   "115": "   1.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/q2_p12": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "NBODY-additivity/q2_p1234": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {
+   "47": "   2.000000000000000e+00\n",
+   "115": "   2.000000000000000e+00\n",
+   "183": "   2.000000000000000e+00\n",
+   "251": "   2.000000000000000e+00\n"
+  }
+ },
+ "NBODY-additivity/q2_p13": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "104": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/q2_p14": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "104": "   2.410000000000000e+01   2.490000000000000e+01   2.830000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/q2_p23": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n",
+   "104": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/q2_p24": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.510000000000000e+01   2.430000000000000e+01   2.390000000000000e+01\n",
+   "104": "   2.410000000000000e+01   2.490000000000000e+01   2.830000000000000e+01\n"
+  }
+ },
+ "NBODY-additivity/q2_p34": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.270000000000000e+01   2.810000000000000e+01   2.530000000000000e+01\n",
+   "104": "   2.410000000000000e+01   2.490000000000000e+01   2.830000000000000e+01\n"
+  }
+ }
+}

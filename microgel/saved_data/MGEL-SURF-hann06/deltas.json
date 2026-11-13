@@ -1,0 +1,37 @@
+{
+ "_info": {
+  "input_base_de": "MGEL-SURF-hann06/LD2",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "MGEL-SURF-hann06/LD2": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-SURF-hann06/LD4": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "3.1250000e-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-SURF-hann06/LD6": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "1.3888889e-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-SURF-hann06/LD8": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.8125000e-04"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

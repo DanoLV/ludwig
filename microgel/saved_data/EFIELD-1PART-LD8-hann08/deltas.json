@@ -1,0 +1,19 @@
+{
+ "_info": {
+  "input_base_de": "EFIELD-1PART-LD8-hann08/corr_no",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "EFIELD-1PART-LD8-hann08/corr_no": {
+  "input_set": {},
+  "input_remove": []
+ },
+ "EFIELD-1PART-LD8-hann08/corr_yes": {
+  "input_set": {
+   "pm_sr_correction": "yes"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

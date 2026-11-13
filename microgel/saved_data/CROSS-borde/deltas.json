@@ -1,0 +1,61 @@
+{
+ "_info": {
+  "input_base_de": "CROSS-borde/arreglado",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "CROSS-borde/adv_arreglado": {
+  "input_set": {
+   "N_cycles": "5000",
+   "force": "1.0e-6_0.0_0.0",
+   "electric_e0": "0.0_0.0_0.0",
+   "freq_config": "250"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "CROSS-borde/adv_sinarreglo": {
+  "input_set": {
+   "N_cycles": "5000",
+   "force": "1.0e-6_0.0_0.0",
+   "electric_e0": "0.0_0.0_0.0",
+   "freq_config": "250"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "CROSS-borde/arreglado": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "CROSS-borde/campo_chico": {
+  "input_set": {
+   "N_cycles": "600",
+   "electric_e0": "0.05_0.0_0.0",
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "CROSS-borde/nocorr": {
+  "input_set": {
+   "N_cycles": "600",
+   "pm_sr_correction": "no",
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "CROSS-borde/sinarreglo": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

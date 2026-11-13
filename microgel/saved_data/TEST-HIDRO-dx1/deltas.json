@@ -1,0 +1,13 @@
+{
+ "_info": {
+  "input_base_de": "TEST-HIDRO-dx1/hidro_no_exe45dc94bc",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "TEST-HIDRO-dx1/hidro_no_exe45dc94bc": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

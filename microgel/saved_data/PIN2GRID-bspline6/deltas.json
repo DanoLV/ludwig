@@ -1,0 +1,93 @@
+{
+ "_info": {
+  "input_base_de": "PIN2GRID-bspline6/x24.0",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "PIN2GRID-bspline6/x24.0": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.400000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.1": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.410000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.2": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.420000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.3": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.430000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.4": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.440000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.5": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.450000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.6": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.460000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.7": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.470000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.8": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.480000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x24.9": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.490000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "PIN2GRID-bspline6/x25.0": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

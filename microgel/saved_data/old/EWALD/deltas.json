@@ -1,0 +1,335 @@
+{
+ "_info": {
+  "input_base_de": "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.00_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": [
+   "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.05_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27"
+  ]
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.00_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.000000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.10_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.010000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.20_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.020000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.30_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.030000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.40_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.040000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.45_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.045000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.50_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.050000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.55_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.055000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.60_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.060000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.70_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.070000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.80_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.080000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.90_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.95_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.095000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_11.00_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.100000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix2-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0": {
+  "input_set": {
+   "N_start": "0",
+   "N_cycles": "2000",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "electrokinetics_solver_type": "petsc",
+   "freq_config": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-gaussian_dual_fix2-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-gaussian_dual_fix2-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1500-s_10-L_20-q_1.0-pos_10.05_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1500"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.005000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian-sigma_1.2/Ewald-parameters-test-gaussian-sigma_1.2-n_1000-s_10-L_20-q_1.0-pos_10.10_10.50_10.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "fe_force_method": "ewald_gaussian",
+   "ewald_rc": "4.0",
+   "ewald_gaussian_sigma_f": "1.2",
+   "ewald_gaussian_sigma_p": "1.0",
+   "freq_config": "100"
+  },
+  "input_remove": [
+   "ewald_gaussian_sigma"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian/Ewald-parameters-test-gaussian-n_1000-s_10-L_20-q_1.0-pos_10.10_10.50_10.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "N_start": "1000",
+   "fe_force_method": "ewald_gaussian",
+   "ewald_rc": "4.0",
+   "ewald_gaussian_sigma_f": "0.5",
+   "ewald_gaussian_sigma_p": "1.0",
+   "freq_config": "100"
+  },
+  "input_remove": [
+   "ewald_gaussian_sigma"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.0-sigma_p_0.5-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.10_10.50_10.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.0-sigma_p_0.7-alpha_1.0-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.0-sigma_p_0.7-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.10_10.50_10.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "ewald_gaussian_sigma_p": "0.7",
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.1-sigma_p_0.8-alpha_1.0-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.1-sigma_p_0.8-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.0_10.0_10.0-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "ewald_gaussian_sigma_f": "0.1",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.000000000000000e+01    1.000000000000000e+01    1.000000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.1-sigma_p_0.8-alpha_1.0-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.1-sigma_p_0.8-alpha_1.0-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.10_10.50_10.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "ewald_gaussian_sigma_f": "0.1",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.6-rc_6.0": {
+  "input_set": {
+   "N_start": "0",
+   "N_cycles": "2000",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "electrokinetics_solver_type": "petsc",
+   "ewald_alpha": "0.6",
+   "ewald_gaussian_sigma_f": "0.4",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.6-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.6-rc_6.0-n_1000-s_10-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "size": "26_26_26",
+   "ewald_alpha": "0.6",
+   "ewald_gaussian_sigma_f": "0.4",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "100"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.6-rc_8.0": {
+  "input_set": {
+   "N_start": "0",
+   "N_cycles": "2000",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "electrokinetics_solver_type": "petsc",
+   "ewald_rc": "8.0",
+   "ewald_alpha": "0.6",
+   "ewald_gaussian_sigma_f": "0.4",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.6-rc_8.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.6-rc_8.0-n_1000-s_10-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "size": "26_26_26",
+   "ewald_rc": "8.0",
+   "ewald_alpha": "0.6",
+   "ewald_gaussian_sigma_f": "0.4",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "100"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.8-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.4-sigma_p_0.8-alpha_0.8-rc_6.0-n_1000-s_10-L_20-q_1.0-pos_10.10_10.50_10.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "ewald_alpha": "0.8",
+   "ewald_gaussian_sigma_f": "0.4",
+   "ewald_gaussian_sigma_p": "0.8",
+   "freq_config": "200"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.7-sigma_p_0.7-alpha_0.6-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.7-sigma_p_0.7-alpha_0.6-rc_6.0-n_1000-s_10-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "size": "26_26_26",
+   "ewald_alpha": "0.6",
+   "ewald_gaussian_sigma_f": "0.5",
+   "ewald_gaussian_sigma_p": "0.7",
+   "freq_config": "100"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.7-sigma_p_0.7-alpha_0.7-rc_6.0": {
+  "input_set": {
+   "N_start": "0",
+   "N_cycles": "2000",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "electrokinetics_solver_type": "petsc",
+   "ewald_alpha": "0.7",
+   "ewald_gaussian_sigma_f": "0.7",
+   "ewald_gaussian_sigma_p": "0.7",
+   "freq_config": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/EWALD/Ewald-parameters-test-gaussian_dual-sigma_f_0.7-sigma_p_0.7-alpha_0.7-rc_6.0/Ewald-parameters-test-gaussian_dual-sigma_f_0.7-sigma_p_0.7-alpha_0.7-rc_6.0-n_1000-s_10-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.0E-03-stencil_27": {
+  "input_set": {
+   "size": "26_26_26",
+   "ewald_alpha": "0.7",
+   "ewald_gaussian_sigma_f": "0.7",
+   "ewald_gaussian_sigma_p": "0.7",
+   "freq_config": "100"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ }
+}

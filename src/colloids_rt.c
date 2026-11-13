@@ -1443,18 +1443,61 @@ int wall_ss_cut_init(pe_t* pe, cs_t* cs, rt_t* rt, wall_t* wall,
     wall_ss_cut_t* wall_ss_cut = NULL;
     wall_ss_cut_options_t opts = { 0 };
 
+    /*CHANGE INIT - 20261021 wall_ss_cut_model  soft_sphere (default) | steele
+     * steele: repulsive 10-4-3 wall of Hoang Ngoc Minh et al., J. Chem. Phys.
+     * 158, 104103 (2023), Eqs. (7)-(8); epsilon = eps_w, sigma = sigma_w, and
+     * wall_ss_cut_nu / wall_ss_cut_hc are not needed (cut-off 0.987 sigma_w).
+     * Original lines (all four keys required) kept below for soft_sphere. */
+    {
+      char model[BUFSIZ] = "soft_sphere";
+      rt_string_parameter(rt, "wall_ss_cut_model", model, BUFSIZ);
+      if (strcmp(model, "steele") == 0) opts.model = 1;
+      else if (strcmp(model, "soft_sphere") != 0) {
+        pe_fatal(pe, "wall_ss_cut_model must be soft_sphere or steele\n");
+      }
+    }
     rt_key_required(rt, "wall_ss_cut_epsilon", RT_FATAL);
     rt_key_required(rt, "wall_ss_cut_sigma", RT_FATAL);
-    rt_key_required(rt, "wall_ss_cut_nu", RT_FATAL);
-    rt_key_required(rt, "wall_ss_cut_hc", RT_FATAL);
+    if (opts.model == 0) rt_key_required(rt, "wall_ss_cut_nu", RT_FATAL);
+    if (opts.model == 0) rt_key_required(rt, "wall_ss_cut_hc", RT_FATAL);
+    /*CHANGE END - 20261021 */
 
     rt_double_parameter(rt, "wall_ss_cut_epsilon", &opts.epsilon);
     rt_double_parameter(rt, "wall_ss_cut_sigma", &opts.sigma);
     rt_double_parameter(rt, "wall_ss_cut_nu", &opts.nu);
     rt_double_parameter(rt, "wall_ss_cut_hc", &opts.hc);
 
-    if (opts.nu <= 0) pe_fatal(pe, "Please ensure wall_ss_cut_nu is +ve\n");
-    if (opts.hc <= 0) pe_fatal(pe, "Please ensure wall_ss_cut_hc is +ve\n");
+    /*CHANGE INIT - 20261021 nu and hc only checked for the soft sphere */
+    if (opts.model == 0 && opts.nu <= 0) pe_fatal(pe, "Please ensure wall_ss_cut_nu is +ve\n");
+    if (opts.model == 0 && opts.hc <= 0) pe_fatal(pe, "Please ensure wall_ss_cut_hc is +ve\n");
+    if (opts.model == 1 && opts.sigma <= 0) pe_fatal(pe, "Please ensure wall_ss_cut_sigma is +ve\n");
+    /*CHANGE END - 20261021 */
+
+    /*CHANGE INIT - 20261018 map-based walls (porous_media_init wall_x|y|z):
+     *   wall_ss_cut_planes   yes|no   use the planes below (default no)
+     *   wall_ss_cut_axis     x|y|z    axis normal to the planes (default z)
+     *   wall_ss_cut_plane_lo <double> coordinate of the lower wall plane
+     *   wall_ss_cut_plane_hi <double> coordinate of the upper wall plane
+     *   wall_ss_cut_radius   <double> sphere radius R, h = d - R (default 0)
+     * For the usual map walls the planes are the solid/fluid mid-planes,
+     * e.g. 1.5 and nz - 0.5 for solid layers at sites 1 and nz. */
+    if (rt_switch(rt, "wall_ss_cut_planes")) {
+      char axis[BUFSIZ] = "z";
+      opts.use_planes = 1;
+      rt_string_parameter(rt, "wall_ss_cut_axis", axis, BUFSIZ);
+      opts.axis = 2;
+      if (strcmp(axis, "x") == 0) opts.axis = 0;
+      if (strcmp(axis, "y") == 0) opts.axis = 1;
+      rt_key_required(rt, "wall_ss_cut_plane_lo", RT_FATAL);
+      rt_key_required(rt, "wall_ss_cut_plane_hi", RT_FATAL);
+      rt_double_parameter(rt, "wall_ss_cut_plane_lo", &opts.plane_lo);
+      rt_double_parameter(rt, "wall_ss_cut_plane_hi", &opts.plane_hi);
+      rt_double_parameter(rt, "wall_ss_cut_radius", &opts.radius);
+      if (opts.plane_hi <= opts.plane_lo) {
+        pe_fatal(pe, "Please ensure wall_ss_cut_plane_hi > wall_ss_cut_plane_lo\n");
+      }
+    }
+    /*CHANGE END - 20261018 */
 
     wall_ss_cut_create(pe, cs, wall, &opts, &wall_ss_cut);
     wall_ss_cut_register(wall_ss_cut, interact);

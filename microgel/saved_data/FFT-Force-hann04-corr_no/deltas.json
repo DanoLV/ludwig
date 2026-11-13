@@ -1,0 +1,197 @@
+{
+ "_info": {
+  "input_base_de": "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_10.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_10.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.000000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_11.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.100000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_12.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.200000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_13.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.300000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_14.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.400000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_15.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.500000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_16.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.600000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_17.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.700000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_18.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.800000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_19.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_20.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.000000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_21.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.100000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_22.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.200000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_23.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.300000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_24.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.400000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_25.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.500000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_26.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.600000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_27.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.700000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_28.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.800000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_29.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   2.900000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_30.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.000000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_31.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.100000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_32.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.200000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "FFT-Force-hann04-corr_no/FFT-Force-hann04-corr_no-n_3000-s_50-L_48-pos_9.00_24.00_24.00-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_7.76e-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   9.000000000000000e+00    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ }
+}

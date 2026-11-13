@@ -1,0 +1,29 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/C-lineal-hann8-LD4-q0.25/z_05.00",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/C-lineal-hann8-LD4-q0.25/z_05.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/C-lineal-hann8-LD4-q0.25/z_07.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.600000000000000e+01    1.600000000000000e+01    7.500000000000000e+00\n"
+  }
+ },
+ "WALL-DIRICHLET/C-lineal-hann8-LD4-q0.25/z_11.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.600000000000000e+01    1.600000000000000e+01    1.150000000000000e+01\n"
+  }
+ }
+}

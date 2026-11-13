@@ -29,31 +29,21 @@ util/microgel_poly_filled_old
 util/multi_poly_init
 util/polarizer
 *.pvsm
-microgel/local/sim/*
-microgel/local/graficos/*
-microgel/local/__pycache__/*
-microgel/local/scripts-old/*
-microgel/local/otro/*
-microgel/local/input para sistema original con 2 bonds por coloide/*
-microgel/local/Eself
-microgel/local/Blibliografia
-microgel/local/Pruebas
-microgel/local/EW*/
-microgel/local/dimero/
-microgel/local/test*/
-microgel/local/PM*/
-microgel/local/PETS*/
-microgel/local/FFT*/
-microgel/local/old/
-microgel/local/FUERZA*
-microgel/local/MGEL*
-microgel/local/PHASE*
-microgel/local/PIN*
-microgel/local/SLIDE*
-microgel/local/TEST*
-microgel/local/EFIELD*
-microgel/local/SS*
-microgel/local/RING*
-microgel/local/CROSS*
-microgel/local/NBODY*
-microgel/runs/*
+.~lock.*#
+__pycache__/
+*.pyc
+
+# ---------------------------------------------------------------------------
+# Proyectos de simulacion (capacitor/, microgel/, ...)  [2026-11-13]
+#   <proyecto>/local/       corridas completas: NO va a git.
+#   <proyecto>/runs/        espejo liviano de local/ (util/archive_runs.py): NO va a git.
+#   <proyecto>/Registro_simulaciones.xlsx   registro de todas las corridas
+#                           (util/registro_simulaciones.py): SI va a git.
+#   <proyecto>/saved_data/  lo que se decida guardar a futuro: SI va a git, completo
+#                           (las reglas globales *.csv, *.vtk, *001-001 no se aplican ahi).
+# A git van ademas: el codigo de Ludwig, util/, code_changes/ y las notas (claude/, diario/).
+# ---------------------------------------------------------------------------
+/*/local/
+/*/runs/
+!/*/saved_data/
+!/*/saved_data/**

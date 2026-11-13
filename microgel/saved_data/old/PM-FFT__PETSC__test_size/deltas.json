@@ -1,0 +1,497 @@
+{
+ "_info": {
+  "input_base_de": "old/PM-FFT-SR_C_yes-hann12-halo-2/PM-FFT-SR_C_yes-hann12-halo-2-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": [
+   "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27"
+  ]
+ },
+ "old/PETSC/PM-PETSc-SR_C-hann4-halo-rcut_8/PM-PETSc-SR_C-hann4-halo-rcut_8-n_2000-s_1-L_32-q_1.0-pos_16.20_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_3.0E-04-stencil_27": {
+  "input_set": {
+   "size": "32_32_32",
+   "electrokinetics_init_rho_el": "3.0E-04",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_hann_order": "4",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.620000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C-hann8-halo-rcut_10/PM-PETSc-SR_C-hann8-halo-rcut_10-n_2000-s_1-L_32-q_1.0-pos_16.20_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_3.0E-04-stencil_27": {
+  "input_set": {
+   "size": "32_32_32",
+   "electrokinetics_init_rho_el": "3.0E-04",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_hann_order": "8",
+   "pm_sr_rcut": "12",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.620000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C-peskin4/PM-PETSc-SR_C-peskin4-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "electrokinetics_init_rho_el": "8.0E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_kernel": "peskin4",
+   "ewald_rc": "6.0",
+   "ewald_alpha": "1.0",
+   "ewald_gaussian_sigma": "1.0",
+   "ewald_gaussian_sigma_f": "0.0",
+   "ewald_gaussian_sigma_p": "0.5",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode",
+   "pm_sr_correction",
+   "subgrid_hann_order"
+  ],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {}
+ },
+ "old/PETSC/PM-PETSc-SR_C-peskin6-fft/PM-PETSc-SR_C-peskin6-fft-n_1000-s_1-L_60-q_1.0-pos_40.10_40.50_40.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "60_60_60",
+   "electrokinetics_init_rho_el": "2.4E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "subgrid_kernel": "peskin6",
+   "ewald_rc": "6.0",
+   "ewald_alpha": "1.0",
+   "ewald_gaussian_sigma": "1.0",
+   "ewald_gaussian_sigma_f": "0.0",
+   "ewald_gaussian_sigma_p": "0.5",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode",
+   "subgrid_hann_order"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   4.010000000000000e+01    4.050000000000000e+01    4.050000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C-peskin6/PM-PETSc-SR_C-peskin6-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "electrokinetics_init_rho_el": "2.4E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_kernel": "peskin6",
+   "ewald_rc": "6.0",
+   "ewald_alpha": "1.0",
+   "ewald_gaussian_sigma": "1.0",
+   "ewald_gaussian_sigma_f": "0.0",
+   "ewald_gaussian_sigma_p": "0.5",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode",
+   "subgrid_hann_order"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C-peskin6/PM-PETSc-SR_C-peskin6-n_1000-s_1-L_60-q_1.0-pos_40.10_40.50_40.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "60_60_60",
+   "electrokinetics_init_rho_el": "2.4E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_kernel": "peskin6",
+   "ewald_rc": "6.0",
+   "ewald_alpha": "1.0",
+   "ewald_gaussian_sigma": "1.0",
+   "ewald_gaussian_sigma_f": "0.0",
+   "ewald_gaussian_sigma_p": "0.5",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode",
+   "subgrid_hann_order"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   4.010000000000000e+01    4.050000000000000e+01    4.050000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C_no-hann4-halo-interlacing_0/PM-PETSc-SR_C_no-hann4-halo-interlacing_0-n_1000-s_1-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "32_32_32",
+   "electrokinetics_init_rho_el": "2.4E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C_no-hann4-halo/PM-PETSc-SR_C_no-hann4-halo-n_1000-s_1-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "32_32_32",
+   "electrokinetics_init_rho_el": "2.4E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "old/PETSC/PM-PETSc-SR_C_no-hann4-halo/PM-PETSc-SR_C_no-hann4-halo-n_1000-s_1-L_32-q_1.0-pos_16.60_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.4E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "32_32_32",
+   "electrokinetics_init_rho_el": "2.4E-03",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.660000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/PETSC/PM-PETSc-SR_C_no-hann8-halo/PM-PETSc-SR_C_no-hann8-halo-n_2000-s_1-L_32-q_1.0-pos_16.20_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_3.0E-04-stencil_27": {
+  "input_set": {
+   "size": "32_32_32",
+   "electrokinetics_init_rho_el": "3.0E-04",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "electrokinetics_solver_type": "petsc",
+   "pm_sr_correction": "no",
+   "subgrid_hann_order": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.620000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/PM-FFT-SR_C_no-hann12-halo/PM-FFT-SR_C_no-hann12-halo-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_correction": "no"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_no-hann4-halo/PM-FFT-SR_C_no-hann4-halo-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_no-hann8-halo/PM-FFT-SR_C_no-hann8-halo-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "subgrid_hann_order": "8",
+   "pm_sr_correction": "no"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann12-halo-2/PM-FFT-SR_C_yes-hann12-halo-2-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann12-halo-sigma_0.3-tabla3d/PM-FFT-SR_C_yes-hann12-halo-sigma_0.3-tabla3d-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.3"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann12-halo-sigma_0.6-tabla3d/PM-FFT-SR_C_yes-hann12-halo-sigma_0.6-tabla3d-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.6"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann12-halo/PM-FFT-SR_C_yes-hann12-halo-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {},
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-nvoxel_32/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-nvoxel_32-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.1",
+   "pm_sr_nvoxel": "32",
+   "subgrid_hann_order": "4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_2/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_2-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.3",
+   "subgrid_hann_order": "4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_3-2/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_3-2-n_5000-s_10-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "5000",
+   "pm_sr_sigma": "0.3",
+   "subgrid_hann_order": "4",
+   "vel_io_freq": "10",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_3/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_3-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.3",
+   "subgrid_hann_order": "4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.3",
+   "subgrid_hann_order": "4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo-sigma_0.6-tabla3d_3/PM-FFT-SR_C_yes-hann4-halo-sigma_0.3-tabla3d_3-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.6",
+   "subgrid_hann_order": "4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann4-halo/PM-FFT-SR_C_yes-hann4-halo-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "pm_sr_sigma": "0.7",
+   "subgrid_hann_order": "4"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/PM-FFT-SR_C_yes-hann8-halo/PM-FFT-SR_C_yes-hann8-halo-n_2000-s_5-L_48-q_1.0-pos_24.20_24.50_24.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [
+   "interlacing_mode"
+  ],
+  "coloides_base": "coloides_4.cds",
+  "coloides_lineas": {}
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size-n_50-s_1-L_128-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "50",
+   "size": "128_128_128",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size-n_50-s_1-L_144-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "50",
+   "size": "144_144_144",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size-n_50-s_1-L_48-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "50",
+   "electrokinetics_rel_tol": "1.0e-28",
+   "electrokinetics_abs_tol": "1.0e-30",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size-n_50-s_1-L_88-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "50",
+   "size": "88_88_88",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": []
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size-n_50-s_1-L_96-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "50",
+   "size": "96_96_96",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann4-halo-interlacing_0-test_size-n_50-s_5-L_256-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "50",
+   "size": "256_256_256",
+   "subgrid_hann_order": "4",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "freq_config": "500"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ },
+ "old/test_size/PM-FFT-SR_C_no-hann8-halo-interlacing_0-test_size/PM-FFT-SR_C_no-hann8-halo-interlacing_0-test_size-n_2-s_1-L_256-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "2",
+   "size": "256_256_256",
+   "subgrid_hann_order": "8",
+   "pm_sr_correction": "no",
+   "pm_sr_rcut": "8",
+   "vel_io_freq": "1",
+   "freq_config": "500",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.610000000000000e+01    1.650000000000000e+01    1.650000000000000e+01\n"
+  }
+ }
+}

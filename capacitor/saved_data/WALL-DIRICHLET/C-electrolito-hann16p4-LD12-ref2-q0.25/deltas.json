@@ -1,0 +1,13 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/C-electrolito-hann16p4-LD12-ref2-q0.25/z_17.50",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16p4-LD12-ref2-q0.25/z_17.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ }
+}

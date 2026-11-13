@@ -1,0 +1,320 @@
+{
+ "_info": {
+  "input_base_de": "old/Pruebas/FFT-ewald-test_peskin_all-cpu/FFT-ewald-test_peskin_all-cpu-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "old/Pruebas/FFT-ewald-test_peskin_all-cpu/FFT-ewald-test_peskin_all-cpu-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/FFT-ewald_P3M-test_peskin_all-cpu/FFT-ewald_P3M-test_peskin_all-cpu-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/FFT-test_bspline4/FFT-test_bspline4-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "free_energy": "fe_electro_ewald",
+   "vel_io_freq": "1",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/FFT-test_bspline6-papametro_all-deconv/FFT-test_bspline6-papametro_all-deconv-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "free_energy": "fe_electro_ewald",
+   "vel_io_freq": "1",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/FFT-test_bspline6_all-parametro-test_force_gradmu_e_ewald": {
+  "input_set": {
+   "N_start": "0",
+   "size": "16_16_16",
+   "free_energy": "fe_electro_ewald",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "vel_io_freq": "10",
+   "freq_config": "1000",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/FFT-test_bspline6_all-parametro-test_force_gradmu_e_ewald/FFT-test_bspline6_all-parametro-test_force_gradmu_e_ewald-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_start": "1000",
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "free_energy": "fe_electro_ewald",
+   "vel_io_freq": "1",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/FFT-test_peskin4_all-interlacing_mode_2-no_deconv-offset_x_0.0": {
+  "input_set": {
+   "N_start": "0",
+   "size": "16_16_16",
+   "free_energy": "fe_electro_ewald",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "vel_io_freq": "10",
+   "freq_config": "1000",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/FFT-test_peskin4_all-interlacing_mode_2-no_deconv-offset_x_0.0-particle_only/FFT-test_peskin4_all-interlacing_mode_2-no_deconv-offset_x_0.0-particle_only-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "free_energy": "fe_electro_ewald",
+   "vel_io_freq": "1",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/FFT-test_peskin4_all-interlacing_mode_2-no_deconv-offset_x_0.0/FFT-test_peskin4_all-interlacing_mode_2-no_deconv-offset_x_0.0-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "free_energy": "fe_electro_ewald",
+   "vel_io_freq": "1",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/PETSc-test_peskin4_all-parametro-test_force_gradmu_e_ewald": {
+  "input_set": {
+   "N_start": "0",
+   "size": "16_16_16",
+   "free_energy": "fe_electro_ewald",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "vel_io_freq": "10",
+   "freq_config": "1000",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/PETSc-test_peskin4_all-parametro-test_force_gradmu_e_ewald/PETSc-test_peskin4_all-parametro-test_force_gradmu_e_ewald-n_1000-s_1-L_26-q_1.0-pos_12.10_12.50_12.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "1000",
+   "size": "26_26_26",
+   "vel_io_freq": "1",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   1.210000000000000e+01    1.250000000000000e+01    1.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/PETSc-test_peskin_all/PETSc-test_peskin_all-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.0E-03-stencil_27": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/PM-PETSc-Peskin-fixed-kt/PM-PETSc-Peskin-fixed-kt-n_10000-s_1-L_32-q_1.0-pos_16.1_16.5_16.5-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.000E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "10000",
+   "electrokinetics_init_rho_el": "8.000E-03",
+   "vel_io_freq": "1",
+   "freq_config": "10",
+   "colloid_io_freq": "1"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_test_range_2/PETSc-test_resol-peskin_test_range_2-n_100-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_1.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "100",
+   "electrokinetics_init_rho_el": "1.0E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_test_range_3": {
+  "input_set": {
+   "N_start": "0",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "vel_io_freq": "10",
+   "freq_config": "1000",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_test_range_3/PETSc-test_resol-peskin_test_range_3-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_1.0E-03-stencil_27": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "1.0E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_test_range_4/PETSc-test_resol-peskin_test_range_4-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_1.0E-03-stencil_27": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "1.0E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_test_range_5/PETSc-test_resol-peskin_test_range_5-n_4000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_1.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "4000",
+   "electrokinetics_init_rho_el": "1.0E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_test_range_6/PETSc-test_resol-peskin_test_range_6-n_2000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_1.0E-03-stencil_27": {
+  "input_set": {
+   "N_start": "2000",
+   "electrokinetics_init_rho_el": "1.0E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_x2/PETSc-test_resol-peskin_x2-n_3000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_2.017E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "3000",
+   "electrokinetics_init_rho_el": "2.017E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_x2/PETSc-test_resol-peskin_x2-n_5000-s_20-L_32-q_1.0-pos_16.10_16.50_16.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_1.0E-03-stencil_27": {
+  "input_set": {
+   "N_cycles": "5000",
+   "electrokinetics_init_rho_el": "1.0E-03"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_x4": {
+  "input_set": {
+   "N_start": "0",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "vel_io_freq": "10",
+   "freq_config": "1000",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   16.34000000000000e+01    1.634000000000000e+01    1.634000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_x4-drange_4/PETSc-test_resol-peskin_x4-n_12000-s_20-L_64-q_1.0-pos_32.10_32.50_32.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_5.058E-04-stencil_27": {
+  "input_set": {
+   "N_start": "12000",
+   "N_cycles": "12000",
+   "size": "64_64_64",
+   "electrokinetics_init_rho_el": "5.058E-04"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.210000000000000e+01    3.250000000000000e+01    3.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/Resolucion PM/PETSc-test_resol-peskin_x4/PETSc-test_resol-peskin_x4-n_100000-s_20-L_64-q_1.0-pos_32.10_32.50_32.50-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_5.058E-04-stencil_27": {
+  "input_set": {
+   "N_cycles": "100000",
+   "size": "64_64_64",
+   "electrokinetics_init_rho_el": "5.058E-04"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.210000000000000e+01    3.250000000000000e+01    3.250000000000000e+01\n"
+  }
+ },
+ "old/Pruebas/ewald_full_gpu-alpha_1.0-rcut_3.0-fixed": {
+  "input_set": {
+   "N_start": "0",
+   "size": "16_16_16",
+   "electrokinetics_init_rho_el": "0.000E+00",
+   "vel_io_freq": "10",
+   "freq_config": "1000",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [
+   "electrokinetics_multisteps"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "   3.220000000000000e+01    3.250000000000000e+01    3.250000000000000e+01\n",
+   "54": "   4.950778285427371e-01 \n"
+  }
+ },
+ "old/Pruebas/ewald_full_gpu-alpha_1.0-rcut_3.0-fixed/ewald_full_gpu-alpha_1.0-rcut_3.0-fixed-n_15000-s_10-L_32-q_1.0-pos_16.1_16.5_16.5-e_0.0_0.0_0.0-kT_0.00001-rho_0.8-eta_0.05-eps_1.0e4-rhoel_8.000E-03-stencil_27": {
+  "input_set": {
+   "N_start": "5000",
+   "N_cycles": "15000",
+   "electrokinetics_init_rho_el": "8.000E-03",
+   "vel_io_freq": "10",
+   "freq_config": "100",
+   "colloid_io_freq": "10"
+  },
+  "input_remove": [
+   "electrokinetics_multisteps"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "54": "   4.950778285427371e-01 \n"
+  }
+ }
+}

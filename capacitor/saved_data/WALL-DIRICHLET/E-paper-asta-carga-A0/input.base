@@ -1,0 +1,78 @@
+# ===========================================================================
+# Dinamica de carga del capacitor de Asta et al. 2019 (seccion III.A.3,
+# Fig. 4a): mismo capacitor que D-paper-asta/ (perfil estacionario, Fig. 3),
+# pero ahora guardando la carga inducida Q(t) en funcion del tiempo para
+# reproducir la curva de carga Q(t)/Q_inf vs t/tau_norm.
+#
+# Parametros fisicos IDENTICOS a D-paper-asta/ (ver ese input para el
+# detalle de cada uno): L=76 Dx, lambda_D=6 Dx, beta*e*Dpsi=0.1, D=0.05.
+#
+# Tiempo caracteristico de carga (normaliza el eje x de la Fig. 4a):
+#   tau_norm = L*lambda_D / (2*D) = 76*6 / (2*0.05) = 4560 pasos
+# El paper satura su Fig. 4a en t/tau_norm ~ 6; se corre hasta ~7*tau_norm
+# (32000 pasos) para tener una cola bien plana al final.
+#
+# La carga de cada pared (Wall charge lower/upper) se calcula TODOS los
+# pasos (ec. 16 del paper, psi_solver_petsc_wall_charge_compute), pero solo
+# se IMPRIME en el log cada freq_psi_resid pasos -- por eso aca se pone fino
+# (freq_psi_resid=50) en vez del 2000 de D-paper-asta/, que alcanzaba para
+# el perfil estacionario pero es demasiado grueso para la forma de Q(t).
+# ===========================================================================
+
+N_start 0
+N_cycles 32000
+
+# --- Geometria: identica a D-paper-asta/ (L=76 Dx, planos medios en 1.5 y 77.5)
+size 4_4_78
+grid 1_1_1
+periodicity 1_1_1
+boundary_walls 0_0_0
+porous_media_init wall_z
+
+# --- Fluido (sin hidrodinamica, igual que D-paper-asta/) --------------------
+hydrodynamics off
+viscosity 0.166667
+temperature 0.00001
+isothermal_fluctuations off
+
+# --- Electrocinetica: electrolito 1:1, D_fisica=0.05, lambda_D=6 Dx --------
+free_energy fe_electro
+fe_force_method phi_gradmu_correction
+colloid_init none
+electrokinetics_z0 +1
+electrokinetics_z1 -1
+# stencil=27 -> A0=6.137828 (ver memoria nernst_planck_A0_stencil_factor).
+# D_fisica = 0.05 (igual que el paper) -> electrokinetics_d0/d1 = D_fisica/A0
+# = 0.05/6.137828 = 0.008145897. Esta es la corrida donde se descubrio y
+# verifico la necesidad de esta correccion: con D=0.05 SIN dividir (ver
+# D-paper-asta/input) la dinamica de carga daba tau/tau_norm=0.148 en vez
+# del ~0.85-0.90 esperado (Fig. 5b del paper); con esta D corregida da
+# tau/tau_norm=0.878, que coincide.
+electrokinetics_d0 0.008145897
+electrokinetics_d1 0.008145897
+electrokinetics_eunit 1.0
+electrokinetics_epsilon 1.0e4
+electrokinetics_init uniform
+electrokinetics_init_rho_el 1.388889e-3
+
+# --- Solver de Poisson con paredes a potencial constante -------------------
+electrokinetics_solver_type petsc
+electrokinetics_solver_stencil 27
+electrokinetics_rel_tol 1.0e-18
+electrokinetics_abs_tol 1.0e-18
+electrokinetics_wall_axis z
+electrokinetics_wall_potential 0.0_0.1
+pm_sr_correction no
+
+# --- Salida ------------------------------------------------------------------
+# freq_psi_resid chico: es lo que controla cada cuantos pasos se imprime
+# "Wall charge lower/upper" en el log, que es la serie Q(t) que se analiza.
+freq_psi_resid 50
+freq_statistics 4000
+freq_config 8000
+config_at_end yes
+psi_io_mode mpiio
+psi_io_format ascii
+default_io_mode mpiio
+default_io_format ascii
+random_seed 8361235

@@ -1,0 +1,244 @@
+# =============================================================================
+# FREE charged particle between two grounded walls (psi = 0), no electrolyte.
+# Same system as C-sin-fondo-hann08/z_09.50 (d = 8 from the lower wall, Hann-8,
+# q = +1) but the particle is FREE to move: in config.cds.init.001-001 the flag
+# isfixedr is 0 (it was 1 in the fixed-particle batteries). 30000 steps.
+# Fluid viscosity LOWERED to 0.0005 (eta=0.05 before) so the particle response is 100x faster.
+# CONTINUATION from step 30000 (particle at d = 5.04, moving toward the lower wall), now WITH the wall
+# repulsive Steele 10-4-3 wall of Hoang Ngoc Minh et al. 2023 (wall_ss_cut_model steele) that stops it near d = 3.6.
+# Output: particle force every 100 steps (proceced_data/particle_force.csv),
+# wall charges every 100 steps (run.log), full dumps and particle positions
+# (config.cds*) every 2500 steps.
+# =============================================================================
+##############################################################################
+#
+#  Microgel polymer test
+#  Monomers are subgrid particles.      
+#
+##############################################################################
+
+# N_start 0   (replaced by the restart line below)
+N_start 30000       # restart from step 30000 of C-particula-libre-hann08-eta0.0005 (d = 5.04)
+N_cycles 12000      # 12000 MORE steps (to 42000); the particle should stop near d = 3.6
+
+##############################################################################
+#
+#  System and MPI
+# 
+##############################################################################
+
+size 32_32_34
+grid 1_1_1
+# N_halo  yes
+
+##############################################################################
+#
+#  Fluid parameters
+#
+##############################################################################
+
+# hydrodynamics off
+
+fluid_rho0 0.8
+viscosity 0.0005      # 100x lower than the fixed-particle runs (0.05): free particle moves 100x faster
+viscosity_bulk 0.0005
+
+lb_relaxation_scheme M10
+# lb_relaxation_scheme BGK
+lb_fluctuations 0
+# temperature      0.0002
+temperature 0.00001
+# temperature      0.5
+# force 0.0_0.0_-0.00000001
+
+##############################################################################
+#
+#  Free energy parameters
+#
+###############################################################################
+free_energy fe_electro
+
+# External field
+electric_e0 0.0_0.0_0.0
+
+electrokinetics_init uniform
+# # electrokinetics_z0      +1
+# # electrokinetics_z1      -1
+# electrokinetics_d0      0.005
+# electrokinetics_d1      0.005
+# # electrokinetics_eunit   0.5
+# # electrokinetics_epsilon     1.0e4c
+# electrokinetics_epsilon 1.0e4
+electrokinetics_epsilon 1.0e4
+# electrokinetics_init_rho_el 2.0e-3
+electrokinetics_init_rho_el 0.0
+electrokinetics_rel_tol     1.0e-18
+electrokinetics_abs_tol     1.0e-18
+# # electrokinetics_maxits   10000
+# #electrokinetics_diffacc  0
+electrokinetics_multisteps 1
+electrokinetics_solver_stencil 27
+
+electrokinetics_solver_type petsc
+# # electrokinetics_solver_type #petsc sor fft
+# electrokinetics_fft_laplacian discrete #discrete analytic    
+
+fe_force_method phi_gradmu_correction #phi_gradmu_correction stress_divergence ewald ewald_gaussian ewald_gaussian_dual
+
+# subgrid_kernel hann # hann peskin4 peskin6
+# subgrid_hann_order 12
+# pm_sr_correction yes
+# # pm_sr_rcut 8
+
+pm_sr_correction no
+pm_sr_sigma       1.44612      # = sigma_kernel(hann8), self-consistente
+pm_sr_pair_ref measured
+pm_sr_rcut        6.0      # default del codigo: 2 + krange
+# pm_sr_nvoxel      8        # resolución sub-voxel al construir la tabla
+# pm_sr_nr3d        32       # resolución de la tabla 3D
+subgrid_kernel    hann     # kernel de spread/gather
+subgrid_hann_order 8      # orden Hann (ancho total del soporte)
+
+
+interlacing_mode    0         # 0 = modo normal, 1 = red desplazada
+# interlacing_offset  0.844     # valor fijo, o la palabra: random
+# interlacing_offset  random  
+# interlacing_seed    12345      # solo para random
+
+#Ewald parameters
+# ewald_rc 6.0
+# ewald_alpha 1.0
+# ewald_gaussian_sigma 1.0
+# ewald_gaussian_sigma_f 0.0 # ewald_gaussian_sigma_fluid
+# ewald_gaussian_sigma_p 0.5 # ewald_gaussian_sigma_particle
+
+
+###############################################################################
+#
+#  Colloid parameter8
+#
+###############################################################################
+
+colloid_init     from_file
+# colloid_rebuild_freq 1
+# colloid_gravity           0.0_0.0_-0.000005  # vector
+
+# lennard_jones_on          1                 # integer 0/1 off/on
+# lj_epsilon                1.0e-09         # energy units
+# lj_sigma                  0.1               # potential length scale
+# lj_cutoff                 0.8               # a centre-centre separation
+# lj_unbonded               1
+
+# bond_harmonic_on 1
+# bond_harmonic_k  5.0e-3
+# bond_harmonic_r0 4.0
+
+# angle_harmonic_on 1
+# angle_harmonic_k 1.0e-04
+# angle_harmonic_theta0 2.0944  #1.5708
+
+# ++_on 1
+# angle_dihedral_k 4.810896e-05_4.810896e-05_4.810896e-05
+# angle_dihedral_phi0 3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142_3.142
+# angle_dihedral_mu 2_2_2_2_2_2_2_2_2_2_2_2_2_2_2_2
+
+######################################
+# colloid_init              input_one
+# colloid_one_bc            subgrid #bbl #subgrid
+
+# colloid_one_a0            0.05
+# colloid_one_ah            0.05
+# colloid_one_al            0.5
+# colloid_one_r             11.0_11.0_11.0
+# colloid_one_q0            1.0
+
+###############################################################################
+#
+#  Periodic conditions / boundaries
+#
+###############################################################################
+
+periodicity 1_1_1
+
+###############################################################################
+#
+#  Walls / boundaries
+#
+###############################################################################
+# porous_media_file     yes
+# porous_media_io_grid  1_1_1
+# porous_media_data     status_with_sigma
+
+# boundary_walls 	      1_1_1
+# boundary_walls_slip_active yes
+# boundary_walls_slip_fraction_bot 0.0_0.99_0.0
+# boundary_walls_slip_fraction_top 0.0_0.99_0.0
+
+###############################################################################
+#
+#  Output frequency and type
+#
+###############################################################################
+
+default_io_mode   mpiio
+default_io_format ascii
+
+freq_statistics 1000
+vel_io_freq 1000
+# psi_io_freq         5
+freq_config 2500
+config_at_end     yes
+
+##############################################################################
+#
+#  colloid i/o
+#
+##############################################################################
+
+colloid_io_freq 100
+colloid_io_format_output ASCII
+
+###############################################################################
+#
+#  Miscellaneous
+#
+###############################################################################
+
+random_seed 8361235
+pforce_io_freq 100
+
+freq_psi_resid 100
+
+# --- paredes a potencial constante (Asta et al. 2019), a tierra ---
+porous_media_init wall_z
+electrokinetics_wall_axis z
+electrokinetics_wall_potential 0.0_0.0
+
+electrokinetics_electroneutral no
+
+###############################################################################
+#
+#  Wall-particle repulsion: Steele 10-4-3 potential of the paper (wall_ss_cut_model steele)
+#
+#  Hoang Ngoc Minh et al., J. Chem. Phys. 158, 104103 (2023), Eqs. (7)-(8): purely repulsive wall,
+#      V(z) = Vads(z) - Vads(z*)  for z <= z* = 0.98698 sigma_w ,  V = 0 beyond,
+#      Vads(z) = 2 pi eps_w [ (2/5)(s/z)^10 - (s/z)^4 - sqrt(2) / (3 (z/s + 0.61/sqrt(2))^3) ] ,  s = sigma_w
+#  (Lennard-Jones integrated over an fcc (100) face). Here z = h = d - R, d = distance from the
+#  particle centre to the solid/fluid mid-plane (planes at 1.5 and 33.5), R = 3.5 = Hann-8 kernel radius.
+#  Goal (same as the soft-sphere run): stop the particle just before the kernel reaches the wall
+#  nodes, d >= 3.5 (no charge lost).
+#  sigma_w = 1.0 (lattice units); eps_w fixed so that the wall force balances the electrostatic
+#  attraction F_att(d = 3.6) = 1.5726e-7 at h = 0.1:  F(0.1) = eps_w * 2.5133e12 -> eps_w = 6.2572e-20
+#  (beta eps_w = eps_w/kT = 6.26e-15, kT = 1e-5). Range 0.987 (force active from d = 4.487).
+#  (A paper-like beta eps_w = 0.17 would need sigma_w ~ 0.1, a range far below the lattice spacing and
+#  an explicit step unstable for this mobility.)
+###############################################################################
+wall_ss_cut_on        yes
+wall_ss_cut_model     steele
+wall_ss_cut_epsilon   6.2572e-20
+wall_ss_cut_sigma     1.0
+wall_ss_cut_planes    yes
+wall_ss_cut_axis      z
+wall_ss_cut_plane_lo  1.5
+wall_ss_cut_plane_hi  33.5
+wall_ss_cut_radius    3.5

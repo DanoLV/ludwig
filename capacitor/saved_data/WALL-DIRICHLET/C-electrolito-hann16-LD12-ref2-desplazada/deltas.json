@@ -1,0 +1,197 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_35.50",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_35.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.550000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_35.70": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.570000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_35.90": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.590000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_36.10": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.610000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_36.30": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.630000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_36.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_36.70": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.670000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_36.90": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.690000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_37.10": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.710000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_37.30": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.730000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_37.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.750000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_37.70": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.770000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_37.90": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.790000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_38.10": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.810000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_38.30": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.830000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_38.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.850000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_38.70": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.870000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_38.90": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.890000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_39.10": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.910000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_39.30": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.930000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_39.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    3.950000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_42.90": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    4.290000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_50.10": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    5.010000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann16-LD12-ref2-desplazada/z_57.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    3.200000000000000e+01    3.200000000000000e+01    5.750000000000000e+01\n"
+  }
+ }
+}

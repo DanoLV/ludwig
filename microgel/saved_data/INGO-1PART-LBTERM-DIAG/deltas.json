@@ -1,0 +1,559 @@
+{
+ "_info": {
+  "input_base_de": "INGO-1PART-LBTERM-DIAG/LONG-MASS",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "INGO-1PART-LBTERM-DIAG/BASE": {
+  "input_set": {
+   "N_cycles": "1000",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000"
+  },
+  "input_remove": [
+   "electrokinetics_advection",
+   "psi_io_freq",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/BASE-MASS": {
+  "input_set": {
+   "N_cycles": "1000",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/BASE-W": {
+  "input_set": {
+   "N_cycles": "1000",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000"
+  },
+  "input_remove": [
+   "electrokinetics_advection",
+   "psi_io_freq",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/DUMP": {
+  "input_set": {
+   "N_cycles": "60",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000",
+   "psi_io_freq": "50",
+   "rho_io_freq": "50",
+   "vel_io_freq": "50"
+  },
+  "input_remove": [
+   "electrokinetics_advection"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/DUMP-W": {
+  "input_set": {
+   "N_cycles": "60",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000",
+   "psi_io_freq": "50",
+   "rho_io_freq": "50",
+   "vel_io_freq": "50"
+  },
+  "input_remove": [
+   "electrokinetics_advection"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/DUMP7": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_d0": "6.515e-4",
+   "electrokinetics_d1": "6.515e-4",
+   "electrokinetics_solver_stencil": "7",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000",
+   "psi_io_freq": "50",
+   "rho_io_freq": "50",
+   "vel_io_freq": "50"
+  },
+  "input_remove": [
+   "electrokinetics_advection"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/DUMP7-W": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_d0": "6.515e-4",
+   "electrokinetics_d1": "6.515e-4",
+   "electrokinetics_solver_stencil": "7",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000",
+   "psi_io_freq": "50",
+   "rho_io_freq": "50",
+   "vel_io_freq": "50"
+  },
+  "input_remove": [
+   "electrokinetics_advection"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/FIXED": {
+  "input_set": {
+   "N_cycles": "1000",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000"
+  },
+  "input_remove": [
+   "electrokinetics_advection",
+   "psi_io_freq",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n"
+  }
+ },
+ "INGO-1PART-LBTERM-DIAG/LAG-CEN": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "60",
+   "psi_io_freq": "1",
+   "rho_io_freq": "1"
+  },
+  "input_remove": [
+   "colloid_init",
+   "electrokinetics_advection"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/LAG-CEN_fallido": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "60",
+   "psi_io_freq": "1",
+   "rho_io_freq": "1"
+  },
+  "input_remove": [
+   "colloid_init",
+   "electrokinetics_advection"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/LAG-FLLA": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "60",
+   "psi_io_freq": "1",
+   "rho_io_freq": "1",
+   "electrokinetics_advection": "flla"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/LAG-FLLA_fallido": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "60",
+   "psi_io_freq": "1",
+   "rho_io_freq": "1",
+   "electrokinetics_advection": "flla"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/LAG-MASS": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "60",
+   "psi_io_freq": "1",
+   "rho_io_freq": "1"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/LAG-MASS_fallido": {
+  "input_set": {
+   "N_cycles": "60",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "60",
+   "psi_io_freq": "1",
+   "rho_io_freq": "1"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-3E5": {
+  "input_set": {
+   "N_cycles": "300000",
+   "freq_statistics": "1000",
+   "colloid_io_freq": "1000",
+   "freq_config": "100000",
+   "psi_io_freq": "1000",
+   "rho_io_freq": "1000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-D10": {
+  "input_set": {
+   "N_cycles": "15000",
+   "electrokinetics_d0": "1.0614504e-3",
+   "electrokinetics_d1": "1.0614504e-3",
+   "freq_config": "15000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-D10-FIXED": {
+  "input_set": {
+   "N_cycles": "15000",
+   "electrokinetics_d0": "1.0614504e-3",
+   "electrokinetics_d1": "1.0614504e-3",
+   "freq_config": "15000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n"
+  }
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-D30": {
+  "input_set": {
+   "electrokinetics_d0": "3.1843512e-3",
+   "electrokinetics_d1": "3.1843512e-3"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-D30-FIXED": {
+  "input_set": {
+   "electrokinetics_d0": "3.1843512e-3",
+   "electrokinetics_d1": "3.1843512e-3"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "6": "                       1\n"
+  }
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-NOFLUCT": {
+  "input_set": {
+   "lb_fluctuations": "off"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-NOFLUCT-D10": {
+  "input_set": {
+   "N_cycles": "15000",
+   "lb_fluctuations": "off",
+   "electrokinetics_d0": "1.0614504e-3",
+   "electrokinetics_d1": "1.0614504e-3",
+   "freq_config": "15000"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-MASS-NOFLUCT-D30": {
+  "input_set": {
+   "lb_fluctuations": "off",
+   "electrokinetics_d0": "3.1843512e-3",
+   "electrokinetics_d1": "3.1843512e-3"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/LONG-W": {
+  "input_set": {
+   "psi_io_freq": "2500",
+   "rho_io_freq": "2500"
+  },
+  "input_remove": [
+   "electrokinetics_advection"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/NOFLUCT": {
+  "input_set": {
+   "N_cycles": "1000",
+   "lb_fluctuations": "off",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000"
+  },
+  "input_remove": [
+   "electrokinetics_advection",
+   "psi_io_freq",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/NOHYDRO": {
+  "input_set": {
+   "N_cycles": "1000",
+   "hydrodynamics": "off",
+   "freq_statistics": "1",
+   "colloid_io_freq": "1",
+   "freq_config": "1000"
+  },
+  "input_remove": [
+   "electrokinetics_advection",
+   "psi_io_freq",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-FLLA": {
+  "input_set": {
+   "N_cycles": "500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "500",
+   "electrokinetics_advection": "flla"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-FLLA2": {
+  "input_set": {
+   "N_cycles": "500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "500",
+   "electrokinetics_advection": "flla"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-FLLA2_fallido": {
+  "input_set": {
+   "N_cycles": "500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "500",
+   "electrokinetics_advection": "flla"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-MASS": {
+  "input_set": {
+   "N_cycles": "500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "500"
+  },
+  "input_remove": [
+   "colloid_init"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-MASS_fallido": {
+  "input_set": {},
+  "input_remove": [
+   "N_cycles",
+   "N_start",
+   "colloid_init",
+   "colloid_io_format_output",
+   "colloid_io_freq",
+   "config_at_end",
+   "default_io_format",
+   "default_io_mode",
+   "electric_e0",
+   "electrokinetics_abs_tol",
+   "electrokinetics_d0",
+   "electrokinetics_d1",
+   "electrokinetics_epsilon",
+   "electrokinetics_init",
+   "electrokinetics_init_rho_el",
+   "electrokinetics_multisteps",
+   "electrokinetics_rel_tol",
+   "electrokinetics_solver_stencil",
+   "electrokinetics_solver_type",
+   "fe_force_method",
+   "fluid_rho0",
+   "free_energy",
+   "freq_config",
+   "freq_statistics",
+   "grid",
+   "interlacing_mode",
+   "lb_fluctuations",
+   "lb_relaxation_scheme",
+   "periodicity",
+   "pm_sr_correction",
+   "psi_io_freq",
+   "random_seed",
+   "rho_io_freq",
+   "rho_io_wanted",
+   "size",
+   "subgrid_hann_order",
+   "subgrid_kernel",
+   "temperature",
+   "viscosity",
+   "viscosity_bulk"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-REG": {
+  "input_set": {
+   "N_cycles": "500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "500"
+  },
+  "input_remove": [
+   "colloid_init",
+   "electrokinetics_advection"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-REG2": {
+  "input_set": {
+   "N_cycles": "500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "500"
+  },
+  "input_remove": [
+   "colloid_init",
+   "electrokinetics_advection"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/NOPART-W": {
+  "input_set": {
+   "N_cycles": "2500",
+   "electrokinetics_init_rho_el": "5.0805e-5",
+   "freq_config": "2500"
+  },
+  "input_remove": [
+   "colloid_init",
+   "electrokinetics_advection"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/STEP-ADV/centred": {
+  "input_set": {
+   "N_cycles": "2000",
+   "size": "64_4_4",
+   "lb_fluctuations": "off",
+   "distribution_initialisation": "3d_uniform_u",
+   "distribution_uniform_u": "0.01_0.0_0.0",
+   "electrokinetics_init": "liquid_junction",
+   "electrokinetics_init_rho_el": "1.0e-3",
+   "electrokinetics_init_delta_el": "1.0e-3",
+   "electrokinetics_d0": "1.0e-10",
+   "electrokinetics_d1": "1.0e-10",
+   "freq_statistics": "250",
+   "psi_io_freq": "250",
+   "freq_config": "2000",
+   "electrokinetics_advection": "centred"
+  },
+  "input_remove": [
+   "colloid_init",
+   "colloid_io_format_output",
+   "colloid_io_freq",
+   "electrokinetics_abs_tol",
+   "electrokinetics_rel_tol",
+   "interlacing_mode",
+   "pm_sr_correction",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/STEP-ADV/flla": {
+  "input_set": {
+   "N_cycles": "2000",
+   "size": "64_4_4",
+   "lb_fluctuations": "off",
+   "distribution_initialisation": "3d_uniform_u",
+   "distribution_uniform_u": "0.01_0.0_0.0",
+   "electrokinetics_init": "liquid_junction",
+   "electrokinetics_init_rho_el": "1.0e-3",
+   "electrokinetics_init_delta_el": "1.0e-3",
+   "electrokinetics_d0": "1.0e-10",
+   "electrokinetics_d1": "1.0e-10",
+   "freq_statistics": "250",
+   "psi_io_freq": "250",
+   "freq_config": "2000",
+   "electrokinetics_advection": "flla"
+  },
+  "input_remove": [
+   "colloid_init",
+   "colloid_io_format_output",
+   "colloid_io_freq",
+   "electrokinetics_abs_tol",
+   "electrokinetics_rel_tol",
+   "interlacing_mode",
+   "pm_sr_correction",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ]
+ },
+ "INGO-1PART-LBTERM-DIAG/STEP-ADV/flla_mass": {
+  "input_set": {
+   "N_cycles": "2000",
+   "size": "64_4_4",
+   "lb_fluctuations": "off",
+   "distribution_initialisation": "3d_uniform_u",
+   "distribution_uniform_u": "0.01_0.0_0.0",
+   "electrokinetics_init": "liquid_junction",
+   "electrokinetics_init_rho_el": "1.0e-3",
+   "electrokinetics_init_delta_el": "1.0e-3",
+   "electrokinetics_d0": "1.0e-10",
+   "electrokinetics_d1": "1.0e-10",
+   "freq_statistics": "250",
+   "psi_io_freq": "250",
+   "freq_config": "2000"
+  },
+  "input_remove": [
+   "colloid_init",
+   "colloid_io_format_output",
+   "colloid_io_freq",
+   "electrokinetics_abs_tol",
+   "electrokinetics_rel_tol",
+   "interlacing_mode",
+   "pm_sr_correction",
+   "rho_io_freq",
+   "rho_io_wanted"
+  ]
+ }
+}

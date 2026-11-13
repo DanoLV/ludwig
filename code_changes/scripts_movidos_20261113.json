@@ -1,0 +1,492 @@
+[
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/scripts",
+  "destino": "capacitor/scripts/WALL-DIRICHLET",
+  "tipo": "carpeta -> symlink"
+ },
+ {
+  "origen": "capacitor/local/SOLIDO-L48-lb3.5-relax/convergencia.py",
+  "destino": "capacitor/scripts/SOLIDO-L48-lb3.5-relax/convergencia.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/SOLIDO-L48-lb3.5-relax/exportar_csv.py",
+  "destino": "capacitor/scripts/SOLIDO-L48-lb3.5-relax/exportar_csv.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/SOLIDO-L48-lb3.5-relax/run.sh",
+  "destino": "capacitor/scripts/SOLIDO-L48-lb3.5-relax/run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/cola_hannp4.sh",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/cola_hannp4.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/cola_peskin6.sh",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/cola_peskin6.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/correr_dospot_electrolito.sh",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/correr_dospot_electrolito.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/correr_electrolito.sh",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/correr_electrolito.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/correr_lineal.sh",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/correr_lineal.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/correr_tests.sh",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/correr_tests.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/crear_baterias_electrolito.py",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/crear_baterias_electrolito.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/crear_continuacion.py",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/crear_continuacion.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/crear_desplazada.py",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/crear_desplazada.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/crear_desplazada_p4.py",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/crear_desplazada_p4.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/crear_desplazada_ref.py",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/crear_desplazada_ref.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "capacitor/local/WALL-DIRICHLET/crear_refinado.py",
+  "destino": "capacitor/scripts/WALL-DIRICHLET/crear_refinado.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/scripts",
+  "destino": "microgel/scripts",
+  "tipo": "carpeta -> symlink"
+ },
+ {
+  "origen": "microgel/local/TEST-HIDRO-dx1/scripts",
+  "destino": "microgel/scripts/TEST-HIDRO-dx1",
+  "tipo": "carpeta -> symlink"
+ },
+ {
+  "origen": "microgel/local/TEST-HIDRO-dx2/scripts",
+  "destino": "microgel/scripts/TEST-HIDRO-dx2",
+  "tipo": "carpeta -> symlink"
+ },
+ {
+  "origen": "microgel/local/EFIELD-1PART-LD8-gauss08eq/run.sh",
+  "destino": "microgel/scripts/EFIELD-1PART-LD8-gauss08eq/run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/INGO-1PART-LBTERM-DIAG/cloud_profile.py",
+  "destino": "microgel/scripts/INGO-1PART-LBTERM-DIAG/cloud_profile.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/INGO-1PART-LBTERM-DIAG/particle_motion.py",
+  "destino": "microgel/scripts/INGO-1PART-LBTERM-DIAG/particle_motion.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/INGO-1PART-LBTERM-DIAG/pb_reference.py",
+  "destino": "microgel/scripts/INGO-1PART-LBTERM-DIAG/pb_reference.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/MGEL-RED-SURF-NOSALT/monitor_equilibrio.sh",
+  "destino": "microgel/scripts/MGEL-RED-SURF-NOSALT/monitor_equilibrio.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/MGEL-RED-SURF-NOSALT/run.sh",
+  "destino": "microgel/scripts/MGEL-RED-SURF-NOSALT/run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/MGEL-RED-neutro/run.sh",
+  "destino": "microgel/scripts/MGEL-RED-neutro/run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/MGEL-SURF-NOSALT-hann06/run.sh",
+  "destino": "microgel/scripts/MGEL-SURF-NOSALT-hann06/run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/MICROGEL-RED/gen.sh",
+  "destino": "microgel/scripts/MICROGEL-RED/gen.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/NBODY-additivity/analyze.py",
+  "destino": "microgel/scripts/NBODY-additivity/analyze.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/NBODY-additivity/mkrun.py",
+  "destino": "microgel/scripts/NBODY-additivity/mkrun.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/PIN2GRID-gauss08/run.sh",
+  "destino": "microgel/scripts/PIN2GRID-gauss08/run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SLIDES-LD8-hann04-corr_no-dx2-r4-shift/correr.sh",
+  "destino": "microgel/scripts/SLIDES-LD8-hann04-corr_no-dx2-r4-shift/correr.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SLIDES-LD8-hann04-corr_no-dx2/correr.sh",
+  "destino": "microgel/scripts/SLIDES-LD8-hann04-corr_no-dx2/correr.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SLIDES-LD8-hann08-corr_no-N10000-d4a5/correr.sh",
+  "destino": "microgel/scripts/SLIDES-LD8-hann08-corr_no-N10000-d4a5/correr.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SLIDES-LD8-hann08-corr_no-N10000/correr.sh",
+  "destino": "microgel/scripts/SLIDES-LD8-hann08-corr_no-N10000/correr.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SLIDES-LD8-hann16-corr_no-dxhalf-cont/correr_cont.sh",
+  "destino": "microgel/scripts/SLIDES-LD8-hann16-corr_no-dxhalf-cont/correr_cont.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SLIDES-LD8-hann16-corr_no-dxhalf/correr.sh",
+  "destino": "microgel/scripts/SLIDES-LD8-hann16-corr_no-dxhalf/correr.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/SS-SCAN-repulsion/freepos.py",
+  "destino": "microgel/scripts/SS-SCAN-repulsion/freepos.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/TEST-HIDRO-dx2/correr_exe45dc.sh",
+  "destino": "microgel/scripts/TEST-HIDRO-dx2/correr_exe45dc.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/TEST-HIDRO-dx2/correr_visc.sh",
+  "destino": "microgel/scripts/TEST-HIDRO-dx2/correr_visc.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/analizar_campo_electrico.py",
+  "destino": "microgel/scripts/aaa-otro/analizar_campo_electrico.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/batch_plot_electric_field.py",
+  "destino": "microgel/scripts/aaa-otro/batch_plot_electric_field.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/calculos.py",
+  "destino": "microgel/scripts/aaa-otro/calculos.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/calculosvel.py",
+  "destino": "microgel/scripts/aaa-otro/calculosvel.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/calculosvelfluid.py",
+  "destino": "microgel/scripts/aaa-otro/calculosvelfluid.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/calculosvelfluidonly.py",
+  "destino": "microgel/scripts/aaa-otro/calculosvelfluidonly.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/coloideacsv.sh",
+  "destino": "microgel/scripts/aaa-otro/coloideacsv.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/compare_field_theory.py",
+  "destino": "microgel/scripts/aaa-otro/compare_field_theory.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/compare_field_theory_peskin.py",
+  "destino": "microgel/scripts/aaa-otro/compare_field_theory_peskin.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/compare_potential_theory.py",
+  "destino": "microgel/scripts/aaa-otro/compare_potential_theory.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/convert_to_pdf.py",
+  "destino": "microgel/scripts/aaa-otro/convert_to_pdf.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/copy_plots.py",
+  "destino": "microgel/scripts/aaa-otro/copy_plots.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/delete_files_dist_rho.sh",
+  "destino": "microgel/scripts/aaa-otro/delete_files_dist_rho.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/ejemplo_runmulti.sh",
+  "destino": "microgel/scripts/aaa-otro/ejemplo_runmulti.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/ejemplos_carga.sh",
+  "destino": "microgel/scripts/aaa-otro/ejemplos_carga.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/ejemplos_uso.sh",
+  "destino": "microgel/scripts/aaa-otro/ejemplos_uso.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/extraer_posicion.py",
+  "destino": "microgel/scripts/aaa-otro/extraer_posicion.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/field_potencial.sh",
+  "destino": "microgel/scripts/aaa-otro/field_potencial.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/ludwig_redo.sh",
+  "destino": "microgel/scripts/aaa-otro/ludwig_redo.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/microgel_redo.sh",
+  "destino": "microgel/scripts/aaa-otro/microgel_redo.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/microgel_run.sh",
+  "destino": "microgel/scripts/aaa-otro/microgel_run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/organize_by_parameter.sh",
+  "destino": "microgel/scripts/aaa-otro/organize_by_parameter.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/organize_by_parameter_dryrun.sh",
+  "destino": "microgel/scripts/aaa-otro/organize_by_parameter_dryrun.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot.py",
+  "destino": "microgel/scripts/aaa-otro/plot.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_all_velocities.py",
+  "destino": "microgel/scripts/aaa-otro/plot_all_velocities.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_campo_electrico_rhoel.py",
+  "destino": "microgel/scripts/aaa-otro/plot_campo_electrico_rhoel.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_charge_distribution.py",
+  "destino": "microgel/scripts/aaa-otro/plot_charge_distribution.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_electric_field.py",
+  "destino": "microgel/scripts/aaa-otro/plot_electric_field.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_electric_field_peskin.py",
+  "destino": "microgel/scripts/aaa-otro/plot_electric_field_peskin.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_field_comparizon.sh",
+  "destino": "microgel/scripts/aaa-otro/plot_field_comparizon.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_isdw.py",
+  "destino": "microgel/scripts/aaa-otro/plot_isdw.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_peskin.py",
+  "destino": "microgel/scripts/aaa-otro/plot_peskin.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plot_velocity_field.py",
+  "destino": "microgel/scripts/aaa-otro/plot_velocity_field.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plotdatos.py",
+  "destino": "microgel/scripts/aaa-otro/plotdatos.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plotvariacioncarga.py",
+  "destino": "microgel/scripts/aaa-otro/plotvariacioncarga.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plotvel.py",
+  "destino": "microgel/scripts/aaa-otro/plotvel.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/plotvelfluid.py",
+  "destino": "microgel/scripts/aaa-otro/plotvelfluid.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/runbg copy.sh",
+  "destino": "microgel/scripts/aaa-otro/runbg copy.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/runbg.sh",
+  "destino": "microgel/scripts/aaa-otro/runbg.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/runbg_old.sh",
+  "destino": "microgel/scripts/aaa-otro/runbg_old.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/runmulti copy.sh",
+  "destino": "microgel/scripts/aaa-otro/runmulti copy.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/runmulti.sh",
+  "destino": "microgel/scripts/aaa-otro/runmulti.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/runplot.sh",
+  "destino": "microgel/scripts/aaa-otro/runplot.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/aaa-otro/verificar_simetria_psi.py",
+  "destino": "microgel/scripts/aaa-otro/verificar_simetria_psi.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/correr_d8a10.sh",
+  "destino": "microgel/scripts/correr_d8a10.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/crear_2part_d8a10.py",
+  "destino": "microgel/scripts/crear_2part_d8a10.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/crear_2part_dx1_intermedios.py",
+  "destino": "microgel/scripts/crear_2part_dx1_intermedios.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/crear_2part_dx2.py",
+  "destino": "microgel/scripts/crear_2part_dx2.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/crear_2part_dx2_r4_shift.py",
+  "destino": "microgel/scripts/crear_2part_dx2_r4_shift.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/crear_2part_dxhalf.py",
+  "destino": "microgel/scripts/crear_2part_dxhalf.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/crear_continuacion_dxhalf.py",
+  "destino": "microgel/scripts/crear_continuacion_dxhalf.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/ludwig_redo.sh",
+  "destino": "microgel/scripts/ludwig_redo.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/make_dimer.py",
+  "destino": "microgel/scripts/make_dimer.py",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/microgel_redo.sh",
+  "destino": "microgel/scripts/microgel_redo.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/microgel_run.sh",
+  "destino": "microgel/scripts/microgel_run.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/runbg.sh",
+  "destino": "microgel/scripts/runbg.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/runmulti.sh",
+  "destino": "microgel/scripts/runmulti.sh",
+  "tipo": "archivo -> hardlink"
+ },
+ {
+  "origen": "microgel/local/runplot.sh",
+  "destino": "microgel/scripts/runplot.sh",
+  "tipo": "archivo -> hardlink"
+ }
+]

@@ -1,0 +1,45 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/C-electrolito-hann8-LD6-desplazada-cont/z_17.50",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/C-electrolito-hann8-LD6-desplazada-cont/z_17.50": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "WALL-DIRICHLET/C-electrolito-hann8-LD6-desplazada-cont/z_17.60": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.600000000000000e+01    1.600000000000000e+01    1.760000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann8-LD6-desplazada-cont/z_17.75": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.600000000000000e+01    1.600000000000000e+01    1.775000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann8-LD6-desplazada-cont/z_17.90": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.600000000000000e+01    1.600000000000000e+01    1.790000000000000e+01\n"
+  }
+ },
+ "WALL-DIRICHLET/C-electrolito-hann8-LD6-desplazada-cont/z_18.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.600000000000000e+01    1.600000000000000e+01    1.800000000000000e+01\n"
+  }
+ }
+}

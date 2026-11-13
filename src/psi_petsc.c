@@ -257,8 +257,49 @@ static int petsc_wall_side(const psi_solver_petsc_t* solver,
 
 static double petsc_wall_value(const psi_solver_petsc_t* solver,
                                int ic, int jc, int kc) {
-  return solver->block->wall_psi[petsc_wall_side(solver, ic, jc, kc)];
+  /*CHANGE INIT - 20261028 tangential e0 with walls.
+   * Original: return solver->block->wall_psi[petsc_wall_side(...)];
+   * A tangential external field enters as Ludwig's usual potential jump
+   * psi(x + L) = psi(x) - e0 L (psi_halo_psijump). An ideal conductor cannot
+   * carry a tangential field, so the wall follows the applied ramp:
+   *   psi_wall(r) = wall_psi[side] - e0 . (r - r_centre)
+   * (the standard electro-osmotic channel: by linearity it is the same as
+   * solving with constant walls and adding a uniform e0 to the field). The
+   * coordinate is NOT wrapped: a halo wall site gets the ramp continued past
+   * the box, i.e. the periodic value plus the same jump psi_halo_psijump
+   * adds. e0 along wall_axis is refused in psi_solver_petsc_wall_set(). */
+  double v = solver->block->wall_psi[petsc_wall_side(solver, ic, jc, kc)];
+  int ntotal[3] = { 0 };
+  int noffset[3] = { 0 };
+  int lc[3] = { ic, jc, kc };
+  cs_ntotal(solver->psi->cs, ntotal);
+  cs_nlocal_offset(solver->psi->cs, noffset);
+  for (int a = 0; a < 3; a++) {
+    double g = 1.0*(noffset[a] + lc[a]);
+    v -= solver->psi->e0[a] * (g - 0.5*(ntotal[a] + 1));
+  }
+  return v;
+  /*CHANGE END - 20261028 */
 }
+
+/*CHANGE INIT - 20261028 tangential e0 with walls.
+ * Potential jump picked up going from DMDA global site (i,j,k) along
+ * displacement c: the stored (periodic) neighbour value plus this is the
+ * physical value, with the convention of psi_halo_psijump. */
+
+static double petsc_e0_jump(const psi_solver_petsc_t* solver,
+                            int i, int j, int k, const int8_t c[3]) {
+  int ntotal[3] = { 0 };
+  int g[3] = { i + c[X], j + c[Y], k + c[Z] };
+  double jump = 0.0;
+  cs_ntotal(solver->psi->cs, ntotal);
+  for (int a = 0; a < 3; a++) {
+    if (g[a] < 0)          jump += solver->psi->e0[a] * ntotal[a];
+    if (g[a] >= ntotal[a]) jump -= solver->psi->e0[a] * ntotal[a];
+  }
+  return jump;
+}
+/*CHANGE END - 20261028 */
 /*CHANGE END - 20260926 */
 
 /*****************************************************************************
@@ -656,6 +697,16 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver) {
                 rho_3d[k][j][i] -= 2.0 * s->wlaplacian[p] * epsilon
                                  * petsc_wall_value(solver, icn, jcn, kcn);
               }
+              /*CHANGE INIT - 20261028 tangential e0 with walls: the jump
+               * term, link by link and for fluid neighbours only (a wall
+               * neighbour already carries the ramp in petsc_wall_value).
+               * Without walls the per-face sum below gives the same, since
+               * the wlaplacian weights with c_a = -1 add up to -1. */
+              else {
+                rho_3d[k][j][i] -= s->wlaplacian[p] * epsilon
+                                 * petsc_e0_jump(solver, i, j, k, s->cv[p]);
+              }
+              /*CHANGE END - 20261028 */
             }
           }
           continue;
@@ -669,9 +720,9 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver) {
   }
 
   /*CHANGE INIT - 20260926 constant-potential walls: total fluid charge, for
-   * the neutrality check wall_q[0] + wall_q[1] + fluid_q = 0. An external
-   * field e0 is refused in psi_solver_petsc_wall_set(): the code below
-   * assumes a periodic system. */
+   * the neutrality check wall_q[0] + wall_q[1] + fluid_q = 0. With walls the
+   * e0 jump was already added link by link above (CHANGE 20261028); the
+   * per-face block below is for the periodic system only. */
   if (solver->block->map) {
     MPI_Comm comm = MPI_COMM_NULL;
     cs_cart_comm(cs, &comm);
@@ -687,7 +738,10 @@ int psi_solver_petsc_rhs_set(psi_solver_petsc_t* solver) {
   e0[Y] = solver->psi->e0[Y];
   e0[Z] = solver->psi->e0[Z];
 
-  if (e0[X] || e0[Y] || e0[Z]) {
+  /*CHANGE INIT - 20261028 tangential e0 with walls: skip when walls are set
+   * (jump already in the loop above). Original: if (e0[X] || e0[Y] || e0[Z]) */
+  if ((e0[X] || e0[Y] || e0[Z]) && solver->block->map == NULL) {
+  /*CHANGE END - 20261028 */
 
     int ntotal[3] = { 0 };
     int mpi_coords[3] = { 0 };
@@ -1087,8 +1141,9 @@ int psi_solver_petsc_da_to_psi(psi_solver_petsc_t* solver) {
  *  not move.
  *
  *  Returns 0 on success; -1 variable permittivity (not supported), -2 an
- *  external field e0 is set (rhs_set assumes periodicity for it), -3 the
- *  map has no MAP_BOUNDARY site.
+ *  external field e0 has a component along `axis` (a tangential e0 is
+ *  allowed since 20261028: the walls follow its ramp), -3 the map has no
+ *  MAP_BOUNDARY site.
  *
  *****************************************************************************/
 
@@ -1100,9 +1155,11 @@ int psi_solver_petsc_wall_set(psi_solver_petsc_t* solver, map_t* map,
   assert(axis == X || axis == Y || axis == Z);
 
   if (solver->super.impl != &vt_) return -1;
-  if (solver->psi->e0[X] || solver->psi->e0[Y] || solver->psi->e0[Z]) {
-    return -2;
-  }
+  /*CHANGE INIT - 20261028 tangential e0 with walls: only the component
+   * normal to the walls is refused (that is a voltage between the plates,
+   * set it with wall_psi). Original: any non-zero e0 returned -2. */
+  if (solver->psi->e0[axis] != 0.0) return -2;
+  /*CHANGE END - 20261028 */
 
   {
     int nwall = 0;
@@ -1213,8 +1270,11 @@ int psi_solver_petsc_wall_charge_compute(psi_solver_petsc_t* solver) {
             int jcn = jc + s->cv[p][Y];
             int kcn = kc + s->cv[p][Z];
             if (petsc_wall_site(solver, icn, jcn, kcn)) continue;
+            /*CHANGE 20261028: + petsc_e0_jump (the ghosted PETSc copy is
+             * periodic, without the e0 jump of a link across the box) */
             q_local[side] += 2.0 * s->wlaplacian[p]
               * (x3[k + s->cv[p][Z]][j + s->cv[p][Y]][i + s->cv[p][X]]
+                 + petsc_e0_jump(solver, i, j, k, s->cv[p])
                  - x3[k][j][i]);
           }
         }

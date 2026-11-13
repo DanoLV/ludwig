@@ -1,0 +1,112 @@
+{
+ "_info": {
+  "input_base_de": "MGEL-RUN/interior_azar-LD4-hann06",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "MGEL-RUN/interior_azar-LD4-hann06": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/interior_azar-LD4-hann08": {
+  "input_set": {
+   "pm_sr_sigma": "1.446048",
+   "pm_sr_rcut": "6.0",
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/interior_azar-LD8-hann06": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.71880e-04"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/interior_azar-LD8-hann08": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.71880e-04",
+   "pm_sr_sigma": "1.446048",
+   "pm_sr_rcut": "6.0",
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/superficie-LD4-hann06": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/superficie-LD4-hann08": {
+  "input_set": {
+   "pm_sr_sigma": "1.446048",
+   "pm_sr_rcut": "6.0",
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/superficie-LD8-hann06": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.71880e-04"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/superficie-LD8-hann08": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.71880e-04",
+   "pm_sr_sigma": "1.446048",
+   "pm_sr_rcut": "6.0",
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_2.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/todos-LD4-hann06": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/todos-LD4-hann08": {
+  "input_set": {
+   "pm_sr_sigma": "1.446048",
+   "pm_sr_rcut": "6.0",
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/todos-LD8-hann06": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.71880e-04"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {}
+ },
+ "MGEL-RUN/todos-LD8-hann08": {
+  "input_set": {
+   "electrokinetics_init_rho_el": "7.71880e-04",
+   "pm_sr_sigma": "1.446048",
+   "pm_sr_rcut": "6.0",
+   "subgrid_hann_order": "8"
+  },
+  "input_remove": [],
+  "coloides_base": "coloides_3.cds",
+  "coloides_lineas": {}
+ }
+}

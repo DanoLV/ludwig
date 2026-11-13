@@ -1,0 +1,11 @@
+{
+ "_info": {
+  "input_base_de": "WALL-DIRICHLET/B-debye-huckel",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "WALL-DIRICHLET/B-debye-huckel": {
+  "input_set": {},
+  "input_remove": []
+ }
+}

@@ -1,0 +1,77 @@
+{
+ "_info": {
+  "input_base_de": "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.10_24.00_24.00",
+  "max_lineas_delta_coloides": 40,
+  "sin_reconstruccion (input ilegible)": []
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.10_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.210000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.20_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.220000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.30_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.230000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.40_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {}
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.50_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.250000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.60_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.260000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.70_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.270000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.80_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.280000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ },
+ "SLIDES-LD8-hann08-corr_no-N10000-d4a5/pos_12.90_24.00_24.00": {
+  "input_set": {},
+  "input_remove": [],
+  "coloides_base": "coloides_1.cds",
+  "coloides_lineas": {
+   "36": "    1.290000000000000e+01    2.400000000000000e+01    2.400000000000000e+01\n"
+  }
+ }
+}
