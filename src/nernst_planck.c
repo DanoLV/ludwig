@@ -1227,6 +1227,8 @@ int np_no_flux_boundary(psi_t* psi, map_t* map, double** flx) {
  *    4. np_update_rho_kernel        - update rho from divergence of fluxes
  *
  *  Note: np_no_flux_boundary is NOT implemented in this GPU version.
+ *        [CHANGE 20261116: superseded; it is now np_no_flux_boundary_kernel,
+ *        run between kernels 2 and 3.]
  *  Note: mu_solv = 0 is assumed (valid for fe_electro).
  *  Note: colloids are detected via map->status (MAP_COLLOID) instead of
  *        colloids_info_map() which is __host__ only.
@@ -1412,6 +1414,48 @@ __global__ static void np_antisym_kernel(
     }
   }
 }
+
+/*CHANGE INIT - 20261116 No-flux boundary in the GPU NP driver.
+ * GPU port of np_no_flux_boundary (CPU driver, above): zero every link flux
+ * (advective + diffusive) whose site OR neighbour is not fluid. Before this,
+ * the GPU driver had no such step: the diffusive kernel already skipped
+ * non-fluid links, but the centred advective kernel did not, so a
+ * fluid-solid link carried W_p (u_i.c_p)/2 (n_i + n_solid)/2, which left the
+ * fluid site and entered no updated site (ions not conserved with walls or
+ * BBL colloids and a velocity normal to the surface, e.g. thermal LB).
+ * Called after the advective and diffusive kernels, before antisymmetrisation
+ * (same order as the CPU driver). */
+__global__ static void np_no_flux_boundary_kernel(
+    cs_t*   cs,
+    int     nlocal[3],
+    int     nsites,
+    int     nk,
+    int     npoints,
+    int8_t* cv_d,
+    char*   status_d,
+    double* flx_gpu)
+{
+  int kc = blockIdx.x * blockDim.x + threadIdx.x + 1;
+  int jc = blockIdx.y * blockDim.y + threadIdx.y + 1;
+  int ic = blockIdx.z * blockDim.z + threadIdx.z + 1;
+
+  if (ic > nlocal[X] || jc > nlocal[Y] || kc > nlocal[Z]) return;
+
+  int nflux  = npoints - 1;
+  int index0 = cs_index(cs, ic, jc, kc);
+  int mask0  = ((int)status_d[index0] == MAP_FLUID);
+
+  for (int p = 1; p < npoints; p++) {
+    int index1 = cs_index(cs, ic + cv_d[p*3 + X], jc + cv_d[p*3 + Y],
+                          kc + cv_d[p*3 + Z]);
+    int mask = mask0 * ((int)status_d[index1] == MAP_FLUID);
+    if (mask) continue;
+    for (int n = 0; n < nk; n++) {
+      flx_gpu[FLX_GPU(nsites, nk, nflux, index0, n, p-1)] = 0.0;
+    }
+  }
+}
+/*CHANGE END - 20261116 */
 
 /*---------------------------------------------------------------------------
  *  np_update_rho_kernel
@@ -1880,6 +1924,14 @@ int nernst_planck_driver_d3qx_gpu(psi_t* psi, fe_t* fe, hydro_t* hydro,
       psi_d, rho_d, status_d, cv_d,
       reunit, valency_d, diffusivity_d, flx_gpu);
   tdpAssert(tdpDeviceSynchronize());
+
+  /*CHANGE INIT - 20261116 No-flux boundary (GPU port of np_no_flux_boundary).
+   * Original: (no such step in the GPU driver) */
+  np_no_flux_boundary_kernel<<<grid, block>>>(
+      cs_d, nlocal_d, nsites, nk, npoints, cv_d, status_d, flx_gpu);
+  tdpAssert(tdpPeekAtLastError());
+  tdpAssert(tdpDeviceSynchronize());
+  /*CHANGE END - 20261116 */
 
   /* --- Kernel 3: antisymmetrisation --- */
   np_antisym_kernel<<<grid, block>>>(

@@ -1,6 +1,6 @@
 # Scripts de Ludwig: qué hace cada uno y cómo se usa
 
-Generado por `util/documentar_scripts.py` el 2026-11-13 17:45 a partir de la documentación que trae cada archivo (docstring o comentarios iniciales). No editar a mano: documentar el script en su propio archivo y volver a correr el generador.
+Generado por `util/documentar_scripts.py` el 2026-11-17 09:47 a partir de la documentación que trae cada archivo (docstring o comentarios iniciales). No editar a mano: documentar el script en su propio archivo y volver a correr el generador.
 
 Alcance: `util/`, `code_changes/`, scripts de la raíz y `<proyecto>/scripts/` (scripts de cada proyecto; en `local/` quedan enlaces a ellos, ver `<proyecto>/scripts/README_ubicacion.md`). No incluye las copias de scripts dentro de cada corrida.
 
@@ -8,8 +8,8 @@ Alcance: `util/`, `code_changes/`, scripts de la raíz y `<proyecto>/scripts/` (
 |---|---|---|
 | Herramientas generales (Python / shell) | 10 | 1 |
 | Programas en C de util/ (se compilan con util/Makefile) | 19 | 0 |
-| Proyecto capacitor (capacitor/scripts/) | 64 | 0 |
-| Proyecto microgel (microgel/scripts/) | 150 | 30 |
+| Proyecto capacitor (capacitor/scripts/) | 76 | 0 |
+| Proyecto microgel (microgel/scripts/) | 170 | 30 |
 
 ## Herramientas generales (Python / shell)
 
@@ -157,10 +157,10 @@ Argumentos (argparse): `--csv`; `--fix`: Fixed axes, e.g. --fix dx=0.0 dy=0.2; `
 >   * columnas: ruta, descripción, fecha, ubicación (local / runs / borrada),
 >     ID del archivo de coloides y los parámetros del input que varían en la
 >     pestaña; los que no varían se listan en una fila "Comunes" arriba,
+>   * columna "Scripts" (2026-11-16): scripts de crear/correr/analizar asociados a la
+>     corrida por una regla heurística (ver run_scripts y la hoja Leyenda),
 >   * hoja "Coloides": un ID por contenido distinto de config.cds.init.001-001,
->   * hoja "Leyenda".
->
-> … (8 líneas más en el archivo)
+> … (10 líneas más en el archivo)
 
 Uso (del archivo):
     python3 util/registro_simulaciones.py            # ambos proyectos
@@ -477,6 +477,118 @@ Uso (del archivo):
 ## Proyecto capacitor (capacitor/scripts/)
 
 
+### `capacitor/scripts/H-microgel-ruido/`
+
+#### `capacitor/scripts/H-microgel-ruido/analizar_largo.py`
+> Análisis de las corridas largas H-microgel-ruido/{neutro,superficie}-largo (2026-11-13).
+>
+> Posiciones cada 100 pasos (no hay pasos consecutivos: el desplazamiento por paso de
+> analizar_ruido.py no se puede medir aquí). Para cada corrida imprime:
+>   * serie por bloques de 5000 pasos (heurístico: 50 volcados por bloque) de
+>       Rg (radio de giro, sin pesos), <U_enlaces>/kT (ref. equipartición armónica 35/2 = 17.5),
+>       z del centro de masa, d mínimo a los planos z = 1.5 / 33.5 (h = d - 3.5);
+>     sirve para decidir a ojo desde cuándo la corrida está estacionaria: NO elige la ventana.
+>   * fluido: <u_a^2>/(kT/rho) en cada vel-* (equipartición LB, Dünweg & Ladd 2009).
+>   * máximo desplazamiento de un monómero entre volcados (100 pasos), solo como control de saltos.
+> Reutiliza read_cds y las constantes de analizar_ruido.py. Solo lee archivos.
+>
+> … (1 líneas más en el archivo)
+
+Uso (del archivo):
+    Uso:  python3 capacitor/scripts/H-microgel-ruido/analizar_largo.py [carpetas...]
+
+#### `capacitor/scripts/H-microgel-ruido/analizar_pared.py`
+> Análisis de la prueba de pared con ruido (H-microgel-ruido/pared-*, 2026-11-13).
+>
+> Para cada corrida (un monómero libre que empieza a d = 4.0 del plano z = 1.5):
+>   * si terminó o abortó (mensaje de Ludwig);
+>   * h = d - 3.5 (d = distancia del centro al plano sólido/fluido más cercano; 3.5 = radio del
+>     kernel Hann-8: h < 0 significa que el kernel toca nodos de pared): mínimo, fracción h < 0;
+>   * desplazamiento por paso: rms por componente y máximo frente a drmax = 0.8;
+>   * V(h)/kT de la Steele (Hoang Ngoc Minh et al. 2023, ecs. 7-8, cortada en z* = 0.98698 sigma_w):
+>     máximo alcanzado y, dentro del alcance de la pared (0 < h < z*), comparación del promedio
+>     <V>/kT de la corrida con el de Boltzmann, int V e^{-V/kT} dh / int e^{-V/kT} dh en (0, z*).
+>     Esa comparación supone equilibrio local junto a la pared (densidad uniforme sin pared);
+>     con 2000 pasos el muestreo es corto: es un indicador, no un test estadístico.
+> … (2 líneas más en el archivo)
+
+Uso (del archivo):
+    Uso:  python3 capacitor/scripts/H-microgel-ruido/analizar_pared.py [carpetas...]
+
+#### `capacitor/scripts/H-microgel-ruido/analizar_ruido.py`
+> Análisis de las pruebas cortas H-microgel-ruido (2026-11-13): ¿el ruido térmico es demasiado fuerte?
+>
+> Para cada corrida (argumentos = carpetas; por defecto las 4 de H-microgel-ruido):
+>  1. Desplazamiento por paso de cada monómero (posiciones de config.cds en cada paso; imagen
+>     mínima en x, y; z no periódico). rms por componente y máximo |dr| frente a drmax = 0.8
+>     (límite de Ludwig). Referencias: sqrt(2 D_desnudo) con D_desnudo = kT/(6 pi eta)(1/a_h - 1/al)
+>     (empujón aleatorio propio de la partícula) y sqrt(2 kT/(6 pi eta a_h)) (difusión total de Stokes).
+>  2. Equipartición en los enlaces: U = sum_enlaces k/2 (r - r0)^2. Para fluctuaciones chicas la red
+>     es armónica y <U> = (rango de la matriz de rigidez)/2 kT = 35/2 kT (rango 35 según el README de
+>     G-microgel-relax). Teorema de equipartición; la aproximación armónica requiere sqrt(kT/k) << r0.
+>  3. Fluido: <u_a^2> = kT/rho por componente (equipartición de las fluctuaciones del LB; Dünweg &
+>     Ladd, Adv. Polym. Sci. 221, 89 (2009)), sobre nodos de fluido z = 2..33 de los vel-*.
+> … (5 líneas más en el archivo)
+
+Uso (del archivo):
+    Uso:  python3 capacitor/scripts/H-microgel-ruido/analizar_ruido.py [carpetas...]
+
+#### `capacitor/scripts/H-microgel-ruido/correr.sh`
+> H-microgel-ruido: corre las 4 pruebas cortas en paralelo (reanudable: salta las terminadas).
+> Uso: capacitor/local/WALL-DIRICHLET/H-microgel-ruido/correr.sh
+
+#### `capacitor/scripts/H-microgel-ruido/correr_largo.sh`
+> Corrida larga H-microgel-ruido: neutro-largo y superficie-largo en paralelo (reanudable).
+
+#### `capacitor/scripts/H-microgel-ruido/correr_pared.sh`
+> Prueba de pared (4 corridas de 1 monómero) en paralelo.
+
+#### `capacitor/scripts/H-microgel-ruido/crear.py`
+> H-microgel-ruido (2026-11-13, pedido del usuario): microgel de G-microgel-relax entre placas
+> a psi = 0, ahora CON ruido térmico (LB fluctuante + empujón aleatorio de las partículas
+> subgrid), en la escala de unidades de Ingo (escala "C"):
+>
+>   kT = 1e-4, eta = 0.01, rho = 1 (como INGO-1PART-LBTERM), a_h = 0.3078881 (el de Ingo;
+>   al = 0.4743549 se deja como en G).  Para conservar el problema físico de G se re-escalan
+>   con kT:  epsilon = 1/(4 pi lB kT) con lB = 0.795775 (igual que G) -> 1000;
+>            bond_harmonic_k = 10 kT / LU^2 = 1e-3 (G: 1e-4 con kT 1e-5);
+>            soft_sphere_epsilon = kT = 1e-4 (G: 1e-5 = kT).
+>   Cocientes que se conservan: lB/r0 = 0.199, sqrt(kT/k)/r0 = 7.9 %, eps_rep/kT = 1, caja.
+>
+> Prueba corta: 5000 pasos, posiciones de los coloides en CADA paso (para el desplazamiento
+> … (6 líneas más en el archivo)
+
+Uso (del archivo):
+    Uso:  python3 capacitor/scripts/H-microgel-ruido/crear.py
+
+#### `capacitor/scripts/H-microgel-ruido/crear_largo.py`
+> Corrida larga H-microgel-ruido (2026-11-13, pedido del usuario): neutro y superficie, pared
+> Steele eps_w = 1e-5 (la que resultó estable con ruido en la prueba de pared), 50000 pasos,
+> posiciones cada 100 pasos, volcados completos cada 10000 (permiten reiniciar / extender).
+> Copia de <gel>-steele1e-5 (misma configuración inicial, misma semilla) cambiando solo la salida
+> y la duración.
+>
+> Uso:  python3 capacitor/scripts/H-microgel-ruido/crear_largo.py
+> Crea H-microgel-ruido/<gel>-largo/ (no sobrescribe).
+
+#### `capacitor/scripts/H-microgel-ruido/crear_pared.py`
+> Prueba de pared con ruido térmico (H-microgel-ruido, 2026-11-13, pedido del usuario).
+>
+> Un monómero libre, empezando a d = 4.0 del plano sólido/fluido inferior (z = 5.5; x = y = 16.5),
+> mismas unidades y parámetros que las corridas H (escala de Ingo: kT 1e-4, eta 0.01, rho 1,
+> a_h 0.308, al 0.474; epsilon 1e3), sin sal, placas a psi = 0. 2000 pasos, posición en cada paso.
+> Cuatro corridas: carga q = 0 y q = +1 (la imagen lo atrae a la pared) x las dos paredes Steele
+> (eps_w = 6.2572e-19 "steeleG" y 1e-5 "steele1e-5", sigma_w = 1).
+> Base: el input de H-microgel-ruido/superficie-<pared> y el bloque del monómero 1 de su
+> config.cds.init (q = 1, a_h ya cambiado), sin enlaces.
+>
+> Uso:  python3 capacitor/scripts/H-microgel-ruido/crear_pared.py [z0]   (z0 = 5.5 por defecto)
+> Nota: con eps_w = 1e-5, z0 = 5.5 (h = 0.5) cae dentro de la zona repulsiva y aborta en el paso 1:
+> … (2 líneas más en el archivo)
+
+Lee argumentos de línea de comandos: sys.argv[1]
+
+
 ### `capacitor/scripts/SOLIDO-L48-lb3.5-relax/`
 
 #### `capacitor/scripts/SOLIDO-L48-lb3.5-relax/convergencia.py`
@@ -499,6 +611,45 @@ Lee argumentos de línea de comandos: sys.argv[1, 2, 3]
 #### `capacitor/scripts/SOLIDO-L48-lb3.5-relax/run.sh`
 > Lanza la relajacion en segundo plano:  ./run.sh
 > Seguimiento:  tail -f run.log   |   python3 convergencia.py
+
+
+### `capacitor/scripts/TEST-NOFLUX-ADV/`
+
+#### `capacitor/scripts/TEST-NOFLUX-ADV/analizar.py`
+> TEST-NOFLUX-ADV (2026-11-16): conservación de los iones con advección centred + LB térmico + paredes.
+>
+> Para cada corrida <ver>/<caso> y cada volcado qsi (cada 100 pasos):
+>   N_a(t) = sum de n_a sobre los nodos FLUIDOS (con pared: z = 2..L-1; sin pared: todos), a = +, -
+>   dN_a(t)/N_a(0) = cambio relativo respecto del paso 1 (la masa de iones de NP debería conservarse a redondeo)
+> También: n en los nodos de pared (deben quedar en el valor inicial) y RMS de u_z en la primera capa de fluido
+> (velocidad normal a la pared, la que según la lectura del código produce la pérdida).
+> Al final, si existen antes/ y despues/ del caso sinpared, compara qsi byte a byte (control de regresión).
+> Orden de los datos: x lento, z rápido (como los demás scripts del proyecto).
+> Solo lee archivos. Uso: python3 capacitor/scripts/TEST-NOFLUX-ADV/analizar.py
+
+#### `capacitor/scripts/TEST-NOFLUX-ADV/correr.sh`
+> TEST-NOFLUX-ADV (2026-11-16): corre <ver>/{pared,sinpared} en serie (corridas cortas, 16^3).
+> Uso: bash capacitor/scripts/TEST-NOFLUX-ADV/correr.sh <ver> [caso ...]
+
+#### `capacitor/scripts/TEST-NOFLUX-ADV/crear.py`
+> TEST-NOFLUX-ADV (2026-11-16, pedido del usuario): conservación de los iones con advección centred de NP,
+> LB térmico, paredes y electrolito, ANTES y DESPUÉS de agregar la condición de no-flujo (np_no_flux_boundary)
+> al driver de GPU de Nernst-Planck.
+>
+> Motivo: en el driver de GPU, np_advective_fluxes_kernel no mira el mapa; un enlace fluido-pared lleva el
+> flujo W_p (u_i.c_p)/2 (n_i + n_pared)/2, que sale del nodo fluido y no entra en ninguno (la pared no se
+> actualiza). Se espera que el total de iones en el fluido NO se conserve antes y SÍ después.
+>
+> Corridas (cada una con su Ludwig.exe copiado):
+>   <ver>/pared     caja 16x16x18 con paredes sólidas en z = 1 y z = 18 (porous_media_init wall_z), placas a psi = 0
+>   <ver>/sinpared  la misma sin paredes (periódica): control de regresión, antes y después deben ser idénticas
+> con <ver> = antes (exe 221f3229) o despues (exe nuevo). Sin partículas.
+> … (3 líneas más en el archivo)
+
+Uso (del archivo):
+    Uso:  python3 capacitor/scripts/TEST-NOFLUX-ADV/crear.py <ver> <exe> [caso ...]
+
+Lee argumentos de línea de comandos: sys.argv[1, 2]
 
 
 ### `capacitor/scripts/WALL-DIRICHLET/`
@@ -1064,6 +1215,13 @@ Lee argumentos de línea de comandos: sys.argv[0]
 > periodica en x,y de la caja (Fourier) como referencia.
 > psi reducido = l_B * sum q_i/|r - r_i|, l_B = 10/(4 pi). Particula en x=y=16 (nodo).
 > Uso: python3 grafico_C_potencial_carga.py -> ../graficos/C_potencial_carga_vs_placas_infinitas.png
+>
+> 2026-11-16 (pedido del usuario): en el panel (a) la referencia teórica es ahora la carga repartida con el kernel
+> Hann-8 CONTINUO (psi_hann), no la carga puntual: misma serie de Fourier en x, y que psi_periodic (placas a tierra,
+> caja periódica 32x32, sin fondo), con la fuente transformada  W^(kx) W^(ky),  W^(k) = [sin(kn/2)/(kn/2)] / [1-(kn/2pi)^2]
+> (la misma de grafico_C_hoja_hann.py), y convolución en z con W(s - d):
+>    psi(z) = (4 pi l_B / A) sum_k W^(kx) W^(ky) int W(s-d) G_k(z, s) ds,
+> … (3 líneas más en el archivo)
 
 #### `capacitor/scripts/WALL-DIRICHLET/grafico_C_refinamiento.py`
 > Lattice refinement of the electrolyte capacitor with one Gaussian-like charge: Ludwig with Hann-8, -10, -12, -16 on
@@ -1247,7 +1405,9 @@ Lee argumentos de línea de comandos: sys.argv[1, 2, 3]
 #### `capacitor/scripts/WALL-DIRICHLET/grafico_pared_blanda.py`
 > Free particle (no electrolyte, eta = 0.0005) with and without the wall soft-sphere repulsion (wall_ss_cut, R = 4, nu = 12,
 > eps = 1.044e-12, hc = 3), both restarted from step 30000 (d = 5.04).  (a) d(t); (b) net force on the particle vs d;
-> (c) induced charge on the walls (sum) vs d.   Usage: python3 grafico_pared_blanda.py
+> (c) induced charge on the walls (sum) vs d.   Usage: python3 grafico_pared_blanda.py   (STEELE=1: with the Steele wall)
+> 2026-11-16 (user's request): panel (c) removed (the wall charge range is still printed); legend of (a) moved off the
+> curves (lower left); the formula/parameter text is split into lines so that it is no wider than the two panels.
 
 #### `capacitor/scripts/WALL-DIRICHLET/grafico_particula_libre.py`
 > Free charged particle between grounded plates (L = 32, Hann-8, q = +1, eta = 0.0005, initial d = 8 from the lower plate).
@@ -2174,6 +2334,66 @@ Argumentos (argparse): `-f / --file`: Archivo psi a analizar; `-s / --size`: Tam
 > time series of the mean excess in r<3 and the excess counterion number within r<R;
 > far-field (r>9) ion vs fluid statistics.
 
+#### `microgel/scripts/INGO-1PART-LBTERM-DIAG/cloud_profile_sal.py`
+> Radial profiles of BOTH ion species around the subgrid particle, with salt, vs the discrete PB reference
+> (LONG-SALT-LD2LB-CEN-3E4, 2026-11-16). Two-species copy of cloud_profile.py.
+>
+> For each dump s > 1 (qsi/rho/config.cds every 1000):
+>   * n_+(r)/nbar_+ and n_-(r)/nbar_-, nbar_k = N_k/L^3 (totals from step 1; NP conserves them), bins of 1 LU,
+>     periodic minimum image around the particle position of that dump (particle frame);
+>   * PB reference (pb_reference_sal.py) solved at THAT dump's particle position, binned the same way
+>     (so the reference sees the same particle-vs-grid offsets as the data);
+>   * time series: excess of n_- and n_+ in r < 3, net ion charge within r < 3 and r < 6
+>     (Q_ion(R) = sum_{r<R} (n_+ - n_-), screening of the +1 particle), same for PB;
+>   * far field r > 9: std of dn_k/nbar_k, std of drho/rho and their correlation.
+> Window average of the profiles over dumps with step >= WIN0 (env, default 15000 = second half of the run;
+> … (4 líneas más en el archivo)
+
+Uso (del archivo):
+    Usage: [WIN0=15000] python3 cloud_profile_sal.py <run dir>
+
+Lee argumentos de línea de comandos: sys.argv[1]
+
+#### `microgel/scripts/INGO-1PART-LBTERM-DIAG/correr_serie_sal.sh`
+> SAL-SERIE (2026-11-16): corre los casos de crear_serie_sal.py, de a NPAR en paralelo (default 3),
+> dejando >= 2100 MiB libres de GPU. NO se corrió al crearlo (pedido del usuario: solo armar la serie).
+> Costo estimado: casos de dx = 1 ~18 min c/u (0.035 s/paso x 3e4); DXH-* ~4.7 h c/u (8x nodos, 6e4 pasos).
+> Uso: NPAR=3 bash microgel/scripts/INGO-1PART-LBTERM-DIAG/correr_serie_sal.sh [caso ...]   (sin casos: todos)
+
+#### `microgel/scripts/INGO-1PART-LBTERM-DIAG/crear_sal.py`
+> LONG-SALT-LD2LB-CEN-3E4 (2026-11-16, pedido del usuario): LONG-MASS-3E5 (parámetros de Ingo, una carga q = +1
+> libre, LB térmico) pero CON SAL 1:1 tal que lambda_D = 2 l_B (elección del usuario entre l_B, 2 l_B y 3 l_B),
+> advección centred (elección del usuario) y 3e4 pasos (prueba corta, elección del usuario).
+>
+> Sal: lambda_D = (8 pi l_B n_s)^(-1/2) para sal 1:1 (fórmula que usa Ludwig para el "Debye length" del log)
+>      -> n_s = 1/(8 pi l_B lambda_D^2) = 1/(8 pi 2.84 5.68^2) = 4.3426e-4 por especie.
+> Los contraiones del +1 (1/27^3 = 5.08e-5) los agrega Ludwig por electroneutralidad: con ellos, lambda_D efectivo
+> (4 pi l_B sum z^2 n)^(-1/2) = 5.52 (no 5.68); Ludwig informa solo el de la sal.
+> Todo lo demás idéntico a LONG-MASS-3E5 (config.cds.init, semilla, kernel Hann-8, D de Ingo, salida cada 1000).
+> Ejecutable: el actual de src/ (269ec1b8: pesos advectivos + no-flujo en GPU).
+>
+> Uso:  python3 microgel/scripts/INGO-1PART-LBTERM-DIAG/crear_sal.py
+> … (1 líneas más en el archivo)
+
+#### `microgel/scripts/INGO-1PART-LBTERM-DIAG/crear_serie_sal.py`
+> SAL-SERIE (2026-11-16, pedido del usuario): cómo cambia la nube de iones alrededor de la carga q = +1 con sal
+> (lambda_D = 2 l_B) al variar D_ion, la temperatura y la resolución, y si la nube sigue a la partícula.
+> Base: LONG-SALT-LD2LB-CEN-3E4 (parámetros de Ingo, 27^3, kT 1e-4, eta 0.01, l_B 2.84, n_s 4.3426e-4,
+> lambda_D 5.68, Hann-8, advección centred, LB térmico, partícula libre, 3e4 pasos). Esa corrida ES el caso
+> BASE-LIBRE y no se repite aquí.
+>
+> Decisiones del usuario (2026-11-16):
+>   * D_ion x10 y x30; la partícula conserva su movilidad desnuda mu_b = 1/gamma (a_h, a_L sin cambio).
+>   * kT/4 y kT/16 con epsilon ~ 1/kT: l_B = 1/(4 pi eps kT) = 2.84 fijo, misma sal y lambda_D; solo bajan el ruido
+>     del LB, el empujón de la partícula y D_p = kT mu_b. D_ion no cambia (Ludwig usa D y el potencial en kT).
+>   * dx/2, 1.5e4 pasos físicos: mismo sistema físico con escalado difusivo del tiempo (dt/4):
+>         caja 54^3; Hann-16 (mismo ancho físico); D_LU y nu_LU iguales (d, viscosity sin cambio, tau_LB 0.53);
+> … (12 líneas más en el archivo)
+
+Uso (del archivo):
+    Uso:  python3 microgel/scripts/INGO-1PART-LBTERM-DIAG/crear_serie_sal.py      (crea; NO corre)
+    bash microgel/scripts/INGO-1PART-LBTERM-DIAG/correr_serie_sal.sh [caso ...]   (para correr, cuando se decida)
+
 #### `microgel/scripts/INGO-1PART-LBTERM-DIAG/particle_motion.py`
 > Mean velocity / position of the free subgrid particle under thermal LB (2026-11-12).
 > Reads config.cds* (line 36: r, line 37: v = displacement per step). Unwraps periodic jumps.
@@ -2192,6 +2412,27 @@ Argumentos (argparse): `-f / --file`: Archivo psi a analizar; `-s / --size`: Tam
 >         lambda(k) phi_hat(k) = 4 pi lB rho_hat(k),   k != 0;  phi_hat(0) = 0.
 >   * NP zero-flux condition of Ludwig's link flux (Capuani form) is exactly
 > … (5 líneas más en el archivo)
+
+#### `microgel/scripts/INGO-1PART-LBTERM-DIAG/pb_reference_sal.py`
+> Discrete Poisson-Boltzmann reference WITH SALT (two species) for LONG-SALT-LD2LB-CEN-3E4 (2026-11-16).
+>
+> Copy of pb_reference.py (counterions only) extended to a 1:1 electrolyte; same discretisation as the Ludwig run,
+> so it is the fixed point of Ludwig's NP + Poisson for a particle held at r0:
+>   * particle charge q = +1, separable Hann kernel of order 8 (subgrid.c), nodes at integer coords 1..L (periodic);
+>   * Poisson with the FFT solver's 27-point Laplacian, lambda(k) = 6 sum_p w_p (1 - cos k.c_p), phi = beta e psi:
+>         lambda(k) phi_hat(k) = 4 pi lB rho_hat(k),  k != 0,  rho = q_p + n_+ - n_-;
+>   * zero Capuani flux <=> n_k,i proportional to exp(-z_k phi_i): n_+ ~ exp(-phi), n_- ~ exp(+phi);
+>   * CANONICAL, one constraint per species (NP conserves each total): N_+ and N_- read from the run's step-1 qsi
+>         n_+,i = N_+ exp(-phi_i)/sum_j exp(-phi_j),   n_-,i = N_- exp(phi_i)/sum_j exp(phi_j).
+> Damped Picard iteration (n <- 0.5 n + 0.5 n_new), stop when max relative change < 1e-12 (same as pb_reference.py).
+>
+> … (3 líneas más en el archivo)
+
+Uso (del archivo):
+    Usage (functions are imported by cloud_profile_sal.py):
+    python3 pb_reference_sal.py <run dir>      -> solves at the INITIAL particle position (step 1) and prints
+
+Lee argumentos de línea de comandos: sys.argv[1]
 
 
 ### `microgel/scripts/MGEL-RED-SURF-NOSALT/`
@@ -2322,6 +2563,57 @@ Lee argumentos de línea de comandos: sys.argv[1, 2, 3]
 > Last dump: RMS of delta mu = mu - <mu> per shell of physical distance to the nearest charge (width 1, as mu_capas_2part.py).
 > Usage: python3 analizar_visc.py   (from this directory)
 
+#### `microgel/scripts/TEST-HIDRO-dx2/comprobar_flla_descomposicion.py`
+> Exact decomposition of the flla (mode 1) uniform-field source S, and its correlations (2026-11-16, user's request).
+>
+> Follows comprobar_flla_fuerza.py (same reconstruction of the post-collision f* from dist-<step>, reused from it).
+>     S_i = D_i/rho_i + R_i,
+>     D_i = sum_a [f*_abar(x+c_a) - f*_a(x)]                 net LB mass flux into x (= rho(t+1) - rho*)
+>     R_i = sum_a f*_abar(x+c_a) (1/rho(x+c_a) - 1/rho(x))   part due to LB density differences between neighbours
+> Prints per viscosity: RMS of S, D/rho, R, corr(S, R), RMS and max of rho - <rho>; and for eta = 0.02 and 2 the
+> node-by-node correlation of S with -div(F/2), -div(rho u), -div(j*) (central differences; F/2 = j* - rho u).
+> Outcome 2026-11-16: D ~ 0, S = R exactly -> the hypothesis "flla advects with u + F/2rho" was REJECTED; the source
+> comes from the normalisation by the local LB density (documented limitation of flla in src/nernst_planck.c).
+> Reads files only. Usage: python3 scripts/comprobar_flla_descomposicion.py
+
+#### `microgel/scripts/TEST-HIDRO-dx2/comprobar_flla_fuerza.py`
+> Check of the hypothesis "flla advects the ions with u + F/(2 rho), not with u" (2026-11-16, user's request).
+>
+> Background: with electrokinetics_advection flla the Delta mu floor does not decrease with viscosity
+> (grafico_dmu_u_visc_3adv.py). flla takes the link mass flux from the POST-collision distributions f*
+> (nernst_planck_lattice_flux_compute, src/nernst_planck.c), whose momentum is
+>     j* = sum_a f*_a c_a = j_pre + F = rho u + F/2      (collision.c: mode j += F; u = (j_pre + F/2)/rho),
+> while centred advection uses u. F/2 does not depend on the viscosity.
+>
+> Exact reconstruction, no steady-state assumption: dist-<step> is written after propagation, so
+> f*_a(x) = f_dump_a(x + c_a) (propagation moves f*_a(x) to x + c_a). vel-<step> is u of the collision of the
+> same step. Then, per node:
+>     F/2 = j* - rho u                       (half the body force of that step)
+> … (7 líneas más en el archivo)
+
+Uso (del archivo):
+    Reads files only. Usage: python3 scripts/comprobar_flla_fuerza.py [step]   (default 3000)
+
+Lee argumentos de línea de comandos: sys.argv[1]
+
+#### `microgel/scripts/TEST-HIDRO-dx2/correr_advfix.sh`
+> Corre advfix/* (crear_advfix.py, 2026-11-16) en paralelo dejando >= 2100 MiB libres en la GPU
+> (regla del usuario); cada corrida 24^3 usa ~904 MiB (medido 2026-11-10). No borra nada.
+
+#### `microgel/scripts/TEST-HIDRO-dx2/correr_advfix_flla.sh`
+> Corre advfix_flla/* (crear_advfix_flla.py, 2026-11-16) en paralelo dejando >= 2100 MiB libres en la GPU
+> (regla del usuario); cada corrida 24^3 usa ~904 MiB (medido 2026-11-10). No borra nada.
+
+#### `microgel/scripts/TEST-HIDRO-dx2/correr_advfix_flla_mass.sh`
+> Corre advfix_flla_mass/* (crear_advfix_flla_mass.py, 2026-11-16) en paralelo dejando >= 2100 MiB libres en la GPU
+> (regla del usuario); cada corrida 24^3 usa ~904 MiB (medido 2026-11-10). No borra nada.
+
+#### `microgel/scripts/TEST-HIDRO-dx2/correr_cont_visc.sh`
+> Corre las continuaciones cont<NEND>/<variante>/<corrida> (crear_cont_visc.py, 2026-11-16) en paralelo dejando
+> >= 2100 MiB libres en la GPU (regla del usuario); ~904 MiB por corrida 24^3. No borra nada.
+> [OK] exige "finished normally" y "Re-starting simulation at step N0".
+> Uso: scripts/correr_cont_visc.sh NEND   (corre todas las carpetas de cont<NEND> que no hayan terminado)
+
 #### `microgel/scripts/TEST-HIDRO-dx2/correr_exe45dc.sh`
 > Prueba del ejecutable 45dc94bc (2026-11-11): hidro_si (debe reproducir hidro_si exacto) y hidro_no, en paralelo.
 
@@ -2331,6 +2623,77 @@ Lee argumentos de línea de comandos: sys.argv[1, 2, 3]
 > continuaciones de 96^3 corriendo). Cada corrida 24^3 usa ~904 MiB (medido): lanza una si libre >= RESERVA + 904,
 > luego espera 60 s a que asigne su memoria antes de volver a medir. No borra nada; log de cada una en run.log.
 
+#### `microgel/scripts/TEST-HIDRO-dx2/crear_advfix.py`
+> Rehace el barrido de viscosidad de TEST-HIDRO-dx2 (7 corridas, 2026-11-10) con el ejecutable ACTUAL
+> (src/Ludwig.exe, md5 221f3229, compilado 2026-11-12 19:35), que incluye el arreglo del peso de la
+> advección de NP (CHANGE 20261112: W_p = 2 wgradients[p]; antes los iones se advectaban 9x con stencil 27).
+> Pedido del usuario 2026-11-16: comparar el potencial químico con hidrodinámica en función de la
+> viscosidad antes y después del arreglo.
+>
+> Cada corrida nueva es una copia del input y de config.cds.init de la original, sin otro cambio físico
+> (misma advección "centred" por defecto, mismos 3000 pasos, mismo solver fft); solo se agregan líneas de
+> comentario en la cabecera.
+>
+> Uso:  python3 scripts/crear_advfix.py   (desde TEST-HIDRO-dx2). Crea advfix/<corrida>/ (no sobrescribe).
+
+#### `microgel/scripts/TEST-HIDRO-dx2/crear_advfix_flla.py`
+> Barrido de viscosidad de TEST-HIDRO-dx2 (7 corridas, 2026-11-10) con el ejecutable actual (md5 221f3229)
+> y advección de NP "flla" (DeVincentis & Thomas 2023, limitador superbee; CHANGE 20261112 en
+> src/nernst_planck.c) en lugar de "centred". Pedido del usuario 2026-11-16: comparar Delta mu vs viscosidad
+> con la advección vieja, la centrada corregida (advfix/) y flla.
+>
+> Cada corrida es una copia del input y de config.cds.init de la original; cambian el ejecutable y la
+> línea agregada "electrokinetics_advection flla" (requisitos: nhalo >= 2 (aquí 3), un solo proceso MPI,
+> enlaces D3Q19 del LB contenidos en el stencil 27 de NP).
+>
+> Uso:  python3 scripts/crear_advfix_flla.py   (desde TEST-HIDRO-dx2). Crea advfix_flla/<corrida>/ (no sobrescribe).
+
+#### `microgel/scripts/TEST-HIDRO-dx2/crear_advfix_flla_mass.py`
+> Barrido de viscosidad de TEST-HIDRO-dx2 (7 corridas, 2026-11-10) con el ejecutable actual (md5 221f3229)
+> y advección de NP "flla_mass" (variante de flla de DeVincentis & Thomas 2023, limitador superbee; CHANGE 20261112 en
+> src/nernst_planck.c) en lugar de "centred". Pedido del usuario 2026-11-16: comparar Delta mu vs viscosidad
+> con la advección vieja, la centrada corregida (advfix/), flla (advfix_flla/) y flla_mass.
+>
+> Cada corrida es una copia del input y de config.cds.init de la original; cambian el ejecutable y la
+> línea agregada "electrokinetics_advection flla_mass" (requisitos: nhalo >= 2 (aquí 3), un solo proceso MPI,
+> enlaces D3Q19 del LB contenidos en el stencil 27 de NP).
+>
+> Uso:  python3 scripts/crear_advfix_flla_mass.py   (desde TEST-HIDRO-dx2). Crea advfix_flla_mass/<corrida>/ (no sobrescribe).
+
+#### `microgel/scripts/TEST-HIDRO-dx2/crear_cont_visc.py`
+> Continuation of the 4 x 7 viscosity runs of TEST-HIDRO-dx2 (2026-11-16, user's request: run 3000 more steps, check
+> for steady state, and if not reached run 3000 more; then redo the Delta mu curve with the steady state).
+>
+> Variants (source of step N0):   old       ./hidro_si*              (exe 4f0c20e7, unweighted centred advection)
+>                                 centred   ./advfix/hidro_si*       (exe 221f3229)
+>                                 flla      ./advfix_flla/hidro_si*
+>                                 flla_mass ./advfix_flla_mass/hidro_si*
+> Destination: cont<NEND>/<variant>/<run>/. Recipe of crear_continuacion_dxhalf.py: copies of input, config.cds.init,
+> the SAME Ludwig.exe as the source run, the *-metadata files, the files of step N0 only, and proceced_data/*.csv
+> truncated to step <= N0. Input: N_start N0, N_cycles NEND - N0 (nothing else changed). Ludwig restarts from
+> dist/psi/qsi/rho/vel of step N0 ("Re-starting simulation at step N0").
+> Note: flla/flla_mass store the LB link flux after each collision; right after a restart there is none yet, so the
+> … (6 líneas más en el archivo)
+
+Uso (del archivo):
+    Usage: python3 scripts/crear_cont_visc.py N0 NEND [run ...]
+    e.g. python3 scripts/crear_cont_visc.py 3000 6000            (all 28)
+    python3 scripts/crear_cont_visc.py 6000 9000 flla/hidro_si_eta2.0 ...   (sources taken from cont6000/)
+
+Lee argumentos de línea de comandos: sys.argv[1, 2]
+
+#### `microgel/scripts/TEST-HIDRO-dx2/estacionario_visc.py`
+> Steady-state check of the 4 x 7 viscosity runs (2026-11-16, user's request).
+>
+> For each variant (old, centred, flla, flla_mass) and viscosity, the time series of Delta mu_a = max - min of
+> mu_a/kT = ln rho_a + Z_a psi (as analizar_visc.py) is built from the dumps every 250 steps of the original run
+> (0..3000) and of its continuations cont6000/, cont9000/ (if present).
+>
+> Steady-state criterion (HEURISTIC, proposed by Claude, not a standard; stated to the user):
+>     r_a = |Delta mu_a(N) - Delta mu_a(N - 1000)| / Delta mu_a(N) < TOL = 1 %   for both species,
+> with N the last available dump. Printed: Delta mu_a at 3000, at N-1000 and at N, r_a, and STEADY yes/no.
+> Writes nothing. Usage: python3 scripts/estacionario_visc.py
+
 #### `microgel/scripts/TEST-HIDRO-dx2/grafico_dmu_u_visc.py`
 > Two-panel plot vs viscosity: chemical-potential residual (top) and fluid speed (bottom) (2026-11-10, user's request).
 >
@@ -2339,6 +2702,64 @@ Lee argumentos de línea de comandos: sys.argv[1, 2, 3]
 > Bottom: max_n |u_n| and RMS_n |u_n| (vel dump, lattice units), as analizar_visc.py.
 > Shared log eta axis; the points are joined by straight segments only as a guide (no fit).
 > Usage: python3 grafico_dmu_u_visc.py   (from this directory) -> ../graficos/dmu_u_vs_viscosidad.png
+>
+> 2026-11-16 (user's request): added to the top panel
+>   * Delta mu with the weighted centred advection (advfix/, exe 221f3229, W_p = 2 wgradients[p]), same step 3000;
+>     open markers + dashed = old exe (unweighted advection, the original curves), filled + solid = weighted;
+>   * Delta mu WITHOUT hydrodynamics (hidro_no_exe45dc94bc, exe 45dc94bc, hydrodynamics no, eta irrelevant) at step
+> … (11 líneas más en el archivo)
+
+#### `microgel/scripts/TEST-HIDRO-dx2/grafico_dmu_u_visc_3adv.py`
+> Delta mu and |u| vs viscosity for three NP advection variants (2026-11-16, user's request).
+>
+>   old     ../hidro_si*              exe 4f0c20e7, centred advection WITHOUT link weights (ions 9x too fast)
+>   centred ../advfix/hidro_si*       exe 221f3229, centred advection with W_p = 2 wgradients[p] (crear_advfix.py)
+>   flla    ../advfix_flla/hidro_si*  exe 221f3229, electrokinetics_advection flla (crear_advfix_flla.py)
+> Same quantities and dump as grafico_dmu_u_visc.py: Delta mu_a = max_n - min_n of mu_a/kT = ln rho_a + Z_a psi
+> (top), max_n|u_n| and RMS_n|u_n| (bottom), step 3000. Straight segments only guide the eye (no fit).
+> Prints the table of values and of the ratios old/variant.
+> Usage: python3 scripts/grafico_dmu_u_visc_3adv.py  -> graficos/dmu_u_vs_viscosidad_3adv.png
+
+#### `microgel/scripts/TEST-HIDRO-dx2/grafico_dmu_u_visc_4adv.py`
+> Delta mu and |u| vs viscosity for four NP advection variants (2026-11-16, user's request).
+>
+>   old     ../hidro_si*              exe 4f0c20e7, centred advection WITHOUT link weights (ions 9x too fast)
+>   centred ../advfix/hidro_si*       exe 221f3229, centred advection with W_p = 2 wgradients[p] (crear_advfix.py)
+>   flla    ../advfix_flla/hidro_si*  exe 221f3229, electrokinetics_advection flla (crear_advfix_flla.py)
+>   flla_mass ../advfix_flla_mass/hidro_si*  exe 221f3229, electrokinetics_advection flla_mass
+>           (crear_advfix_flla_mass.py)
+> Same quantities and dump as grafico_dmu_u_visc.py: Delta mu_a = max_n - min_n of mu_a/kT = ln rho_a + Z_a psi
+> (top), max_n|u_n| and RMS_n|u_n| (bottom), step 3000. Straight segments only guide the eye (no fit).
+> Prints the table of values and of the ratios centred/variant.
+> Usage: python3 scripts/grafico_dmu_u_visc_4adv.py  -> graficos/dmu_u_vs_viscosidad_4adv.png
+
+#### `microgel/scripts/TEST-HIDRO-dx2/grafico_dmu_u_visc_4adv_estacionario.py`
+> Delta mu and |u| vs viscosity for four NP advection variants, STEADY STATE (step 6000) (2026-11-16, user's request).
+>
+> Same as grafico_dmu_u_visc_4adv.py (step 3000) but read from the continuations cont6000/<variant>/<run>
+> (crear_cont_visc.py; steady by estacionario_visc.py: relative change of Delta mu over steps 5000-6000
+> <= 1.7e-6 in all 28 runs). Variants as listed below (the cont6000 copies use the same exe as the source).
+>
+>   old     ../hidro_si*              exe 4f0c20e7, centred advection WITHOUT link weights (ions 9x too fast)
+>   centred ../advfix/hidro_si*       exe 221f3229, centred advection with W_p = 2 wgradients[p] (crear_advfix.py)
+>   flla    ../advfix_flla/hidro_si*  exe 221f3229, electrokinetics_advection flla (crear_advfix_flla.py)
+>   flla_mass ../advfix_flla_mass/hidro_si*  exe 221f3229, electrokinetics_advection flla_mass
+>           (crear_advfix_flla_mass.py)
+> Same quantities and dump as grafico_dmu_u_visc.py: Delta mu_a = max_n - min_n of mu_a/kT = ln rho_a + Z_a psi
+> … (3 líneas más en el archivo)
+
+Uso (del archivo):
+    Usage: python3 scripts/grafico_dmu_u_visc_4adv_estacionario.py  -> graficos/dmu_u_vs_viscosidad_4adv_estacionario.png
+
+#### `microgel/scripts/TEST-HIDRO-dx2/grafico_dmu_u_visc_advfix.py`
+> Delta mu and |u| vs viscosity, BEFORE vs AFTER the NP advection-weight fix (2026-11-16, user's request).
+>
+> Before: the 7-viscosity sweep of 2026-11-10 (../hidro_si*, exe 4f0c20e7: unweighted centred advection, ions advected
+> 9x too fast with stencil 27). After: the same 7 inputs rerun with the current exe (../advfix/hidro_si*, md5 221f3229,
+> CHANGE 20261112 W_p = 2 wgradients[p]); see crear_advfix.py. Same quantities and dump as grafico_dmu_u_visc.py:
+> Delta mu_a = max_n - min_n of mu_a/kT = ln rho_a + Z_a psi (top), max_n|u_n| and RMS_n|u_n| (bottom), step 3000.
+> Straight segments only guide the eye (no fit). Prints a table with the before/after ratios.
+> Usage: python3 scripts/grafico_dmu_u_visc_advfix.py  -> graficos/dmu_u_vs_viscosidad_advfix.png
 
 #### `microgel/scripts/TEST-HIDRO-dx2/grafico_dmu_visc.py`
 > Plot of the chemical-potential residual vs viscosity (2026-11-10, user's request).

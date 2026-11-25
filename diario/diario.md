@@ -1092,3 +1092,478 @@ pendiente. Las observaciones son lo medido; las interpretaciones van marcadas co
 - **Error mío:** esa prueba regeneró graficos/C_carga_imagen_hann08.png (el script guarda la figura sin avisar). Resultado idéntico byte a byte a la copia de runs/ (mismo md5); fecha original restaurada con touch -r. No se perdió nada.
 - **Pendiente:** commit; scripts sin docstring (30 en microgel, util/extract.sh).
 - 2026-11-13 17:57 claude/petscrc_modifications.md: referencia del .petscrc cambiada a la raíz (./.petscrc, idéntico a microgel/local/.petscrc y a las 792 copias por corrida).
+
+## 2026-11-13 18:59 — H-microgel-ruido: microgel de G con ruido térmico (prueba corta)
+- **Objetivo:** microgel entre placas con ruido térmico; evaluar si el ruido es demasiado fuerte, con la escala de Ingo y el mismo problema físico que G.
+- **Cambio:** capacitor/local/WALL-DIRICHLET/H-microgel-ruido/{neutro,superficie}-{steeleG,steele1e-5} (crear.py, correr.sh, analizar_ruido.py en capacitor/scripts/H-microgel-ruido). Escala C: kT 1e-4, η 0.01, ρ 1, a_h 0.308 (al 0.474 de G); ε 1e3, k 1e-3, ε_rep 1e-4 (lB/r0, √(kT/k)/r0, ε_rep/kT iguales a G). Sin sal. 5000 pasos.
+- **Prueba:** las 4 terminaron normalmente (0.15–0.18 s/paso, 4 en paralelo).
+- **Observación:** desplazamiento rms 0.0344/paso/componente (predicho √(2D_desnudo) = 0.0348), máx 0.151 = 19 % de drmax; ⟨U_enlaces⟩/kT = 17.3/17.0 ± 0.5 vs 17.5 (equipartición, aprox. armónica); fluido ⟨u_a²⟩/(kT/ρ) = 0.98–1.02; d mínimo a pared 8.8 → las dos paredes dan corridas idénticas byte a byte; Rg 4.64 → 5.07 (neutro) / 5.19 (superficie), aún relajando.
+- **Interpretación:** con la escala C el ruido no es demasiado fuerte para los monómeros ni para el fluido. La estabilidad de la pared con ruido no quedó probada (ningún monómero llegó a ella).
+- **Pendiente:** prueba de pared con un monómero libre cerca del plano; duración de la corrida larga.
+
+## 2026-11-13 19:12 — H-microgel-ruido: prueba de pared con ruido (un monómero)
+- **Cambio:** crear_pared.py / correr_pared.sh / analizar_pared.py (capacitor/scripts/H-microgel-ruido). Un monómero libre q = 0 y q = 1, paredes Steele ε_w = 6.2572e-19 (G ×10) y 1e-5 (σ_w = 1), 2000 pasos.
+- **Prueba:** primer intento desde d = 4.0: Steele G aborta en el paso 21 (h llegó a 0.019, dr = 696/739); Steele 1e-5 aborta en el paso 1 por error mío (arranque en h = 0.5, dentro de su zona repulsiva) → renombradas _fallido / -d4. Repetidas desde d = 5.0 (h = 1.5).
+- **Observación:** Steele G desde d = 5: q0 aborta en el paso 877 (dr = 1.3e4) tras pasar 772 pasos dentro del alcance con ⟨V⟩/kT = 41 (Boltzmann 0.005); q1 termina (h mín 0.040, máx dr 30 % drmax). Steele 1e-5: ambas terminan, h mín 0.768, V máx 2 kT, máx dr 17 % drmax, ⟨V⟩/kT 0.25 vs Boltzmann 0.30 (300 muestras). q1 ≈ q0 (imagen ~0.04 kT).
+- **Interpretación:** confirma el criterio μ·V'' < 1: la Steele de G no sirve con ruido (aborta o muestrea mal); ε_w = 1e-5 sí.
+- **Error mío:** posición inicial dentro de la zona repulsiva; sed -i rompió el enlace duro de correr_pared.sh (rehecho).
+- **Pendiente:** corrida larga con ε_w = 1e-5.
+- 2026-11-13 19:19 H-microgel-ruido: lanzada la corrida larga {neutro,superficie}-largo (crear_largo.py, correr_largo.sh): pared Steele ε_w = 1e-5, 50000 pasos, posiciones cada 100, volcados completos cada 10000 (reinicio). Misma configuración inicial y semilla que las pruebas cortas.
+- 2026-11-13 19:21 H-microgel-ruido corrida larga: primer lanzamiento falló (neutro-largo abortó: comentario > 127 bytes partido por el lector de input, NKEY_LENGTH en src/runtime.c; error mío). superficie-largo detenida y sus 200 pasos parciales borrados; comentarios partidos en ambos inputs y en crear.py/crear_largo.py; relanzadas las dos, sin avisos de claves no usadas. Las pruebas cortas tenían la clave basura 'egaban' sin efecto.
+- 2026-11-13 19:41 Memoria: idea de potencial de pared ψ(t) (idea_wall_potential_time_dependent.md). Nuevo PENDIENTES.xlsx en la raíz: 27 tareas ordenadas por prioridad y dificultad (valores propuestos por Claude, a revisar), con leyenda de criterios.
+- 2026-11-13 20:06 Interpretación de la rampa de pared con e0 tangencial corregida (no es conductor ideal: electrodo resistivo / arreglo de electrodos; imagen de conductor; no modela paredes aislantes) en src/psi_petsc.c (solo comentario, no recompilado), claude/PAREDES_POTENCIAL_CONSTANTE.md §8 y README de F-campo-tangencial; nota en code_changes.
+- 2026-11-13 21:15 H-microgel-ruido corrida larga: análisis con el script nuevo analizar_largo.py (capacitor/scripts/H-microgel-ruido/, hardlink en la carpeta de la serie; salida en logs_analisis_largo.txt; SCRIPTS.md regenerado).
+  - **Observación:** las dos terminaron normalmente. Ningún monómero llegó a la pared (h ≥ 4.6). ⟨U_enlaces⟩/kT por bloque de 5000 pasos: 16.1–19.3 (ref. 17.5). Fluido: ⟨u²⟩/(kT/ρ) 0.99–1.02. Rg: 4.64 → ~5.1 en 10000 pasos, después oscila entre 4.2 y 5.0 sin tendencia. Neutro y superficie casi iguales bloque a bloque (misma semilla).
+  - **Interpretación:** Rg aparentemente estacionario desde ~1e4 pasos; las fluctuaciones por bloque son mayores que la diferencia neutro–superficie, así que el efecto de la carga no es medible con esta estadística. Las corridas no son independientes.
+  - **Pendiente:** ventana de equilibrio (decisión del usuario); ¿más pasos o semillas distintas? ¿cuánto conviene acercar el gel a la pared?
+- 2026-11-13 21:40 Pregunta: ¿se puede incluir el ruido en PB para comparar con LONG-MASS-3E5? (respuesta conceptual, nada implementado)
+  - **Observación (parámetros del input):** D_ion = D_desnudo = 6.515e-4, D_Stokes = 1.72e-3, con advección flla_mass. Medido: n/n̄(r<1) = 1.47; PB da 3.18.
+  - **Interpretación / derivación propia, sin fuente verificada:**
+    - Con NP determinista y la partícula browniana, en DH lineal la nube vista desde la partícula es DH con κ_ef² = κ²/(1 + D_p/D), es decir T_ef = T(1 + D_p/D).
+    - En equilibrio consistente (iones con ruido y su correlación con la partícula) seguiría siendo PB: la diferencia viene de que NP es campo medio sin ruido.
+    - Estimación grosera no lineal: 3.18^(T/T_ef) da 1.8 (D_p = D_desnudo) a 1.4 (D_p = D_Stokes), compatible en orden con 1.47. Es solo un indicador.
+  - **Pendiente:** decidir si comparar con la fórmula lineal y qué D_p usar (difusión relativa partícula–iones, afectada por la advección correlacionada); buscar fuente (Démery & Dean, sin verificar).
+- 2026-11-14 Pregunta conceptual (sin cambios): ¿la advección de NP da ruido a los iones? ¿PB depende de D?
+  - **Respuesta:** la advección por el u fluctuante es ruido multiplicativo u·∇c. No genera fluctuaciones donde c es uniforme y no reemplaza al término de ruido propio ∇·(√(2Dc) W) de la hidrodinámica fluctuante (Donev et al. 2014; Péraud et al. 2016). La PB de equilibrio no depende de D, solo de kT, z y ε; D fija solo cuánto tarda la nube en seguir a la partícula.
+  - **Propuesta (no lanzada):** variar D_ion con todo lo demás fijo. Predicción lineal: κ_ef² = κ²/(1 + D_p/D), así que con D mayor la nube debería acercarse a PB.
+  - **Pendiente:** autorización, factores de D y duración.
+- 2026-11-14 Pregunta: ¿qué es el ruido desnudo de NP y cómo se comporta el modelo frente a la teoría? (sin cambios; solo cuentas sobre perfiles ya existentes de INGO-1PART-LBTERM-DIAG)
+  - **Observación (README de la serie):**
+    - Sin fluctuaciones, el perfil coincide con PB discreta (D×10: 0.14 %; D×30: < 1e-4).
+    - Con LB térmico y la partícula fija, n/n̄(r<1) da −8.4 % (D×10) y −2.5 % (D×30).
+    - Con la partícula libre da −14.7 % (D×10), −6.1 % (D×30) y −54 % (D×1).
+  - **Interpretación heurística:**
+    - Ajusté una T_ef por corrida con n = n_PB^(T/T_ef), solo en el bin r < 1 (regla inventada, no derivada). Despejando D_extra = (T_ef/T − 1)·D:
+      - partícula fija: ~5e-4 (lo atribuyo a la agitación advectiva, D_adv);
+      - partícula libre: ~1.1e-3, que es D_adv más el D de la partícula (6.5–7e-4);
+      - D×1: 1.3e-3.
+    - Esto es consistente con T_ef = T(1 + (D_p + D_adv)/D). Pero la regla de exponente falla en r = 3–4 (el sistema es sin sal y la carga se conserva).
+  - **Pendiente:** decidir si se ajusta T_ef con pb_reference.py usando lB_ef = lB·T/T_ef (solo Python, barato). Preguntarle a Ingo qué significa "ruido EK ≈ 0".
+- 2026-11-16 Documento claude/MODELO_EK_PETSC_PASO_A_PASO.md: análisis paso a paso, leyendo el código, de cómo Ludwig resuelve partículas subgrid cargadas + NP + Poisson-PETSc + LB térmico. Incluye ecuaciones en LaTeX, el orden del paso de tiempo, y supuestos y simplificaciones (tabla de 18). No modifica código ni corre nada.
+  - **Observaciones de la lectura (no verificadas en corridas):**
+    - la velocidad de la partícula y los enlaces usan siempre Peskin-4, mientras que la carga y la fuerza eléctrica usan el kernel elegido;
+    - el ruido de la partícula está truncado en 3σ (varianza × 0.973);
+    - el ruido del LB no tiene ρ local;
+    - drmax se compara sin valor absoluto;
+    - en GPU, maxacc = 0, así que los subpasos de NP no se adaptan;
+    - psi_zero_mean también se aplica con paredes;
+    - la corrección de fuerza (2−ω) del LB no está contrastada con Guo.
+  - **Pendiente:** que el usuario lo revise; analizar la rama FFT.
+- 2026-11-16 Pregunta: ¿el arreglo de la advección (2026-11-12) cambia los gráficos de equilibrio químico (Δμ)? (respuesta sin correr nada)
+  - **Observación:**
+    - TEST-HIDRO-dx2 (hidro_si y barrido de η: graficos/dmu_vs_viscosidad.png, dmu_u_vs_viscosidad.png) y las Δμ de FUERZA-2PART-MEAS se hicieron el 10–11/11 con los exe 4f0c20e7/45dc94bc: advección centred sin peso, stencil 27, así que los iones se advectaban 9× más rápido.
+    - Las corridas hidro_no no tienen advección: no cambian.
+  - **Interpretación (heurística):**
+    - El piso de Δμ con hidro debería bajar ~9× si es lineal en el flujo advectivo (el barrido en η lo sugiere).
+    - F y la fuerza no deberían cambiar de forma visible (el efecto del flujo era < 1e-6 relativo).
+    - La conclusión "sin flujo, μ uniforme a precisión de máquina" no cambia.
+  - **Pendiente:** autorización para rehacer hidro_si (y el barrido) con el exe actual, en carpetas nuevas (~5 min cada una).
+- 2026-11-16 00:45 TEST-HIDRO-dx2: barrido de viscosidad rehecho con el exe actual (221f3229, con el arreglo del peso de advección).
+  - **Cambio:** carpetas advfix/hidro_si* creadas por scripts/crear_advfix.py (copias del input y del config.cds.init; solo cambia el exe). Corridas con correr_advfix.sh: 7/7 terminaron normalmente, ~6 min con 7 en paralelo. Gráfico graficos/dmu_u_vs_viscosidad_advfix.png (grafico_dmu_u_visc_advfix.py); el original no se tocó.
+  - Error mío: el primer intento usó scripts/.. (symlink) y creó carpetas vacías en microgel/scripts/advfix; las borré con rmdir y ahora el script usa rutas absolutas.
+  - **Observación (paso 3000):**
+    - max|u| y RMS|u| idénticos antes y después (4 cifras).
+    - Δμ₋ baja 10.1× (η = 0.02) a 8.4× (η = 2).
+    - Δμ₊ baja 6.8× a 5.5×.
+    - Después del arreglo Δμ₊ ≈ Δμ₋; antes, Δμ₋ ≈ 1.5 Δμ₊.
+  - **Interpretación (no verificada):**
+    - Se confirma que el piso viene de la advección por el flujo estacionario, y que el arreglo no cambia el flujo.
+    - El factor no es 9 exacto para las dos especies; no lo explico.
+    - En η ≥ 1 puede pesar el transitorio que todavía queda en el paso 3000 (la corrida sin hidro tenía 1.8e-8 a 3000).
+  - **Pendiente:** si hace falta, extender a 6000 pasos para separar el piso del transitorio en η alto.
+- 2026-11-16 01:05 TEST-HIDRO-dx2: el mismo barrido de viscosidad con advección flla (pedido del usuario).
+  - **Cambio:** carpetas advfix_flla/hidro_si* creadas por crear_advfix_flla.py (exe 221f3229 + "electrokinetics_advection flla"). Corridas con correr_advfix_flla.sh: 7/7 terminaron normalmente. Gráfico de las tres variantes en graficos/dmu_u_vs_viscosidad_3adv.png (grafico_dmu_u_visc_3adv.py).
+  - **Observación (paso 3000):**
+    - |u| idéntico en las tres variantes.
+    - Con flla, Δμ₋ = 1.5e-6 (η = 0.02) baja hasta ~3.8e-7 y se planta desde η ≈ 0.5.
+    - Con flla, Δμ₊ tiene un mínimo de 1.1e-7 en η = 0.1 y sube a 2.9e-7 en η = 2.
+    - flla queda por encima de centred en casi todo el rango (×1.6 a ×12), salvo Δμ₊ en η = 0.05 y 0.1.
+  - **Interpretación (hipótesis, no verificada):**
+    - El piso de flla no baja con η, así que no lo pone u.
+    - Candidato: flla toma el flujo de masa post-colisión, Σ f* c = ρu + F/2, que en estado estacionario incluye la media fuerza F/(2ρ), independiente de η. centred usa u = (Σ f c + F/2)/ρ.
+    - La corrida de η = 0.05 tenía max|u| = 4.4e-8 en el paso 1, independiente de η, que es del orden de ese término.
+  - **Pendiente:** confirmar con el flujo m guardado frente a u; ver si flla_mass hace lo mismo.
+- 2026-11-16 01:30 Comprobación de la hipótesis "flla advecta con u + F/(2ρ)" (pedido del usuario). Solo se leyeron archivos, sin corridas ni cambios de código.
+  - **Método:** f* post-colisión del paso 3000, reconstruida exactamente desde dist-3000 (f*_a(x) = f_dump_a(x + c_a)). Scripts comprobar_flla_fuerza.py y comprobar_flla_descomposicion.py; salidas en advfix_flla/comprobar_flla_*_3000.txt.
+  - **Observación:**
+    - F/(2ρ) es independiente de η: RMS 8.5e-10, máximo 3.7e-8.
+    - La fuente de flla para un campo uniforme, S = Σ_a m_a, tiene RMS de 5.2e-10 a 6.5e-10, casi independiente de η.
+    - Descomposición exacta S = D/ρ + R: el flujo neto de masa D del LB es ~1e-16 (1e-13 en η = 0.02), y R, el término de diferencias de densidad del LB entre vecinos, da corr(S, R) = 1.0000.
+    - Las variaciones de ρ_LB son independientes de η: RMS 1.6e-9, máximo 3.3e-8 a 5.2e-8.
+    - S se correlaciona con −div(F/2): 0.90 en η = 0.02 y 0.84 en η = 2.
+  - **Interpretación:**
+    - La hipótesis F/(2ρ) queda REFUTADA como mecanismo, porque el flujo neto de masa es nulo.
+    - La fuente viene de normalizar por la densidad local del LB en flla (modo 1): m = f̄/ρ_j − f/ρ_i. Es la limitación que ya documenta el código (flla conserva un campo uniforme solo hasta las diferencias de densidad del LB).
+    - Esas diferencias de densidad equilibran la fuerza eléctrica (c_s²∇ρ ≈ F, presión), por eso no dependen de η, y R se correlaciona con div F. Esto último es inferencia: no comparé ∇ρ con F directamente.
+    - flla_mass conserva c uniforme por construcción, así que no debería tener este piso. No verificado.
+  - Corrijo la entrada de 01:05: el término F/(2ρ) no es la causa.
+  - **Pendiente:** el barrido con flla_mass, si el usuario lo autoriza.
+- 2026-11-16 01:50 TEST-HIDRO-dx2: el mismo barrido de viscosidad con advección flla_mass (pedido del usuario).
+  - **Cambio:** carpetas advfix_flla_mass/hidro_si* creadas por crear_advfix_flla_mass.py y corridas con correr_advfix_flla_mass.sh: 7/7 terminaron normalmente. Gráfico de las cuatro variantes en graficos/dmu_u_vs_viscosidad_4adv.png (grafico_dmu_u_visc_4adv.py); tabla en advfix_flla_mass/tabla_4adv_3000.txt.
+  - **Observación (paso 3000):**
+    - flla_mass baja con η como centred, sin el piso de flla.
+    - Queda ~1.4× por encima de centred (Δμ₊ ×1.38 a ×1.18; Δμ₋ ×1.41 a ×1.44).
+    - |u| es idéntico en las 4 variantes.
+  - **Interpretación:** es coherente con la explicación del piso de flla por la normalización con la densidad del LB, que flla_mass no tiene. No explico el factor ~1.4 respecto de centred; candidatos: difusión numérica del limitador, o el desfase de un paso en el flujo.
+  - **Pendiente:** ninguna variante llega a μ uniforme con flujo; queda por evaluar si el paso 3000 ya es estacionario en η alto.
+- 2026-11-16 02:10 TEST-HIDRO-dx2: continuación a 6000 pasos de las 28 corridas (4 variantes × 7 η) y curva de Δμ en estado estacionario (pedido del usuario).
+  - **Cambio:**
+    - Carpetas cont6000/<variante>/<corrida> creadas por scripts/crear_cont_visc.py (receta de crear_continuacion_dxhalf.py; mismo exe que la corrida de origen). Corridas con correr_cont_visc.sh 6000: 28/28 terminaron normalmente con "Re-starting simulation at step 3000".
+    - En flla y flla_mass, el primer paso después del reinicio no tiene advección (no hay todavía flujo guardado).
+  - **Criterio de estacionario** (heurístico, propuesto por mí): |Δμ(N) − Δμ(N−1000)|/Δμ(N) < 1 % para las dos especies.
+  - **Observación:**
+    - Todas cumplen con mucho margen: r(1000) va de 1e-8 a 1.7e-6 y r(1500) ≈ 8 × r(1000), así que sigue decayendo. Los archivos no son idénticos byte a byte.
+    - Entre 3000 y 6000 casi nada cambió (< 0.5 %), salvo Δμ₊ de centred en η = 2: 3.43e-8 → 2.91e-8 (−15 %).
+    - Salidas: cont6000/estacionario_6000.txt y estacionario_6000_detalle.txt; tabla en cont6000/tabla_4adv_6000.txt.
+    - No hizo falta llegar a 9000.
+  - **Gráfico:** graficos/dmu_u_vs_viscosidad_4adv_estacionario.png (grafico_dmu_u_visc_4adv_estacionario.py).
+    - centred tiene el menor Δμ salvo Δμ₊ de flla en η = 0.05 y 0.1.
+    - En estado estacionario, flla_mass queda ×1.39–1.44 sobre centred.
+    - Al piso de flla le corresponde centred/flla = 0.08 en η = 2.
+  - **Interpretación:** las conclusiones del paso 3000 se mantienen.
+
+## 2026-11-16 — Excel de conversión de unidades Ingo → Ludwig
+- Objetivo: planilla que haga la conversión de los parámetros de Ingo (Tabla 1, ec. 2 y 5 de su PDF) a LU, con explicación.
+- Cambio: nuevo microgel/conversion_unidades_Ingo_Ludwig.xlsx (hojas Conversion y Explicacion; entradas en azul, fórmulas).
+  Generado con un script en el scratchpad (no forma parte del proyecto).
+- Prueba: LibreOffice no está instalado, así que no se recalculó con una planilla; las fórmulas se evaluaron con un
+  intérprete propio en Python. Los 7 chequeos contra el input de INGO-1PART-LBTERM dan TRUE.
+- Observación: el input usó μ_b = D_LU/kT_LU = 6.515; 1/γ_LU con γ = 15.35 da 6.51466 (diferencia relativa 5e-5,
+  γ = 1/0.06515 = 15.349 redondeado) y daría a_h = 0.3078942 en vez de 0.3078881. La planilla usa D/kT y muestra 1/γ.
+- Pendiente: abrir el archivo en Excel para confirmar que calcula igual que la evaluación en Python.
+
+## 2026-11-16 12:59 — Lista de tareas en Excel (Proyectos/Tareas.xlsx)
+- Objetivo: pasar el archivo UB/Tareas a un Excel con tareas hechas y pendientes, una pestaña por tipo/proyecto.
+- Cambio: nuevo /mnt/datos/Github/Trabajo/UB/Proyectos/Tareas.xlsx (pestañas Administrativo, Común (Ludwig),
+  Microgel (tesis), Stuttgart (Ingo), EDLC (Benjamin), Leyenda). Fuentes: archivo Tareas, PENDIENTES.xlsx y memorias
+  de Claude. No se modificó ninguna fuente. Script en el scratchpad (no forma parte del proyecto).
+- Prueba: se releyó el archivo con openpyxl (77 filas, 29 hechas); no se abrió en Excel/LibreOffice.
+- Observación: el arreglo de la fuga de klein_t ya está en src/subgrid.c:1376 (la memoria decía "no aplicado").
+- Interpretación: "Convertir unidades" de Ingo se marcó Hecho por inferencia (ya hay corridas con sus parámetros).
+- Pendiente: revisar la asignación de tareas a pestañas y las prioridades vacías.
+
+## 2026-11-16 14:41 — Tareas_v2.xlsx: subítems, color por tarea y formato condicional en Estado
+- Objetivo: tareas con subítems y color distinto por tarea; color de la columna Estado según su valor.
+- Cambio: nuevo Proyectos/Tareas_v2.xlsx (columnas Sub y Avance, colores fijos por tarea, sin formato condicional
+  en las filas). Luego, formato condicional solo en la columna D (Pendiente naranja, Hecho verde, En curso amarillo,
+  Descartado tachado gris), escrito en el XML en formato x14 como OnlyOffice. Respaldo previo: Tareas_v2_respaldo_1441.xlsx.
+- Prueba: zip válido, XML bien formado, 4 reglas y 2 listas desplegables por pestaña, valores idénticos al respaldo.
+- Observación: el formato condicional anterior (filas enteras) pisaba los colores manuales; se descartó.
+- Pendiente: ver en OnlyOffice que se vean los colores y que la fórmula de Avance calcule (no evaluada).
+
+## 2026-11-16 — Contraste de la interpretación de parámetros ESPResSo con Cimrák et al. 2014
+- Objetivo: verificar con Cimrák et al. 2014 (Comput. Phys. Commun.; OIF en ESPResSo) la conversión Ingo -> Ludwig.
+- Observación: el paper define el acoplamiento F = ξ(v − u) con u interpolada linealmente (trilineal) y la fuerza
+  devuelta al fluido con los mismos pesos (ec. 3); ξ es el "friction" de lbfluid. Las partículas tienen masa y siguen
+  m d²X/dt² = F (ec. 2, masa por defecto 1). Usa D3Q19. No define si "visc" es cinemática ni el tau del LB de Ingo.
+- Interpretación: γ de Ingo = ξ desnudo -> μ_b = 1/γ en Ludwig es consistente. Falta en el mapeo: la inercia de la
+  partícula de ESPResSo (m/γ = 0.065 [t] = 6.5 δt si m = 1), ausente en la partícula subgrid de Ludwig.
+- Pendiente: confirmar con Ingo masa de los monómeros, tau y agrid del LB, versión de ESPResSo y si ν es cinemática.
+
+## 2026-11-16 — Parámetros de Ingo contra la documentación de ESPResSo 5.0.1 (lb, ek, integration, API)
+- Objetivo: revisar la conversión Ingo -> Ludwig suponiendo ESPResSo 5.0.1.
+- Observación (doc): LBFluid(agrid, tau, density, kinematic_viscosity, kT) en unidades MD; viscosidad CINEMÁTICA.
+  Termostato LB: m dv/dt = f − γ(v − u) + sqrt(2γkT) η, u interpolada lineal en 8 nodos (Ahlrichs-Dünweg).
+  LB y MD no sincronizados (tau_LB puede ser varios δt); tau de EK = múltiplo entero de δt. Colisión TRT.
+  EK: j = −D∇n − (D/kT) q n ∇Φ + n v_fl + sqrt(n) W; ΔΦ = −4π lB kT Σ q n; EKFFT(permittivity = ε0 εr);
+  EKSpecies(diffusion, valency, advection, friction_coupling, kT, thermalized). Esquema de advección y
+  acople carga-partícula -> grilla EK no documentados en esas páginas.
+- Interpretación: k_BT, ρ, ν cinemático, D, ε = 1/(4π lB kT) (= 280.2 en LU) y μ_b = 1/γ son consistentes.
+  Diferencias no incluidas en el mapeo: inercia (masa) de la partícula; colisión TRT vs MRT M10.
+- Pendiente (preguntas a Ingo): tau del LB y de EK, agrid de EK vs LB, friction_coupling, thermalized,
+  esquema de advección, cómo acopla la carga de los monómeros a EK (CIC/Hann no aparecen en la doc).
+
+## 2026-11-16 — Justificación de los pesos advectivos de NP
+- Pregunta: ¿el LB usa esos pesos?, ¿qué sustenta W_p = 2 wgradients[p] en la advección centrada de NP?
+- Observación: wgradients[p] = 3 w_p = w_p/c_s² (stencil_d3q19.c:70, stencil_d3q27.c:73; D3Q7: 1/2).
+  Ramadugu, Thampi, Adhikari, Succi, Ansumali, arXiv:1208.1009, ec. (10): ∇·φ = (1/T) Σ_i w_i c_i·φ(r+c_i) + O(∇³),
+  T = 1/3 (= c_s²). Verificado en el texto del preprint; revista no verificada.
+- Interpretación: el flujo de enlace de Ludwig con W_p, sumado sobre p, es esa ec. (10) aplicada a ρu (salvo el
+  producto de promedios, O(c²)). El paper no trata advección de NP ni estabilidad; la aplicación es nuestra.
+  El LB no tiene un término advectivo con pesos: los w_i entran por f_eq.
+
+## 2026-11-16 — Reescritura de §7.2 (Advección) de claude/MODELO_EK_PETSC_PASO_A_PASO.md
+- Pedido: mejorar la descripción; explicar flla_mass, por qué centred usa pesos y qué es I.
+- Cambio: §7.2 reescrita en 7.2.1 centred (pesos W_p = 2 wgradients = 2 w_p/c_s², derivación por Taylor,
+  tabla 1/5/9, I = identidad 3x3, ref. Ramadugu et al. ec. 10), 7.2.2 flla, 7.2.3 flla_mass
+  (rho(t+1) = rho* + Σ J exacto, propiedad c uniforme), 7.2.4 tabla resumen. Basado en lectura de
+  src/nernst_planck.c (l. 1246, 1461-1720, 1850-1875). Otras secciones sin tocar.
+- Observaciones de la lectura: upwind en flla/flla_mass se elige por el signo de u, no de J; con stencil 27
+  los 8 enlaces de esquina no llevan advección en flla*; el comentario CHANGE de l. 1123 llama M a Σc_x²
+  con valores 1/5/9, que en realidad son ½Σc_x² (sin efecto en el código).
+- Pendiente: §7.4 punto 3 dice "solo flla_mass tiene limitador" (flla también); no corregido.
+
+## 2026-11-16 — Advección centred de NP con paredes (lectura de código + una corrida existente)
+- Pregunta: ¿la advección centred omite los nodos de pared?
+- Observación (código): en el driver de GPU, np_advective_fluxes_kernel no mira el mapa; la difusión sí omite
+  enlaces a nodos no fluidos; np_antisym no mira el mapa; np_update_rho solo actualiza nodos fluidos;
+  np_no_flux_boundary (pone a 0 los flujos fluido-sólido) existe solo en el driver de CPU.
+- Observación (C-electrolito-hann4-LD3-ref0.5-desplazada/z_12.50, paso 2000, sin ruido): u = 0 en los planos de
+  pared, n en la pared = valor inicial 1.111e-2 (no se actualiza); |u| en el fluido <= 2e-9; iones totales en el
+  fluido conservados a ~1e-10 relativo.
+- Interpretación: con centred, por un enlace fluido-pared pasa W_p ½(u_i·c_p) ½(n_i + n_pared) que sale del fluido
+  y no entra a ningún lado (no conserva). Proporcional a la velocidad normal en la primera capa de fluido:
+  despreciable en flujo paralelo sin ruido; relevante con LB térmico + paredes + iones. No medido en ese caso.
+- Pendiente (no implementado): enmascarar los enlaces no fluidos en el kernel centred de GPU.
+
+## 2026-11-16 — No-flujo en el driver de GPU de NP (CHANGE 20261116) + prueba TEST-NOFLUX-ADV
+- Objetivo: que la advección centred no pierda iones por los enlaces fluido-sólido (pedido del usuario).
+- Cambio: src/nernst_planck.c, nuevo np_no_flux_boundary_kernel (anula flujos de enlace con un extremo no
+  fluido), llamado entre los kernels difusivo y de antisimetrización. Exe 221f3229 -> 269ec1b8.
+  Registro: NOTAS_MANUALES.md + CAMBIOS_CODIGO.md. Documento del modelo §7.2.1, §7.2.4 y §7.4.5 actualizados.
+- Prueba: capacitor/local/WALL-DIRICHLET/TEST-NOFLUX-ADV (16x16x18, paredes z = 1/18, electrolito 1.11e-2,
+  LB térmico kT 1e-5, centred, 2000 pasos, ~40 s cada una) + control periódico sin paredes.
+- Observación: total de iones en el fluido rel. al paso 1: antes entre +8.3e-6 y −4.1e-5 (−4.05e-5 en 2000);
+  después |Δ| ≤ 7e-15. Sin paredes: idéntico byte a byte (21/21 qsi). RMS u_z primera capa ≈ 4e-3 en ambos.
+  Primer intento sin paredes abortó (electroneutral no exige paredes): sinpared_fallido.
+- Interpretación: la pérdida venía de los enlaces fluido-pared de la advección centred; corregida.
+- Pendiente: no probado con coloides BBL ni MPI; no medido el efecto en perfiles cerca de la pared;
+  identificar corridas anteriores afectadas (centred + paredes/BBL + iones + velocidad normal).
+
+## 2026-11-16 — Registros de simulaciones actualizados + columna "Scripts"
+- Pregunta previa: la versión CPU de la advección centred ya tiene los pesos (np_advective_fluxes, l. 1131,
+  CHANGE 20261112: u *= 2 wgradients[p]). Observación de lectura de código; la CPU no se usa (driver GPU desde 2026-03-26).
+- Cambio: util/registro_simulaciones.py: nueva columna "Scripts" (función run_scripts, regla heurística documentada en
+  la hoja Leyenda); regenerados capacitor/Registro_simulaciones.xlsx (661 -> 680 sim.: + TEST-NOFLUX-ADV 5 y
+  H-microgel-ruido 14, todas "solo local") y microgel/Registro_simulaciones.xlsx (1202 -> 1251: + 49 de
+  TEST-HIDRO-dx2 advfix/advfix_flla/advfix_flla_mass/cont6000). Versión anterior de ambos en git (dc7f2059).
+- Observación: Scripts específicos en 129 (microgel) y 121 (capacitor) corridas; "todos los de la serie" 149 / 557;
+  "no identificado" 940 / 2 (series viejas sin carpeta scripts/<serie>/ o scripts que arman los nombres con formatos).
+- Limitación: la regla busca nombres literales; no detecta scripts que construyen la ruta (p.ej. correr.sh con $1,
+  crear.py con f-strings). No es un registro de lo efectivamente ejecutado.
+- Pendiente: las corridas nuevas están "solo local" (falta util/archive_runs.py si se quiere espejar en runs/).
+
+## 2026-11-16 — Documento del modelo: flujos de NP de centred corregidos
+- Pedido: corregir en claude/MODELO_EK_PETSC_PASO_A_PASO.md la descripción de los flujos de NP de centred.
+- Cambio (solo documento): §7.2 intro y §7.2.1 (nodos sólidos: el flujo se calcula y luego se anula; historia
+  del arreglo), §7.3 reescrita como secuencia de 5 pasos (advección, difusión, no-flujo, antisimetría, Euler) +
+  condición de conservación, §7.4 (punto 3: flla también tiene limitador; punto 5 retirado con nota),
+  tabla de §1 (flla), paso 14 de §3, F_p -> J^adv, números de línea actualizados tras el CHANGE 20261116.
+- No verificado: render del Markdown.
+
+## 2026-11-16 — Corrida con parámetros de Ingo + sal (lambda_D = 2 l_B), advección centred, 3e4 pasos
+- Objetivo: simulación equivalente a LONG-MASS-3E5 pero con sal tal que lambda_D sea comparable a l_B.
+- Decisiones del usuario: lambda_D = 2 l_B = 5.68; base LONG-MASS-3E5 con centred; 3e4 pasos.
+- Cambio: microgel/scripts/INGO-1PART-LBTERM-DIAG/crear_sal.py -> local/INGO-1PART-LBTERM-DIAG/LONG-SALT-LD2LB-CEN-3E4
+  (rho_el 4.3426e-4 = 1/(8 pi l_B lambda_D^2), advection centred, N_cycles 3e4; resto idéntico). Exe 269ec1b8.
+- Observación: terminó normalmente (17.7 min); log Debye 5.6799696, Bjerrum 2.84. N+, N- y Q = -1 conservados a
+  8 decimales; sin negativos; n+ en [2.31e-4, 5.56e-4] y n- en [3.81e-4, 8.70e-4] en el paso 3e4 (medias 4.34e-4 /
+  4.85e-4). Aviso "key not used (Line 72): #" = línea de comentario indentada heredada del input base (mismo aviso en
+  LONG-MASS-3E5, línea 63); su texto ("total charge -1 ...") ahora queda debajo de la línea de la sal.
+- Interpretación: ninguna todavía (sin análisis del perfil ni de fluctuaciones).
+- Pendiente: decidir análisis (perfil radial vs PB con sal, fluctuaciones lejos de la partícula); registro microgel regenerado.
+
+## 2026-11-16 — Explicación de cloud_profile.py y pb_reference.py (sin cambios)
+- Observación (lectura): cloud_profile usa solo la especie 1 (qsi col. 1) y NBAR fijo = 5.0805e-5 (contraiones
+  solos); pb_reference es PB discreta canónica de UNA especie (z = -1, N = 1) con la partícula fija en R0 inicial.
+- Interpretación: para LONG-SALT hay que adaptar ambos (dos especies, n̄ por especie, N+ y N- fijos). No hecho.
+
+## 2026-11-16 — Análisis de LONG-SALT-LD2LB-CEN-3E4 (perfil vs PB con sal) + CSV para ParaView
+- Cambio: nuevos microgel/scripts/INGO-1PART-LBTERM-DIAG/pb_reference_sal.py y cloud_profile_sal.py (copias a
+  2 especies de pb_reference.py / cloud_profile.py; originales sin tocar). CSV ParaView con util/extract_colloids
+  en LONG-SALT-LD2LB-CEN-3E4/colloides_paraview (31 pasos).
+- Elecciones mías (declaradas): PB resuelta en la posición de cada volcado (además de la inicial); ventana 15000-30000;
+  tolerancia Picard 1e-12 (igual que el original).
+- Observación: PB n-(r<1) 2.69 vs Ludwig 1.49; n+(r<1) 0.37 vs 0.65; carga iónica en r<6: PB -0.285, Ludwig -0.12..-0.16.
+  ex-(r<3) Ludwig sube de 0.11 (1000) a ~0.3 hacia 1e4 y fluctúa 0.19-0.39 después. Ruido lejano 0.06 rel., corr. con
+  fluido ~0.03 (como NOPART-W). PB a r0 vs PB por volcado: casi igual (dif. < 0.01 por bin).
+- Interpretación (no verificada): la nube de Ludwig tiene ~1/3 del exceso de PB, como en LONG-MASS sin sal (r<1: 1.47 vs
+  3.18). Candidatos: movimiento de la partícula (D_part = D_ion), ruido advectivo, o que no está estacionaria
+  (tau = lambda_D^2/D ~ 4.7e4 pasos > 3e4). Además la PB con sal no se verificó contra una corrida sin ruido.
+- Pendiente (propuesto, no corrido): gemela NOFLUCT con partícula fija (verifica PB con sal) y gemela térmica fija
+  (separa movimiento de ruido); corrida más larga.
+
+## 2026-11-16 — Serie SAL-SERIE armada (sin correr) + pendientes en PENDIENTES.xlsx
+- Objetivo: ver cómo cambia la nube con D_ion, kT y dx/2, y si sigue a la partícula.
+- Decisiones del usuario: kT menor con eps ∝ 1/kT (l_B fijo); D×10, D×30, kT/4, kT/16; dx/2 con escalado difusivo
+  (dt/4) y 1.5e4 pasos físicos; gemelas fija-térmica en todos y fija-sin-ruido en la base.
+- Cambio: crear_serie_sal.py + correr_serie_sal.sh (microgel/scripts/INGO-1PART-LBTERM-DIAG, enlaces en local);
+  12 carpetas en SAL-SERIE/ con README. Verificado con diff que cada input/config solo cambia lo previsto.
+  Primer intento abortó (línea de cabecera > 120 bytes en DXH-FIJA): carpetas recién creadas borradas y recreadas.
+  PENDIENTES.xlsx: filas 28 (correr) y 29 (analizar); copia previa en el scratchpad.
+- Derivación dx/2 (mía, aceptada por el usuario): kT_LU x2, eps/4, n_s/8, mu_b(LU)/2 con a_L fijo -> a_h 0.379664;
+  el a_h físico no se puede conservar (mu_b < 0).
+- Pendiente: correr; generalizar los scripts de análisis a L, l_B y kernel variables; definir la métrica de seguimiento.
+
+## 2026-11-16 — Etiquetas de C_refinamiento_anidado_hann.png + ROOT de grafico_C_formulas.py
+- Pregunta: qué magnitud muestra el gráfico. Respuesta (lectura del código): potencial electrostático psi = e phi/k_BT;
+  arriba RMS por banda de psi_Ludwig - psi_analítico (carga Hann continua, capacitor con electrolito, eje rho = 0);
+  abajo orden local log2(RMS_dx/RMS_dx/2).
+- Cambio: título y ejes del gráfico (grafico_C_refinamiento_anidado.py); PNG regenerado (anterior en el scratchpad,
+  mismos datos). grafico_C_formulas.py: ROOT absoluto (local/WALL-DIRICHLET); desde el traslado del 2026-11-13 apuntaba a
+  capacitor/scripts y todos los scripts que lo importan fallaban al buscar las corridas (FileNotFoundError).
+- Comprobación: el PNG nuevo tiene las mismas curvas que el viejo (comparación visual); los órdenes impresos coinciden con
+  los del gráfico. No revisé los demás scripts que importan grafico_C_formulas (solo que ahora no deberían fallar por ROOT).
+
+## 2026-11-16 — dmu_u_vs_viscosidad.png: agregados Δμ con pesos y Δμ sin hidrodinámica
+- Pedido: agregar Δμ tras la corrección de pesos y Δμ sin hidro; ¿|u| es el máximo?
+- Respuesta: el panel de abajo tiene max y RMS sobre los nodos de |u| (módulo de la velocidad por nodo), paso 3000.
+- Cambio: grafico_dmu_u_visc.py (rutas absolutas; panel superior: viejo = guiones/vacío, con pesos (advfix) =
+  sólido, sin hidro (hidro_no_exe45dc94bc, paso 3000) = línea horizontal punteada; texto con el valor al paso 9000).
+  Figura anterior conservada como graficos/dmu_u_vs_viscosidad_v1_20261110.png.
+- Observación (paso 3000): con pesos Δμ baja 6.8–10× (η 0.02: 6.0e-6/9.5e-6 -> 8.9e-7/9.4e-7; η 2: 1.9e-7/2.6e-7 ->
+  3.4e-8/3.1e-8). Sin hidro: 1.76e-8/1.81e-8 en 3000 (todavía bajando), 4.4e-14 en 9000.
+- Interpretación: con pesos, en η = 2 Δμ queda ~2× por encima del valor sin hidro en el mismo paso; el sin-hidro sigue
+  bajando, así que la comparación al paso 3000 no es de estados estacionarios.
+
+## 2026-11-16 — dmu_u_vs_viscosidad.png en estado estacionario (sin corridas nuevas)
+- Pedido: correr más pasos para que los puntos sean estacionarios.
+- Observación: no hizo falta correr: cont6000/old y cont6000/centred (corridas hoy) cumplen |Δμ(6000)-Δμ(5000)|/Δμ < 1e-4
+  (estacionario_6000.txt); hidro_no_exe45dc94bc decae ×~2.85 cada 250 pasos hasta 6250 y queda constante en 4.44e-14
+  hasta 9000.
+- Cambio: grafico_dmu_u_visc.py usa paso 6000 (hidro) y 9000 (sin hidro); |u| de centred, old igual a 3.8e-6.
+  Versión paso 3000 guardada como graficos/dmu_u_vs_viscosidad_v2_paso3000.png.
+- Valores (6000): sin pesos Δμ± 6.03e-6/9.48e-6 (η 0.02) -> 1.90e-7/2.56e-7 (η 2); con pesos 8.87e-7/9.35e-7 -> 2.91e-8/3.05e-8.
+- Interpretación: 4.4e-14 ≈ 200 ε_máquina, probablemente nivel de redondeo (no verificado). Con hidro, Δμ con pesos en η = 2
+  sigue ~6 órdenes por encima de sin hidro: el piso con hidro no se explica por el redondeo.
+
+## 2026-11-16 — dmu_u_vs_viscosidad.png: recuadro con los parámetros de la simulación
+- Cambio: grafico_dmu_u_visc.py agrega a la derecha caja 24^3 (48 físico), 2 cargas fijas +1 Hann-4 en x = 4.25/6.25
+  (separación 4 físico), sal 1:1 n = 6.175e-3/nodo, l_B 0.398 (0.796 físico), lambda_D 4 (8 físico), kappa l_B 0.10,
+  kT 1e-5, eps 2e4, D input 0.01 (físico 0.0614, A0 6.138), rho 0.8, M10 sin ruido, FFT, stencil 27, centred.
+  Fuente: hidro_si/input y run.log. Verificado con diff de inputs y cmp de config.cds.init que solo cambian viscosidad,
+  ejecutable e hidrodinámica entre las corridas del gráfico. Título aclara r = separación.
+
+## 2026-11-16 — C_convergencia_desplazada_fuerza_todos.png: curva y puntos más finos
+- Cambio: grafico_C_convergencia_desplazada.py (figure_todos): F_kernel lw 2.5 -> 0.8 (gris oscuro, encima), marcadores
+  ms 5-6 -> 2.5-3, líneas 1.0 -> 0.7. Mismos datos. PNG anterior en el scratchpad. Se corre con
+  `python3 scripts/grafico_C_convergencia_desplazada.py todos` desde capacitor/local/WALL-DIRICHLET (~2-3 min).
+
+## 2026-11-16 — C_convergencia_desplazada_fuerza_todos.png: recuadro con lambda_D y caja
+- Observación (inputs + run.log de las 3 series *-desplazada): físico (dx = 1): caja 32x32 periódica x 32 entre placas
+  (psi = 0), lambda_D = 6, l_B = 0.796, n = 1.389e-3, q = +1 fija, kernel ancho 8. En nodos: dx = 2/1/1/2 -> caja 16/32/64,
+  lambda_D 3/6/12, l_B 0.398/0.796/1.59 (Ludwig imprime esos valores).
+- Cambio: grafico_C_convergencia_desplazada.py (figure_todos) agrega el recuadro en el panel superior. Mismos datos.
+
+## 2026-11-16 — particula_libre_pared_steele.png: sin panel (c), leyenda movida, texto al ancho de los paneles
+- Cambio: grafico_pared_blanda.py: 2 paneles (se quita "wall charge"; el rango de carga se sigue imprimiendo), leyenda de (a)
+  abajo a la izquierda, etiqueta de la línea 3.5 debajo de la línea, título y texto de fórmulas partidos en líneas para no
+  exceder el ancho de los paneles, ROOT absoluto. Regenerado con STEELE=1 (PNG anterior en el scratchpad).
+  particula_libre_pared_blanda.png (STEELE=0) no se regeneró: con el código nuevo también perdería el panel (c).
+- Observación: la curva azul (esfera blanda) queda tapada por la violeta (Steele): trayectorias iguales dentro de 1.8e-3
+  en 121 puntos (paradas en d = 3.6055 y 3.6066).
+
+## 2026-11-16 — particula_libre_pared_steele.png: "Steele repulsion potential", sin esfera blanda, carga q = +1; estimación para q mayor
+- Cambio: grafico_pared_blanda.py (STEELE=1): RUNS sin la corrida de esfera blanda; textos "Steele repulsion potential";
+  título y texto con la carga q = +1 (q0 = 1 en config.cds, l_B 0.796, sin electrolito). PNG anterior en el scratchpad.
+- Pregunta: ¿qué pasa con mayor carga? Estimación (NO simulada): sin electrolito Poisson es lineal -> atracción imagen ∝ q^2.
+  Equilibrio F_Steele(h) = q^2 F_el: h = 0.100/0.088/0.082/0.075/0.069/0.066 para q = 1/2/3/5/8/10 (d > 3.5: sin pérdida de
+  carga). Rigidez k = -dF/dh crece ~q^2.2. Movilidad efectiva medida mu ≈ 1.9e3 (v/F, pasos 31000-34000) -> mu k = 0.03 (q=1),
+  1.1 (q=5), 3.1 (q=8): Euler explícito sobreamortiguado estable si mu k < 2 -> límite q ≈ 6-7 con eps_w fijo; con eps_w ∝ q^2
+  (para parar en d = 3.6) mu k = 0.033 q^2 -> q ≈ 7-8. Hipótesis: atracción constante cerca de d = 3.6, mu sin cambio.
+
+## 2026-11-16 — C_hoja_hann_closed_vs_ludwig.png y _2pot_: solo gráfico, fórmulas y parámetros
+- Cambio: grafico_C_hoja_hann.py: se quitan el panel de residuos (Ludwig − fórmula; se siguen imprimiendo) y la nota de la
+  derivación (Jackson 3.17, sumas |n|,|m| <= 96); quedan el panel de potencial (Ludwig, Hann-8, gaussiana), las fórmulas y la
+  línea de parámetros. Regenerados los dos PNG (anteriores en el scratchpad). Las versiones *_ppt.png (LAYOUT=left) no se
+  regeneraron.
+
+## 2026-11-16 — C_hoja_hann_closed(_2pot)_vs_ludwig.png: parámetros arriba de las fórmulas, texto al ancho del gráfico
+- Cambio: grafico_C_hoja_hann.py (layout normal): bloque de texto nuevo, una ecuación (o dos cortas) por línea, centrado en
+  el eje; "Parameters" (3 líneas) arriba del título de las fórmulas; título del gráfico a 10 pt. Mismas fórmulas, sin
+  cambios de contenido (se separaron las que iban juntas). Layout "left" (ppt) sin cambios. PNG anteriores en el scratchpad.
+
+## 2026-11-16 — C_desplazada_ref2.png sin los paneles de RMS por banda
+- Cambio: grafico_C_desplazada.py: en modo ref2 la figura tiene 4 filas (sin "band RMS" ni "RMS_b/RMS_b"); las bandas se
+  siguen calculando e imprimiendo (las usa el chequeo de estado estacionario: ninguna corrida dio "NOT steady"). Los otros
+  modos (cont, celda, placa, normal) no cambian. PNG anterior en el scratchpad.
+
+## 2026-11-16 — C_convergencia_desplazada_fuerza_todos en "a -Mostrar" sin el panel de orden
+- Cambio: grafico_C_convergencia_desplazada.py: argumento "sinorden" (con "todos") -> 3 paneles, sin "observed order p",
+  en graficos/C_convergencia_desplazada_fuerza_todos_sin_orden.png; la figura de 4 paneles de graficos/ no cambia.
+  Copiada sobre "a -Mostrar/C_convergencia_desplazada_fuerza_todos.png" (la anterior, idéntica a la de graficos/, en el
+  scratchpad).
+
+## 2026-11-17 — C_potencial_carga_vs_placas_infinitas.png (C-sin-fondo-hann08): referencia con kernel Hann-8
+- Cambio: grafico_C_potencial_carga.py: nueva psi_hann (carga Hann-8 continua entre placas a tierra, caja periódica 32x32,
+  sin fondo: Fourier en x,y con W^(kx)W^(ky) y convolución en z con W(s-d), G_k en forma de exponenciales estables, G_0
+  lineal). Reemplaza en el panel (a) a "placas infinitas" y "periódica puntual". Textos en inglés. ROOT absoluto.
+  PNG anterior en el scratchpad.
+- Prueba: lejos del soporte psi_hann = psi_periodic (puntual) a ~1e-6; M = 60 vs 80: 1e-7.
+- Observación: max|Ludwig - teoría Hann| fuera del soporte 0.9-1.0e-4 (d = 4, 8, 12), dentro 1.3e-2 (mismo orden que en
+  C_hoja_hann con electrolito: 3e-4 / 1.2e-2).
+- Interpretación: la diferencia dentro del soporte es probablemente el kernel discreto (Ludwig) vs continuo (teoría); no
+  verificado aquí.
+
+## 2026-11-18 — Pregunta conceptual: ¿la nube deformada por el ruido implica que faltan correcciones de muchos cuerpos / no linealidad?
+- Respuesta (sin cálculos nuevos; datos de INGO-1PART-LBTERM-DIAG): el déficit de la nube depende de D_ion (fija D10 0.123 vs
+  D30 0.037, ~1/D) y de si la partícula se mueve. En equilibrio la distribución estática (Boltzmann) no depende de D, de eta
+  ni de la movilidad -> el estado estacionario de Ludwig con LB térmico NO es de equilibrio: el ruido entra solo por la
+  advección y NP no tiene su propio ruido (no se cumple fluctuación-disipación para los iones).
+- Interpretación: no es un efecto de muchos cuerpos (aparece con una sola partícula) ni una falla de las correcciones de corto
+  alcance (que corrigen la discretización de una interacción estática); tampoco requiere no linealidad (en la imagen de
+  T efectiva el efecto es lineal). Las correlaciones físicas más allá de PB necesitarían ruido iónico (Péraud 2016).
+- Pruebas propuestas (no hechas): variar eta con partícula fija (en equilibrio no debería cambiar la nube); dos partículas
+  fijas con LB térmico vs suma de una partícula (aditividad con ruido).
+
+## 2026-11-18 — Aclaración: interacción entre VARIAS partículas, cada una con su nube
+- Respuesta (conceptual, sin cálculos nuevos): en Ludwig la parte mediada por iones (muchos cuerpos, campo medio) sale de
+  Poisson + NP en la malla; pm_sr solo corrige el error de malla de las interacciones directas partícula–partícula y
+  partícula–nodo (estáticas, lineales, referencia de ancho del kernel). NBODY confirmó aditividad solo de la parte lineal
+  sin sal. Con ruido, la nube deformada cambia la interacción mediada por iones de forma dependiente del estado (D, eta,
+  movilidad, densidad): no se puede absorber en correcciones de par.
+- Pendiente (propuesto, no hecho): NBODY con sal sin ruido (no aditividad de PB) y con ruido; F(r) de dos partículas fijas
+  con/sin ruido vs PB.
+
+## 2026-11-18 — Pregunta: MD con monómeros y contraiones explícitos + sal implícita
+- Estimación (sin simulación; supuestos: partículas de 1 nm, fracción de volumen 0.1 hinchado, caja L = 2R + 10 lambda_D):
+  R = 20 nm -> ~6e3 monómeros, 3e3-1.5e4 iones de sal (1-100 mM); R = 50 nm -> 1e5 monómeros, 1e4-1.6e5 iones;
+  R = 100 nm -> 8e5 monómeros, 3e4-1e6 iones. Hasta ~10 mM los iones de sal explícitos son <= los monómeros: la sal
+  implícita ahorra poco; pesa a 100 mM o en cajas grandes.
+- Interpretación: el costo lo fijan los monómeros, no la sal. Sal implícita por DH: válida si rho_f/2c_s pequeño o c_s bajo;
+  falla en el medio (partición de Donnan). Sal como campo PNP (Ludwig/Ingo invertido) capta Donnan y dinámica.
+
+## 2026-11-18 — Pregunta: ¿capacitor con sólido poroso en Ludwig o MD explícita?
+- Respuesta (conceptual, sin cálculos): depende del régimen. Nanoporos (< ~2-3 nm), 1 M / líquido iónico, voltajes de V:
+  lambda_D < tamaño iónico, sin estérico ni correlaciones ni metalicidad -> MD con electrodos a potencial constante.
+  Mesoporos/macroporos (poros >> lambda_D), sal diluida, psi ~ pocos kT/e, interés en carga/transporte (tiempos us-s) ->
+  continuo (Ludwig) tiene sentido y MD no llega.
+- Observación sobre el modelo actual: el sólido de partículas subgrid no excluye iones ni fluido y no es conductor; para un
+  electrodo poroso haría falta sólido como nodos del mapa (exclusión + no-flujo) y Dirichlet en esos nodos (hoy solo planos).
+
+## 2026-11-18 — Corrección: el sólido entre las placas NO es el electrodo
+- Rehecha la respuesta: electrodos = paredes planas a potencial fijo (ya implementadas); el sólido es una matriz porosa
+  entre ellas. Observación de código: Ludwig tiene porous_media_init (wall_*, circle_xy, square_xy, simple/fcc/bcc cubic)
+  y medios porosos desde archivo, y psi_petsc.c tiene un solver de epsilon variable (var_epsilon), no probado con paredes.
+- Interpretación: la red de partículas subgrid no excluye iones ni fluido (gel permeable, no sólido) y no tiene contraste
+  dieléctrico. Ludwig sirve para poros >> lambda_D y sal diluida; MD para nanoporos/electrolito concentrado.
+
+## 2026-11-18 — Resumen pedido: ¿el modelo no tiene sentido ni por costo ni por precisión?
+- Respuesta: parcialmente. No tiene sentido usar partículas subgrid para representar objetos de escala molecular (monómeros,
+  sólido rígido): sin volumen excluido, kernel más ancho que el objeto, costo dominado por las partículas (SOLIDO-L48: 2544
+  partículas, ~3.4 s/paso). Sí tiene sentido el continuo PNP + LB a escala mesoscópica (poros/geles >> lambda_D, sal diluida,
+  tiempos largos) con el sólido como mapa de nodos o el gel como campo continuo. Decisión pendiente del usuario: régimen físico.
+
+## 2026-11-18 — Búsqueda bibliográfica: ¿el modelo continuo no sirve para el gel a resolución de monómero?
+- Observación (abstracts verificados, textos completos no leídos): no encontré literatura que diga que no sirve en general.
+  PB funciona para la hinchazón y los contraiones confinados de geles monovalentes (Claudio-Holm-Kremer 2009; Landsgesell
+  et al. 2019). Falla en: condensación más fuerte que PB (Deserno-Holm-May 2000), correlaciones a alto acoplamiento
+  (Netz-Orland 2000), apiñamiento a alto voltaje/concentración (Bazant et al. 2009).
+- Interpretación: corrige mi afirmación previa de que el continuo es inválido a resolución de monómero; los argumentos
+  sostenibles son costo/tamaño y los regímenes específicos. Memoria de referencia guardada.
+
+## 2026-11-18 — Documento para el director: escala del modelo de micro/nanogel en confinamiento
+- Pedido: fundamentos para discutir cambiar el modelo (MD) o la tesis.
+- Cambio: página privada https://claude.ai/artifact/M4UBQVgAWMJRbu3zYzHHHv (fuente en el scratchpad). Contenido: tamaño físico
+  del kernel vs Δx, costo Ludwig (medido) y MD (estimado), literatura (PB funciona para hinchazón; falla en condensación,
+  correlaciones, apiñamiento), limitaciones medidas del modelo (ruido no de equilibrio, nube 1/3 con sal, pérdida de carga
+  junto a pared), nanoconfinamiento, opciones A-D, lo ya hecho y preguntas para decidir. Números marcados medido/estimado.
+- No verificado: textos completos de las referencias; la cifra de ESPResSo (ELC/ICC) no se citó con fuente.
+
+## 2026-11-18 — Novedad para la tesis: búsqueda rápida de huecos (4 búsquedas, no sistemática)
+- Observación: (1) ruido térmico consistente en LB-EK con iones continuos: Kuron et al. 2016 dicen que es no trivial;
+  ESPResSo EK lo tiene opcional y amortiguado cerca de densidad 0; no encontré trabajo sobre el artefacto de no equilibrio
+  que medimos. (2) Microgel iónico en rendija/confinamiento con electrolito: nada directo (cercanos: Alziyadi-Denton 2023
+  celda, Del Monte 2019). (3) Translocación de micro/nanogel por nanoporo: simulación mecánica sin electrostática (Biswas-
+  Chakrabarti 2026, capilar) y experimentos de pulso resistivo (2011); no encontré simulación con corriente iónica.
+  (4) Gel entre electrodos: preprint 2024 de hidrogel polielectrolito entre electrodos (grano grueso).
+- Interpretación: líneas candidatas con posible novedad; requieren búsqueda sistemática antes de comprometerse.
+
+## 2026-11-18 — Pregunta conceptual: cómo se plantea el microgel en MD (solvente explícito o implícito)
+- Objetivo: responder cómo se modela en MD un microgel con iones (qué es explícito).
+- Cambio/prueba: ninguno (respuesta conceptual, sin código ni corridas).
+- Resultado (interpretación, referencias de memoria sin verificar en esta sesión): el estándar es el "modelo primitivo":
+  monómeros y contraiones explícitos (bead-spring tipo Kremer-Grest), solvente implícito (continuo dieléctrico, l_B) y
+  termostato de Langevin; sal explícita (GCMC/reaction ensemble) o Debye-Hückel implícito. La hidrodinámica (LB acoplado,
+  MPCD, DPD) solo se agrega si la pregunta es dinámica. Solvente atomístico: inviable a escala de microgel.
+- Pendiente: decidir la pregunta física (equilibrio vs dinámica), porque de eso depende si hace falta hidrodinámica.

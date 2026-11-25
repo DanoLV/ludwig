@@ -86,36 +86,51 @@ def figure_todos():
     r = np.array(rows)[1:]                              # delta = 0: F = 0, relative error undefined
     p0 = np.log2(np.abs(r[:, 1] / r[:, 2])); p1 = np.log2(np.abs(r[:, 2] / r[:, 3]))
     F.style()
-    fig, ax = plt.subplots(4, 1, figsize=(12.0, 17.0), sharex=True, gridspec_kw=dict(hspace=0.08))
+    # 2026-11-16 (user's request): argument "sinorden" -> same figure without the observed-order panel, written to
+    # graficos/C_convergencia_desplazada_fuerza_todos_sin_orden.png (the 4-panel figure is unchanged)
+    NO_P = "sinorden" in sys.argv[1:]; NP = 3 if NO_P else 4
+    fig, ax = plt.subplots(NP, 1, figsize=(12.0, 17.0 * NP / 4), sharex=True, gridspec_kw=dict(hspace=0.08))
+    ax = list(ax) + ([plt.figure().add_subplot(111)] if NO_P else [])   # dummy 4th axes (discarded) keeps the code below
     ad = np.array(absd)                                # 2026-11-06 (user's request): F_L over F_kernel, and F_L - F_kernel
-    ax[0].plot(ad[:, 0], ad[:, 1], "-", color="#8a8880", lw=2.5, alpha=0.6, label="$F_{kernel} = \\int W E_{DH}$")
+    ax[0].plot(ad[:, 0], ad[:, 1], "-", color="#55544f", lw=0.8, zorder=5, label="$F_{kernel} = \\int W E_{DH}$")  # thin (2026-11-16)
     ax[1].axhline(0, color="#8a8880", lw=0.8)
     for k, lab, c, mk in ((1, "$\\Delta x = 2$ (Hann-4)", "#eb6834", "^"), (2, "$\\Delta x = 1$ (Hann-8)", "#2b2a27", "o"),
                           (3, "$\\Delta x = 1/2$ (Hann-16)", "#2a78d6", "s")):
         m = ~np.isnan(ad[:, k + 1])
-        ax[0].plot(ad[m, 0], ad[m, 1] + ad[m, k + 1], mk, color=c, ms=5, label="$F_L$, " + lab)
+        ax[0].plot(ad[m, 0], ad[m, 1] + ad[m, k + 1], mk, color=c, ms=2.5, label="$F_L$, " + lab)
         m = ~np.isnan(r[:, k])
-        ax[1].plot(r[m, 0], 100 * r[m, k], mk + "-", color=c, lw=1.0, ms=5, label=lab)   # signed, delta = 0 left out
-        ax[2].semilogy(r[m, 0], 100 * np.abs(r[m, k]), mk + "-", color=c, lw=1.0, ms=5, label=lab)
-    ax[3].plot(r[:, 0], p0, "^-", color="#eb6834", lw=1.0, ms=5, label="$p(\\Delta x = 2 \\to 1)$")
+        ax[1].plot(r[m, 0], 100 * r[m, k], mk + "-", color=c, lw=0.7, ms=2.5, label=lab)   # signed, delta = 0 left out
+        ax[2].semilogy(r[m, 0], 100 * np.abs(r[m, k]), mk + "-", color=c, lw=0.7, ms=2.5, label=lab)
+    ax[3].plot(r[:, 0], p0, "^-", color="#eb6834", lw=0.7, ms=2.5, label="$p(\\Delta x = 2 \\to 1)$")
     m = ~np.isnan(p1)
-    ax[3].plot(r[m, 0], p1[m], "s", color="#2a78d6", ms=6, label="$p(\\Delta x = 1 \\to 1/2)$")
+    ax[3].plot(r[m, 0], p1[m], "s", color="#2a78d6", ms=3, label="$p(\\Delta x = 1 \\to 1/2)$")
     for q in (1, 2):
         ax[3].axhline(q, color="#8a8880", lw=0.8, ls=":")
-    for a in ax:
+    for a in ax[:NP]:
         for zn in np.arange(0.5, 12.6, 1.0):            # dx = 1 nodes (delta = k + 1/2)
             a.axvline(zn, color="#c9c6bd", lw=0.6, ls="--", zorder=0)
         for zn in np.arange(1.0, 12.1, 2.0):            # dx = 2 nodes (delta = 2k + 1)
             a.axvline(zn, color="#eb6834", lw=0.9, ls=":", zorder=0)
+    # Parameters (2026-11-16, user's request), physical units = dx = 1 lattice; from the inputs and run.log of the
+    # three batches (BATS): Debye 3 / 6 / 12 nodes and Bjerrum 0.398 / 0.796 / 1.59 nodes for dx = 2 / 1 / 1/2.
+    ax[0].text(0.30, 0.95, "\n".join([
+        r"$\bf{Parameters}$ (physical units; $\Delta x=1$ lattice)",
+        r"box $32\times32$ (periodic) $\times$ 32 between the plates ($z=\pm16$, $\psi=0$)",
+        r"$\lambda_D = 6$  ($\kappa = 1/6$),  $\ell_B = 0.796$  ($q/\varepsilon k_BT = 10$)",
+        r"1:1 salt $n_\pm = 1.389\times10^{-3}$,  charge $q=+1$ fixed, kernel width 8",
+        r"$\Delta x = 2,\,1,\,1/2$: box $16,\,32,\,64$ nodes; $\lambda_D = 3,\,6,\,12$ nodes",
+        ]), transform=ax[0].transAxes, va="top", ha="left", fontsize=8.5, color="#333333",
+        bbox=dict(boxstyle="round,pad=0.4", fc="white", ec="#c9c6bd", lw=0.6))
     ax[0].set_ylabel("$F_z/q$ (reduced, $e E/k_BT$)"); ax[1].set_ylabel("$(F_L - F_{kernel}) / F_{kernel}$ (%)")
     ax[2].set_ylabel("$|F_L - F_{kernel}| / F_{kernel}$ (%)"); ax[3].set_ylabel("observed order $p$")
-    ax[3].set_xlabel("$\\delta$ (charge at $z_0 = \\delta$ from the mid-plane); vertical lines: nodes of $\\Delta x = 1$ "
+    ax[NP - 1].set_xlabel("$\\delta$ (charge at $z_0 = \\delta$ from the mid-plane); vertical lines: nodes of $\\Delta x = 1$ "
                      "(grey dashed) and $\\Delta x = 2$ (orange dotted)")
     ax[0].legend(fontsize=9, loc="upper left"); ax[1].legend(fontsize=9, loc="upper left")
     ax[2].legend(fontsize=9); ax[3].legend(fontsize=9)
-    ax[0].set_title("Force on the displaced charge, all positions: error vs $F_{kernel} = \\int W E_{DH}$ and observed order",
-                    fontsize=10, loc="left")
-    fig.savefig(os.path.join(F.ROOT, "graficos", "C_convergencia_desplazada_fuerza_todos.png"), dpi=DPI, bbox_inches="tight")
+    ax[0].set_title("Force on the displaced charge, all positions: error vs $F_{kernel} = \\int W E_{DH}$"
+                    + ("" if NO_P else " and observed order"), fontsize=10, loc="left")
+    fig.savefig(os.path.join(F.ROOT, "graficos", "C_convergencia_desplazada_fuerza_todos%s.png" % ("_sin_orden" if NO_P else "")),
+                dpi=DPI, bbox_inches="tight")
 
 def f_ludwig(path, r):
     """(step, Esub_z * r) of the last line of particle_Esub.csv (as grafico_C_fuerza_desplazada.F_ludwig)."""
@@ -124,7 +139,7 @@ def f_ludwig(path, r):
     return int(v[0]), float(v[5]) * r
 
 if __name__ == "__main__":
-    if "todos" in sys.argv[1:]:
+    if "todos" in sys.argv[1:]:   # add "sinorden" for the version without the observed-order panel
         figure_todos(); sys.exit()
     band = {}; force = {}
     for dl in DELTAS:

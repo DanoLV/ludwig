@@ -124,10 +124,11 @@ def figure(bat, p1, p2, name, mu, mu_g):
     if F.LAYOUT == "left":
         fig = plt.figure(figsize=(19.5, 9.6)); gs = fig.add_gridspec(1, 2, width_ratios=[1.65, 1], wspace=0.06)
         F._AXT[0] = fig.add_subplot(gs[0]); F._AXT[0].axis("off"); F._YMAX[0] = 1.62
-        g2 = gs[1].subgridspec(2, 1, height_ratios=[2.4, 1], hspace=0.08)
+        a = fig.add_subplot(gs[1])
     else:
-        fig = plt.figure(figsize=(7.2, 6.4)); g2 = fig.add_gridspec(2, 1, height_ratios=[2.4, 1], hspace=0.08)
-    a = fig.add_subplot(g2[0]); r = fig.add_subplot(g2[1], sharex=a)
+        # 2026-11-16 (user's request): only the potential panel, the formulas and the parameters (the residual panel
+        # "Ludwig - formula" and the note on the derivation were removed; the residuals are still printed)
+        fig = plt.figure(figsize=(7.2, 4.6)); a = fig.add_subplot(111)
     zz = np.linspace(-L / 2, L / 2, 321)
     print("%s (psi_1 = %g, psi_2 = %g)" % (bat, p1, p2))
     print("  rho | max|Ludwig - Hann| out / in kernel | max|Ludwig - Gauss| out / in | max|Hann - Gauss|")
@@ -138,27 +139,52 @@ def figure(bat, p1, p2, name, mu, mu_g):
         a.plot(zz, fg(zz), "--", color=c, lw=1.1, dashes=(4, 3), zorder=3)
         a.plot(z, ps, "o", ms=4.6, color=c, mec="white", mew=0.5, zorder=4, label="Ludwig, $\\rho=%d$" % dx)
         dh, dg = ps - fh(z), ps - fg(z); out = np.abs(z - Z0) > NH / 2
-        r.plot(z, dh, "o-", color=c, ms=3.4, lw=1.0, mec="white", mew=0.4)
-        r.plot(z, dg, "x--", color=c, ms=3.4, lw=0.8, dashes=(3, 2))
         print("   %2d |  %.2e / %.2e |  %.2e / %.2e |  %.2e"
               % (dx, np.abs(dh[out]).max(), np.abs(dh[~out]).max(), np.abs(dg[out]).max(), np.abs(dg[~out]).max(),
                  np.abs(fh(zz) - fg(zz)).max()))
     a.plot([], [], "-", color="#55544f", lw=1.6, alpha=0.75, label="derived solution, Hann-8 charge")
     a.plot([], [], "--", color="#55544f", lw=1.1, dashes=(4, 3), label="derived solution, Gaussian charge")
     a.set_ylabel(r"reduced potential $\psi = e\phi/k_BT$"); a.legend(loc="upper right", fontsize=9)
-    plt.setp(a.get_xticklabels(), visible=False)
     a.set_title("1:1 electrolyte, $\\lambda_D=6$, " + ("grounded plates" if grounded else
-                "plates at $\\psi=%g$ and $%g$" % (p1, p2)) + " (d = 8 from the lower plate)")
-    r.axvspan(Z0 - NH / 2, Z0 + NH / 2, color="#f1efe8", zorder=0)
-    r.axhline(0, color="#8a8880", lw=0.8)
-    r.plot([], [], "o-", color="#55544f", ms=3.4, lw=1.0, label="Ludwig $-$ Hann-8")
-    r.plot([], [], "x--", color="#55544f", ms=3.4, lw=0.8, dashes=(3, 2), label="Ludwig $-$ Gaussian")
-    r.set_ylabel("Ludwig $-$ formula"); r.set_xlabel("z (distance from the mid-plane, lattice units)")
-    r.legend(loc="lower right", fontsize=8.5, ncol=2)
-    r.text(Z0, 0.97, "kernel support", transform=r.get_xaxis_transform(), ha="center", va="top", fontsize=8, color="#6b6a64")
-    if F.LAYOUT != "left": fig.subplots_adjust(left=0.13, right=0.97, top=0.94, bottom=0.08)
+                "plates at $\\psi=%g$ and $%g$" % (p1, p2)) + " (d = 8 from the lower plate)",
+                fontsize=(10 if F.LAYOUT != "left" else None))
+    a.set_xlabel("z (distance from the mid-plane, lattice units)")
+    if F.LAYOUT != "left": fig.subplots_adjust(left=0.13, right=0.97, top=0.92, bottom=0.11)
+    if F.LAYOUT != "left":
+        # 2026-11-16 (user's request): parameters ABOVE the formulas and no line wider than the plot. One equation per
+        # line, centred on the axes; vertical positions in inches below the figure, converted to figure fraction.
+        H_IN = fig.get_size_inches()[1]; xc = 0.55; y_in = [0.42]
+        def line(s, h, **kw):
+            fig.text(xc, -y_in[0] / H_IN, s, ha="center", va="top", **kw); y_in[0] += h
+        sm, eq = dict(fontsize=9.3, color="#333333"), dict(fontsize=10.5)
+        line(r"$\bf{Parameters}$", 0.24, fontsize=9.8)
+        line(r"plates at $z=\mp L/2$, $L=\ell=32$;  $\psi_1=%g$, $\psi_2=%g$;  $\lambda_D=1/\kappa=6$" % (p1, p2), 0.22, **sm)
+        line(r"charge at $z_0=-8$ (d = 8 from the lower plate);  Hann kernel $n=8$;  $q/\varepsilon=10$", 0.22, **sm)
+        line(r"field points on the line $y=0$, $x=\rho$;  dashed: Gaussian, same variance ($\sigma=1.446$)", 0.40, **sm)
+        line(r"$\bf{Linearised\ Poisson\text{-}Boltzmann,\ closed\ system,\ Hann\text{-}8\ charge}$", 0.34, fontsize=9.8)
+        line(r"$\left(\nabla^{2}-\kappa^{2}\right)\phi=-\kappa^{2}\langle\phi\rangle-\dfrac{\rho_{\mathrm{part}}}{\varepsilon},\qquad"
+             r"\rho_{\mathrm{part}}=q\,W(x)\,W(y)\,W(z-z_0)$", 0.50, **eq)
+        line(r"$W(u)=\dfrac{1}{n}\left[1+\cos\left(\dfrac{2\pi u}{n}\right)\right],\ |u|\leq\dfrac{n}{2},\qquad"
+             r"\hat W(k)=\dfrac{\sin(kn/2)}{kn/2}\,\dfrac{1}{1-\left(kn/2\pi\right)^{2}}$", 0.52, **eq)
+        line(r"(Gaussian: $\hat W(k)=e^{-\sigma^{2}k^{2}/2}$)", 0.32, **sm)
+        line(r"$\phi=\phi_{C}(z)+U(x,y,z)+\dfrac{\kappa L}{2\tanh(\kappa L/2)}\,\langle U\rangle"
+             r"\left[1-\dfrac{\cosh(\kappa z)}{\cosh(\kappa L/2)}\right]$", 0.55, **eq)
+        line(r"$U=\dfrac{2\pi}{A}\sum_{n,m}\tilde\psi_\infty(\mathbf{k}_{nm},z)\,e^{i\mathbf{k}_{nm}\cdot\mathbf{r}},\qquad"
+             r"\langle U\rangle=\dfrac{2\pi}{AL}\int_{-L/2}^{L/2}\tilde\psi_\infty(0,z)\,dz$", 0.58, **eq)
+        line(r"$\tilde\psi_\infty(\mathbf{k},z)=\dfrac{q\,\hat W(k_x)\,\hat W(k_y)}{2\pi\varepsilon\,\alpha\sinh(\alpha L)}"
+             r"\left[\sinh\left(\alpha(L/2-z)\right)I_<+\sinh\left(\alpha(L/2+z)\right)I_>\right]$", 0.55, **eq)
+        line(r"$\alpha^{2}=k_x^{2}+k_y^{2}+\kappa^{2},\qquad I_<=\int_{-L/2}^{z}W(s-z_0)\sinh\left(\alpha(s+L/2)\right)ds$", 0.48, **eq)
+        line(r"$I_>=\int_{z}^{L/2}W(s-z_0)\sinh\left(\alpha(L/2-s)\right)ds$", 0.48, **eq)
+        line(r"$\int e^{\beta s}\left[1+\cos\omega(s-z_0)\right]ds=e^{\beta s}\left[\dfrac{1}{\beta}"
+             r"+\dfrac{\beta\cos\omega(s-z_0)+\omega\sin\omega(s-z_0)}{\beta^{2}+\omega^{2}}\right]$", 0.55, **eq)
+        line(r"$\beta=\pm\alpha,\quad\omega=\dfrac{2\pi}{n}$", 0.48, **eq)
+        line(r"$\phi_{C}(z)=V_m+\dfrac{\Delta V}{2\sinh(\kappa L/2)}\,\sinh(\kappa z),\qquad"
+             r"V_m=\dfrac{\phi_1+\phi_2}{2},\quad\Delta V=\phi_2-\phi_1$", 0.55, **eq)
+        line(r"$\phi_C''=\kappa^{2}\left(\phi_C-\langle\phi_C\rangle\right),\quad\langle\phi_C\rangle=V_m$", 0.3, **eq)
+        fig.savefig(os.path.join(F.ROOT, "graficos", F.out_name(name)), dpi=170, bbox_inches="tight")
+        return
     fs = 10.5; put = lambda y, s, **kw: F.put(fig, 0.5, y, s, ha="center", va="top", **kw)
-    if F.LAYOUT != "left": put = lambda y, s, **kw: F.put(fig, 0.5, y * 0.78 - 0.02, s, ha="center", va="top", **kw)
+    if F.LAYOUT != "left": put = lambda y, s, **kw: F.put(fig, 0.5, y * 0.78 * 6.4 / 4.6 - 0.03, s, ha="center", va="top", **kw)
     put(-0.02, r"Linearised Poisson-Boltzmann, closed system, charge spread with Ludwig's Hann-8 kernel",
         fontsize=fs, fontweight="bold")
     put(-0.07, r"$\left(\nabla^{2}-\kappa^{2}\right)\phi=-\kappa^{2}\langle\phi\rangle-\dfrac{\rho_{\mathrm{part}}}{\varepsilon},\qquad"
@@ -179,9 +205,7 @@ def figure(bat, p1, p2, name, mu, mu_g):
         r"\beta=\pm\alpha,\quad\omega=\dfrac{2\pi}{n}$", fontsize=fs)
     put(-0.67, H.CAP_TEX, fontsize=fs)
     put(-0.79, r"$\langle U\rangle=\dfrac{2\pi}{AL}\int_{-L/2}^{L/2}\tilde\psi_\infty(0,z)\,dz$", fontsize=fs)
-    put(-0.92, r"Same derivation as the Gaussian case (Green function in $z$: Jackson 3rd ed., Problem 3.17); only the source transform changes. "
-        r"$\hat W$ is not radial and decays as $k^{-3}$: sum over $|n|,|m|\leq %d$." % NK, fontsize=fs - 0.5)
-    put(-0.99 if F.LAYOUT != "left" else -1.07,
+    put(-0.91 if F.LAYOUT != "left" else -1.07,
         (r"Plates at $z=\mp L/2$ ($L=\ell=32$), $\psi_1=%g$, $\psi_2=%g$; $\lambda_D=1/\kappa=6$; $z_0=-8$; " % (p1, p2))
         + r"$n=8$; $q/\varepsilon=10$. Field points on the line $y=0$, $x=\rho$. Dashed: Gaussian with the same variance ($\sigma=1.446$)",
         fontsize=fs - 0.5)

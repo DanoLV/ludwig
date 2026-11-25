@@ -59,9 +59,12 @@ if __name__ == "__main__":
             a.axvline(x, color="#e4e2dc", lw=0.5, zorder=0)
     ax[1].axhline(2, color="#55544f", lw=0.9, ls=":"); ax[1].axhline(1, color="#b9b7ae", lw=0.9, ls="-.")
     ax[1].set_ylim(-1, 4); ax[0].set_xlim(-16, 16)
-    ax[0].set_ylabel("RMS of the nodal residual on the band, $\\rho=0$"); ax[1].set_ylabel("local order (log$_2$ ratio)")
+    ax[0].set_ylabel("band RMS of $\\psi_{\\rm Ludwig}-\\psi_{\\rm analytic}$\n"
+                     "(potential $\\psi = e\\phi/k_BT$, axis $\\rho=0$)")
+    ax[1].set_ylabel("local order $\\log_2({\\rm RMS}_{\\Delta x}/{\\rm RMS}_{\\Delta x/2})$")
     ax[1].set_xlabel("band centre z (physical units, from the mid-plane)")
     ax[0].legend(fontsize=8, loc="upper right", ncol=2); ax[1].legend(fontsize=8, loc="lower right", ncol=2)
-    ax[0].set_title("Hann kernel, nested lattices $\\Delta x = 2, 1, 1/2$ (Hann-4, -8, -16): band ends on faces of all three"
-                    " (thin lines: faces of $\\Delta x=2$)", fontsize=10.5)
+    ax[0].set_title("Electrostatic potential: error of Ludwig vs the analytic solution (continuous Hann charge), "
+                    "electrolyte capacitor\nnested lattices $\\Delta x = 2, 1, 1/2$ (Hann-4, -8, -16): band ends on "
+                    "faces of all three (thin lines: faces of $\\Delta x=2$); shaded: charge support", fontsize=10.5)
     fig.savefig(os.path.join(F.ROOT, "graficos", "C_refinamiento_anidado_hann.png"), dpi=170, bbox_inches="tight")

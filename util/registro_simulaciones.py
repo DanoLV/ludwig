@@ -9,6 +9,8 @@ Genera <proyecto>/Registro_simulaciones.xlsx para capacitor/ y microgel/:
   * columnas: ruta, descripción, fecha, ubicación (local / runs / borrada),
     ID del archivo de coloides y los parámetros del input que varían en la
     pestaña; los que no varían se listan en una fila "Comunes" arriba,
+  * columna "Scripts" (2026-11-16): scripts de crear/correr/analizar asociados a la
+    corrida por una regla heurística (ver run_scripts y la hoja Leyenda),
   * hoja "Coloides": un ID por contenido distinto de config.cds.init.001-001,
   * hoja "Leyenda".
 
@@ -298,8 +300,91 @@ def old_descriptions(path):
 
 
 # --------------------------------------------------------------------------
+# Columna "Scripts" (2026-11-16, pedido del usuario). Regla HEURÍSTICA (ver Leyenda):
+#  * candidatos propios de la carpeta-serie: <proyecto>/scripts/<nombre de la serie>/, el destino del enlace
+#    local/<grupo>/scripts y los *.py/*.sh sueltos en local/<grupo>/ y en las carpetas entre el grupo y la corrida;
+#  * de ellos se listan los que mencionan (como palabra) la subcarpeta de la corrida, probando del nivel más alto
+#    al más bajo (p.ej. 'advfix_flla', luego 'hidro_si_eta0.1'); si ninguno la menciona, todos los de la serie;
+#  * además, de los scripts compartidos (<proyecto>/scripts/<primer nivel>/ y <proyecto>/scripts/*), los que
+#    mencionan el nombre de la serie (no la subcarpeta: nombres como 'pared' u 'old' son demasiado genéricos).
+# Duplicados (enlaces duros, copias idénticas) se listan una vez, con la ruta en scripts/ si existe.
+SCRIPT_EXT = (".py", ".sh")
+_TXT = {}
+
+
+def _script_files(d, recursive=False):
+    if not d or not os.path.isdir(d):
+        return []
+    out = []
+    for dp, dn, fn in os.walk(d):
+        dn[:] = [x for x in dn if x != "__pycache__"]
+        out += [os.path.join(dp, f) for f in fn if f.endswith(SCRIPT_EXT)]
+        if not recursive:
+            break
+    return out
+
+
+def _text(f):
+    if f not in _TXT:
+        try:
+            _TXT[f] = open(f, errors="replace").read()
+        except OSError:
+            _TXT[f] = ""
+    return _TXT[f]
+
+
+def _mentions(f, word):
+    return re.search(r"(?<![\w.-])" + re.escape(word) + r"(?![\w-])", _text(f)) is not None
+
+
+def _dedupe(files):
+    seen, out = {}, []
+    for f in sorted(set(files), key=lambda x: ("/scripts/" not in x, x)):
+        key = hashlib.md5(_text(f).encode()).hexdigest()
+        if key not in seen:
+            seen[key] = f
+            out.append(f)
+    return out
+
+
+def run_scripts(project, group, rel):
+    if " + " in group:
+        return "—"
+    proj = os.path.join(ROOT, project)
+    gdir = os.path.join(proj, "local", group)
+    gname = os.path.basename(group)
+    spec = _script_files(os.path.join(proj, "scripts", gname), recursive=True)
+    if os.path.islink(os.path.join(gdir, "scripts")):
+        spec += _script_files(os.path.realpath(os.path.join(gdir, "scripts")), recursive=True)
+    sub = os.path.relpath(rel, group).split(os.sep) if rel != group and rel.startswith(group + "/") else []
+    d = gdir
+    spec += _script_files(d)
+    for c in sub:
+        d = os.path.join(d, c)
+        spec += _script_files(d)
+    spec = _dedupe(spec)
+    words = sub or [gname]
+    chosen, how = [], ""
+    for w in words:
+        chosen = [f for f in spec if _mentions(f, w)]
+        if chosen:
+            how = ""
+            break
+    if not chosen and spec:
+        chosen, how = spec, " [todos los de la serie: ninguno nombra la corrida]"
+    top = group.split("/")[0]
+    shared = _script_files(os.path.join(proj, "scripts", top), recursive=True) if top != gname else []
+    shared += _script_files(os.path.join(proj, "scripts"))
+    shared = [f for f in _dedupe(shared) if f not in chosen and
+              _mentions(f, gname)]
+    files = chosen + shared
+    if not files:
+        return "no identificado"
+    return "; ".join(os.path.relpath(f, ROOT) for f in files) + how
+
+
 NON_PARAM = {"Ruta", "Descripción", "Conclusión", "Fuente de la idea", "Fecha", "Fuente de la fecha",
-             "Ubicación", "Coloides (ID)", "N coloides", "Rehacer desde saved_data", "Descripción (auto)", "Conclusión (auto)"}
+             "Ubicación", "Coloides (ID)", "N coloides", "Rehacer desde saved_data", "Scripts", "Descripción (auto)", "Conclusión (auto)"}
 GONE = "BORRADA (no está en local ni en runs)"
 
 
@@ -423,7 +508,7 @@ def build(project):
                   [k for k in keys if len(vals[k]) > 1 and k not in ALWAYS]
         common = [k for k in keys if len(vals[k]) == 1 and k not in ALWAYS]
         base = ["Ruta", "Descripción", "Conclusión", "Fuente de la idea", "Fecha", "Fuente de la fecha", "Ubicación",
-                "Coloides (ID)", "N coloides", "Rehacer desde saved_data"]
+                "Coloides (ID)", "N coloides", "Rehacer desde saved_data", "Scripts"]
         hdr = base + varying + ["Descripción (auto)", "Conclusión (auto)"]
         for j, h in enumerate(hdr, 1):
             c = ws.cell(1, j, h)
@@ -485,18 +570,20 @@ def build(project):
                 line = [r["rel"] or "(raiz)", desc, conc, src, r["date"].strftime("%Y-%m-%d %H:%M"),
                         r["dsrc"], r["where"], r["cid"], r.get("cN", ""),
                         (r["ghost"].get("Rehacer desde saved_data") or "") if r.get("ghost")
-                        else rehacer_info(project, r["group"], r["rel"])] + \
+                        else rehacer_info(project, r["group"], r["rel"]),
+                        (r["ghost"].get("Scripts") or "—") if r.get("ghost")
+                        else run_scripts(project, r["group"], r["rel"])] + \
                        [r["params"].get(k, "—") for k in varying] + [auto, concl]
                 for j, v in enumerate(line, 1):
                     if isinstance(v, str):
                         v = ILLEGAL_CHARACTERS_RE.sub("?", v)
                     c = ws.cell(row, j, v)
                     c.font, c.border = F, B
-                    c.alignment = Alignment(wrap_text=(j in (2, 3)), vertical="top")
+                    c.alignment = Alignment(wrap_text=(j in (2, 3, 11)), vertical="top")
                 if r["where"].startswith(("solo runs", "BORRADA")):
                     ws.cell(row, 7).fill = fill_del
                 row += 1
-        widths = [45, 90, 70, 22, 16, 22, 22, 11, 9, 40] + [14] * len(varying) + [30]
+        widths = [45, 90, 70, 22, 16, 22, 22, 11, 9, 40, 60] + [14] * len(varying) + [30]
         for j, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(j)].width = w
         ws.column_dimensions[get_column_letter(len(hdr))].hidden = True
@@ -547,6 +634,14 @@ def build(project):
         ("Rehacer desde saved_data", "Base de <proyecto>/saved_data/<carpeta>/ (input.base, coloides_k.cds) y número de "
                                      "cambios guardados en deltas.json. Reconstruir con: python3 util/rehacer_corrida.py "
                                      "<proyecto> <Ruta> <carpeta destino>. Bases y deltas: python3 util/guardar_bases.py."),
+        ("Scripts", "Scripts que crean, corren o analizan la corrida (rutas relativas a la raíz de Ludwig). Regla "
+                    "HEURÍSTICA (2026-11-16), no un registro de lo que efectivamente se ejecutó: (1) candidatos de la "
+                    "serie = <proyecto>/scripts/<serie>/, destino del enlace local/<serie>/scripts y *.py/*.sh sueltos "
+                    "en la carpeta de la serie y en las subcarpetas hasta la corrida; (2) se listan los que nombran la "
+                    "subcarpeta de la corrida (del nivel más alto al más bajo); si ninguno, todos los de la serie "
+                    "(aviso entre corchetes); (3) se agregan scripts compartidos (<proyecto>/scripts/<primer nivel>/ "
+                    "y <proyecto>/scripts/*) que nombran la serie. Duplicados (enlaces duros, copias) "
+                    "una sola vez. 'no identificado' = ningún script cumple la regla."),
         ("Coloides (ID)", "Un ID por contenido distinto de config.cds.init.001-001 (hash md5); mismas ID = "
                           "mismo archivo exacto. Detalle en la hoja 'Coloides'. Los ID se reasignan al regenerar."),
         ("Parámetros", "Columnas = claves del input que varían dentro de la pestaña, más siempre: "

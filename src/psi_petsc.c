@@ -260,11 +260,20 @@ static double petsc_wall_value(const psi_solver_petsc_t* solver,
   /*CHANGE INIT - 20261028 tangential e0 with walls.
    * Original: return solver->block->wall_psi[petsc_wall_side(...)];
    * A tangential external field enters as Ludwig's usual potential jump
-   * psi(x + L) = psi(x) - e0 L (psi_halo_psijump). An ideal conductor cannot
-   * carry a tangential field, so the wall follows the applied ramp:
+   * psi(x + L) = psi(x) - e0 L (psi_halo_psijump). The wall follows the
+   * applied ramp:
    *   psi_wall(r) = wall_psi[side] - e0 . (r - r_centre)
-   * (the standard electro-osmotic channel: by linearity it is the same as
-   * solving with constant walls and adding a uniform e0 to the field). The
+   * Interpretation (revised 2026-11-13): this is NOT a single ideal conductor
+   * (that would be equipotential, incompatible with the periodic jump
+   * -e0 L); it is a resistive electrode carrying a uniform current along the
+   * plate, or a fine array of electrodes held at stepped potentials. Nearby
+   * charges see a conductor image (the perturbation of psi is zero on the
+   * wall). By linearity it is the same as solving with constant walls and
+   * adding a uniform e0. It does NOT model insulating (dielectric) walls,
+   * whose image factor is (eps - eps_w)/(eps + eps_w). [Original wording,
+   * superseded: "An ideal conductor cannot carry a tangential field, so the
+   * wall follows the applied ramp ... (the standard electro-osmotic
+   * channel ...)".] The
    * coordinate is NOT wrapped: a halo wall site gets the ramp continued past
    * the box, i.e. the periodic value plus the same jump psi_halo_psijump
    * adds. e0 along wall_axis is refused in psi_solver_petsc_wall_set(). */

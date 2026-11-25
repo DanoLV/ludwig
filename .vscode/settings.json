@@ -24,5 +24,13 @@
         "*.png": "imagePreview.previewEditor",
         "*.jpg": "imagePreview.previewEditor",
         "*.copilotmd": "vscode.markdown.preview.editor"
+    },
+    "workbench.activityBar.compact": false,
+    "editor.formatOnPaste": false,
+    "workbench.colorCustomizations": {
+
+        "activityBar.background": "#08082e",
+        "activityBar.activeBackground": "#070707",
+        "sideBar.background": "#09090a",
     }
 }

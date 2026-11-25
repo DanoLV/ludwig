@@ -774,10 +774,25 @@ estos sistemas:
 
 ## 8. Campo externo tangencial `e0` con paredes (2026-10-28)
 
-Un conductor ideal no admite campo tangencial, así que la pared **sigue la
-rampa** del campo aplicado: ψ_pared(r) = ψ_w − e0·(r − r_centro). Por
-linealidad equivale a resolver con paredes constantes y sumar e0 uniforme (el
-canal electroosmótico estándar). `e0` entra como el salto habitual de Ludwig
+La pared **sigue la rampa** del campo aplicado: ψ_pared(r) = ψ_w − e0·(r −
+r_centro). Por linealidad equivale a resolver con paredes constantes y sumar e0
+uniforme.
+
+**Interpretación física (revisada 2026-11-13).** No es un conductor ideal único:
+un conductor ideal es equipotencial (no admite campo tangencial en su
+superficie), lo que además sería incompatible con el salto periódico −e0·L. La
+condición representa un **electrodo resistivo** por el que circula una corriente
+uniforme a lo largo de la placa (caída óhmica lineal = la rampa), o un **arreglo
+fino de electrodos** con potenciales escalonados ψ_w − e0·x_i. La perturbación
+de ψ causada por cargas cercanas es cero en la pared, así que su imagen es la de
+un conductor. **No** modela el canal electroosmótico con paredes aislantes: allí
+el fondo también sigue la rampa, pero la imagen tendría el factor
+(ε − ε_p)/(ε + ε_p) y lo natural es fijar la carga superficial (Neumann), no ψ.
+(Texto original, reemplazado: "Un conductor ideal no admite campo tangencial,
+así que la pared sigue la rampa … (el canal electroosmótico estándar)".)
+La validación numérica de §8 (prueba F) no depende de esta interpretación.
+
+`e0` entra como el salto habitual de Ludwig
 (ψ(x+L) = ψ(x) − e0 L, `psi_halo_psijump`); la componente de `e0` normal a las
 paredes se rechaza.
 

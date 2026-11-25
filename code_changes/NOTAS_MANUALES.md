@@ -16,6 +16,41 @@ Las entradas siguientes se escribieron el 2026-11-13 a partir de las notas de
 trabajo (diario y memoria de Claude). Los cambios anteriores a 2026-09 solo
 figuran en el listado automático de abajo.
 
+### 2026-11-16 — Condición de no-flujo en el driver de GPU de Nernst-Planck
+- **Qué:** nuevo kernel `np_no_flux_boundary_kernel`, versión de GPU de `np_no_flux_boundary`
+  del driver de CPU. Pone a cero todo flujo de enlace (advectivo + difusivo) cuyo nodo o vecino
+  no es fluido. Se ejecuta entre los kernels difusivo y de antisimetrización.
+- **Por qué:** el driver de GPU (el que se usa desde 2026-03-26) no tenía este paso. El kernel
+  difusivo ya omitía los enlaces no fluidos, pero el advectivo `centred` no: por un enlace
+  fluido–sólido pasaba W_p (u_i·c_p)/2 · (n_i + n_sólido)/2, que salía del nodo fluido y no
+  entraba en ningún nodo actualizado. Encontrado al revisar la §7.2 del documento del modelo
+  (pregunta del usuario).
+- **Archivos:** `src/nernst_planck.c`.
+- **Cómo se verificó:** `capacitor/local/WALL-DIRICHLET/TEST-NOFLUX-ADV`, caja 16×16×18 con
+  paredes en z = 1 y 18, electrolito 1:1, LB térmico (kT = 1e-5), advección `centred`, 2000 pasos.
+  - Total de iones en el fluido respecto del paso 1: antes (exe 221f3229) entre +8e-6 y −4.1e-5,
+    con deriva; después (exe 269ec1b8) |Δ| ≤ 7e-15.
+  - Control sin paredes: los 21 archivos qsi antes/después son idénticos byte a byte.
+  - No verificado: coloides BBL, `flla`/`flla_mass` con paredes (ya omitían esos enlaces),
+    varios procesos MPI, efecto sobre perfiles cerca de la pared.
+- **Corridas afectadas:** advección `centred` + nodos sólidos (paredes o coloides BBL) + iones +
+  velocidad normal a la superficie no nula en la primera capa de fluido (LB térmico, flujo hacia
+  la pared). Con fluido en reposo o flujo paralelo a la pared el efecto es despreciable (p. ej.
+  C-electrolito: |u| ≤ 2e-9, iones conservados a 1e-10).
+
+### 2026-11-13 — Interpretación física de la rampa de pared con e0 tangencial (solo comentario)
+- **Qué:** se corrigió el comentario del bloque `CHANGE 20261028` en `petsc_wall_value`
+  (`src/psi_petsc.c`); sin cambios de código. También `claude/PAREDES_POTENCIAL_CONSTANTE.md` §8
+  y el README de `capacitor/local/WALL-DIRICHLET/F-campo-tangencial`.
+- **Por qué:** decía "un conductor ideal no admite campo tangencial, así que la pared sigue la
+  rampa (el canal electroosmótico estándar)". Es al revés: un conductor ideal es equipotencial. La
+  condición ψ_pared = ψ_w − e0·(r − r_c) representa un electrodo resistivo con corriente a lo largo
+  de la placa (o un arreglo fino de electrodos a potenciales escalonados), con imagen de conductor
+  para las cargas cercanas; no modela paredes aislantes (imagen (ε − ε_p)/(ε + ε_p), carga fija).
+- **Archivos:** `src/psi_petsc.c` (comentario), `claude/PAREDES_POTENCIAL_CONSTANTE.md`.
+- **Cómo se verificó:** revisión del razonamiento; no se recompiló (solo cambia un comentario).
+- **Corridas afectadas:** ninguna numéricamente; cambia el uso físico de la prueba F.
+
 ### 2026-11-12 — Advección de iones en Nernst-Planck: normalización y esquema FLLA
 - **Qué:** (1) el flujo advectivo por enlace ½(u0+u1)·c_p·½(ρ0+ρ1) ahora se pesa con
   W_p = 2·wgradients[p]; (2) nueva opción de entrada

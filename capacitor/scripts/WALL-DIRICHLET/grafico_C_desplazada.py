@@ -88,7 +88,11 @@ def efield_3d(path, fname_psi):
 
 if __name__ == "__main__":
     F.style()
-    fig, ax = plt.subplots(6, 2, figsize=(11.0, 17.0), sharex=True, gridspec_kw=dict(height_ratios=[1.3, 1, 1, 1, 1, 1], hspace=0.08, wspace=0.3))
+    # 2026-11-16 (user's request): in the ref2 figure the two band-RMS rows are not drawn (still computed and printed,
+    # they are used by the steady-state check)
+    BANDS = MODE != "ref2"; NR = 6 if BANDS else 4
+    fig, ax = plt.subplots(NR, 2, figsize=(11.0, 17.0 * NR / 6 + (0 if BANDS else 0.6)), sharex=True,
+                           gridspec_kw=dict(height_ratios=[1.3] + [1] * (NR - 1), hspace=0.08, wspace=0.3))
     zz = np.linspace(-16, 16, 1281); tab = {}; steady = {}
     for dl in DELTAS:
         path = run_path(dl)
@@ -121,8 +125,9 @@ if __name__ == "__main__":
         ax[1, 0].plot(z, dp, "o-", lw=0.9, **kw); ax[1, 1].plot(z, de, "o-", lw=0.9, **kw)
         ax[2, 0].semilogy(z, np.abs(dp), "o-", lw=0.9, **kw); ax[2, 1].semilogy(z, np.abs(de), "o-", lw=0.9, **kw)
         ax[3, 0].semilogy(z, 100 * np.abs(dp / pa), "o-", lw=0.9, **kw); ax[3, 1].semilogy(z, 100 * np.abs(de / ea), "o-", lw=0.9, **kw)
-        ax[4, 0].semilogy(zc, Rp, "o-", lw=0.9, **kw); ax[4, 1].semilogy(zc, Re, "o-", lw=0.9, **kw)
-        ax[5, 0].semilogy(zc, 100 * Rp / Ap, "o-", lw=0.9, **kw); ax[5, 1].semilogy(zc, 100 * Re / Ae, "o-", lw=0.9, **kw)
+        if BANDS:
+            ax[4, 0].semilogy(zc, Rp, "o-", lw=0.9, **kw); ax[4, 1].semilogy(zc, Re, "o-", lw=0.9, **kw)
+            ax[5, 0].semilogy(zc, 100 * Rp / Ap, "o-", lw=0.9, **kw); ax[5, 1].semilogy(zc, 100 * Re / Ae, "o-", lw=0.9, **kw)
     if tab:
         print("band centre    " + " ".join("%8.1f" % c for c in zc))
         for k, name in ((0, "RMS d_psi   "), (1, "RMS d_E     "), (2, "rel. psi (%)"), (3, "rel. E   (%)")):
@@ -132,14 +137,16 @@ if __name__ == "__main__":
         a.axhline(0, color="#8a8880", lw=0.8)
     for a in ax.ravel():
         a.axvspan(min(DELTAS) - 4, max(DELTAS) + 4, color="#f1efe8", zorder=0); a.set_xlim(-16.5, 16.5)
-    for a in ax[5]:
+    for a in ax[NR - 1]:
         a.set_xlabel("z (physical units, from the mid-plane)")
-    ax[5, 0].set_ylabel("RMS$_b(d_\\psi)$ / RMS$_b(\\phi_{DH})$ (%)"); ax[5, 1].set_ylabel("RMS$_b(d_E)$ / RMS$_b(E_{z,DH})$ (%)")
+    if BANDS:
+        ax[5, 0].set_ylabel("RMS$_b(d_\\psi)$ / RMS$_b(\\phi_{DH})$ (%)"); ax[5, 1].set_ylabel("RMS$_b(d_E)$ / RMS$_b(E_{z,DH})$ (%)")
     ax[2, 0].set_ylabel("$|d_\\psi|$ at each node"); ax[2, 1].set_ylabel("$|d_E|$ at each node")
     ax[3, 0].set_ylabel("$|d_\\psi / \\phi_{DH}|$ at each node (%)"); ax[3, 1].set_ylabel("$|d_E / E_{z,DH}|$ at each node (%)")
     ax[0, 0].set_ylabel(r"$\psi$ (Ludwig: points; DH: lines)"); ax[0, 1].set_ylabel(r"$E_z$ (Ludwig efield: points; DH: lines)")
     ax[1, 0].set_ylabel(r"$d_\psi = \psi_{Ludwig} - \phi_{DH}$"); ax[1, 1].set_ylabel(r"$d_E = E_{z,Ludwig} - E_{z,DH}$")
-    ax[4, 0].set_ylabel(r"band RMS of $d_\psi$ (width 2)"); ax[4, 1].set_ylabel(r"band RMS of $d_E$ (width 2)")
+    if BANDS:
+        ax[4, 0].set_ylabel(r"band RMS of $d_\psi$ (width 2)"); ax[4, 1].set_ylabel(r"band RMS of $d_E$ (width 2)")
     ax[0, 0].legend(fontsize=8, loc="upper left")
     ax[0, 0].set_title(KLAB + ", charge at $z_0 = \\delta$ (shaded: union of the kernel supports)", fontsize=10, loc="left")
     fig.savefig(os.path.join(F.ROOT, "graficos", "C_desplazada%s.png" % SUF.replace("-", "_")), dpi=300, bbox_inches="tight")

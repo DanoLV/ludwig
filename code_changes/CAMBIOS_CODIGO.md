@@ -1,10 +1,10 @@
 # Cambios de código en Ludwig (registro)
 
-Generado por `code_changes/extraer_cambios.py` el 2026-11-13 17:39 a partir de las marcas `/*CHANGE INIT - <fecha> <descripción> */ … /*CHANGE END */` del código (carpetas: src, target, tests, util, mpi_s, config). No editar a mano: volver a correr el script. Las explicaciones largas van en `code_changes/NOTAS_MANUALES.md`, que se copia abajo.
+Generado por `code_changes/extraer_cambios.py` el 2026-11-16 20:19 a partir de las marcas `/*CHANGE INIT - <fecha> <descripción> */ … /*CHANGE END */` del código (carpetas: src, target, tests, util, mpi_s, config). No editar a mano: volver a correr el script. Las explicaciones largas van en `code_changes/NOTAS_MANUALES.md`, que se copia abajo.
 
-**527 bloques de cambio** en **60 archivos**, 61 fechas.
+**529 bloques de cambio** en **60 archivos**, 62 fechas.
 
-Fechas: 341 bloques tienen la fecha en la marca; 186 marcas sin fecha se fecharon con git (primer commit que introdujo esa línea; señaladas *(fecha de git)*: es la fecha del commit, el código pudo escribirse antes).
+Fechas: 343 bloques tienen la fecha en la marca; 186 marcas sin fecha se fecharon con git (primer commit que introdujo esa línea; señaladas *(fecha de git)*: es la fecha del commit, el código pudo escribirse antes).
 
 Limitación: solo registra cambios marcados con `CHANGE INIT`. Un cambio sin marca no aparece (para eso, `git log` / `git diff`).
 
@@ -28,6 +28,41 @@ por cada cambio de código, la más reciente arriba, con este formato:
 Las entradas siguientes se escribieron el 2026-11-13 a partir de las notas de
 trabajo (diario y memoria de Claude). Los cambios anteriores a 2026-09 solo
 figuran en el listado automático de abajo.
+
+### 2026-11-16 — Condición de no-flujo en el driver de GPU de Nernst-Planck
+- **Qué:** nuevo kernel `np_no_flux_boundary_kernel`, versión de GPU de `np_no_flux_boundary`
+  del driver de CPU. Pone a cero todo flujo de enlace (advectivo + difusivo) cuyo nodo o vecino
+  no es fluido. Se ejecuta entre los kernels difusivo y de antisimetrización.
+- **Por qué:** el driver de GPU (el que se usa desde 2026-03-26) no tenía este paso. El kernel
+  difusivo ya omitía los enlaces no fluidos, pero el advectivo `centred` no: por un enlace
+  fluido–sólido pasaba W_p (u_i·c_p)/2 · (n_i + n_sólido)/2, que salía del nodo fluido y no
+  entraba en ningún nodo actualizado. Encontrado al revisar la §7.2 del documento del modelo
+  (pregunta del usuario).
+- **Archivos:** `src/nernst_planck.c`.
+- **Cómo se verificó:** `capacitor/local/WALL-DIRICHLET/TEST-NOFLUX-ADV`, caja 16×16×18 con
+  paredes en z = 1 y 18, electrolito 1:1, LB térmico (kT = 1e-5), advección `centred`, 2000 pasos.
+  - Total de iones en el fluido respecto del paso 1: antes (exe 221f3229) entre +8e-6 y −4.1e-5,
+    con deriva; después (exe 269ec1b8) |Δ| ≤ 7e-15.
+  - Control sin paredes: los 21 archivos qsi antes/después son idénticos byte a byte.
+  - No verificado: coloides BBL, `flla`/`flla_mass` con paredes (ya omitían esos enlaces),
+    varios procesos MPI, efecto sobre perfiles cerca de la pared.
+- **Corridas afectadas:** advección `centred` + nodos sólidos (paredes o coloides BBL) + iones +
+  velocidad normal a la superficie no nula en la primera capa de fluido (LB térmico, flujo hacia
+  la pared). Con fluido en reposo o flujo paralelo a la pared el efecto es despreciable (p. ej.
+  C-electrolito: |u| ≤ 2e-9, iones conservados a 1e-10).
+
+### 2026-11-13 — Interpretación física de la rampa de pared con e0 tangencial (solo comentario)
+- **Qué:** se corrigió el comentario del bloque `CHANGE 20261028` en `petsc_wall_value`
+  (`src/psi_petsc.c`); sin cambios de código. También `claude/PAREDES_POTENCIAL_CONSTANTE.md` §8
+  y el README de `capacitor/local/WALL-DIRICHLET/F-campo-tangencial`.
+- **Por qué:** decía "un conductor ideal no admite campo tangencial, así que la pared sigue la
+  rampa (el canal electroosmótico estándar)". Es al revés: un conductor ideal es equipotencial. La
+  condición ψ_pared = ψ_w − e0·(r − r_c) representa un electrodo resistivo con corriente a lo largo
+  de la placa (o un arreglo fino de electrodos a potenciales escalonados), con imagen de conductor
+  para las cargas cercanas; no modela paredes aislantes (imagen (ε − ε_p)/(ε + ε_p), carga fija).
+- **Archivos:** `src/psi_petsc.c` (comentario), `claude/PAREDES_POTENCIAL_CONSTANTE.md`.
+- **Cómo se verificó:** revisión del razonamiento; no se recompiló (solo cambia un comentario).
+- **Corridas afectadas:** ninguna numéricamente; cambia el uso físico de la prueba F.
 
 ### 2026-11-12 — Advección de iones en Nernst-Planck: normalización y esquema FLLA
 - **Qué:** (1) el flujo advectivo por enlace ½(u0+u1)·c_p·½(ρ0+ρ1) ahora se pesa con
@@ -157,6 +192,7 @@ figuran en el listado automático de abajo.
 
 | Fecha | Bloques | Archivos | Descripciones (resumen) |
 |---|---|---|---|
+| [2026-11-16](#2026-11-16) | 2 | 1 | No-flux boundary in the GPU NP driver. GPU port of np_no_flux_boundary (CPU driver, abo…; No-flux boundary (GPU port of np_no_flux_boundary). Original: (no such step in the GPU … |
 | [2026-11-12](#2026-11-12) | 11 | 3 | Lattice (FLLA) advection: state shared by nernst_planck_lattice_flux_compute() (called …; FLLA advection is implemented in the GPU driver only; Advective link-flux normalisation. The unweighted sum over all stencil links gives sum_… (+7 más) |
 | [2026-11-11](#2026-11-11) | 5 | 2 | hydrodynamics no: without fluid there is nothing to spread the particle force onto. The…; hydrodynamics no: hydro may be NULL; only the fluid-side copies and the spreading of th…; hydrodynamics no (+1 más) |
 | [2026-11-04](#2026-11-04) | 12 | 4 | stretched Peskin6: support /r/ < 3s, range 3s - 1 (same convention as the original s = …; Peskin6 stretched by an integer factor. The unstretched kernel is now d_peskin6_unit();…; Peskin6 stretched by an integer factor (+8 más) |
@@ -221,6 +257,13 @@ figuran en el listado automático de abajo.
 
 ## Detalle
 
+### 2026-11-16
+
+Archivos: `src/nernst_planck.c`
+
+- **No-flux boundary in the GPU NP driver. GPU port of np_no_flux_boundary (CPU driver, above): zero every link flux (advective + diffusive) whose site OR neighbour is not fluid. Before this, the GPU driver had no such step: the diffusive kernel already skipped non-fluid links, but the centred advective kernel did not, so a** — `src/nernst_planck.c:1418-1458`
+- **No-flux boundary (GPU port of np_no_flux_boundary). Original: (no such step in the GPU driver)** — `src/nernst_planck.c:1928-1934`
+
 ### 2026-11-12
 
 Archivos: `src/ludwig.c`, `src/nernst_planck.c`, `src/nernst_planck.h`
@@ -230,10 +273,10 @@ Archivos: `src/ludwig.c`, `src/nernst_planck.c`, `src/nernst_planck.h`
 - **Lattice (FLLA) advection: state shared by nernst_planck_lattice_flux_compute() (called in ludwig.c after bounce-back, just before propagation) and the GPU NP driver (next time step).** — `src/nernst_planck.c:74-86`
 - **FLLA advection is implemented in the GPU driver only** — `src/nernst_planck.c:389-393`
 - **Advective link-flux normalisation. The unweighted sum over all stencil links gives sum_p flux_p = (M/2) div(rho u), M = sum_p c_x^2 (D3Q7: 1, D3Q19: 5, D3Q27: 9), so ions were advected M/2 times faster than the fluid on D3Q19/D3Q27. Weight each link with W_p = 2 wgradients[p], so that** — `src/nernst_planck.c:1123-1132`
-- **Advective link-flux normalisation (see np_advective_fluxes)** — `src/nernst_planck.c:1255-1257`, `src/nernst_planck.c:1286-1289`
-- **Lattice (FLLA) advection of the ions. Reference: B. DeVincentis, J. Thomas, "Application of flux limiters to passive scalar advection for the lattice Boltzmann method", Comput. Math. Appl. 144, 1-11 (2023), doi:10.1016/j.camwa.2023.05.031.** — `src/nernst_planck.c:1461-1751`
-- **Advective link-flux weights W_p = 2 wgradients[p] (see np_advective_fluxes).** — `src/nernst_planck.c:1799-1810`
-- **Lattice (FLLA) advection, if selected. Before the first lattice flux exists (first call) no advection is applied.** — `src/nernst_planck.c:1852-1869`
+- **Advective link-flux normalisation (see np_advective_fluxes)** — `src/nernst_planck.c:1257-1259`, `src/nernst_planck.c:1288-1291`
+- **Lattice (FLLA) advection of the ions. Reference: B. DeVincentis, J. Thomas, "Application of flux limiters to passive scalar advection for the lattice Boltzmann method", Comput. Math. Appl. 144, 1-11 (2023), doi:10.1016/j.camwa.2023.05.031.** — `src/nernst_planck.c:1505-1795`
+- **Advective link-flux weights W_p = 2 wgradients[p] (see np_advective_fluxes).** — `src/nernst_planck.c:1843-1854`
+- **Lattice (FLLA) advection, if selected. Before the first lattice flux exists (first call) no advection is applied.** — `src/nernst_planck.c:1896-1913`
 - **Lattice (FLLA) advection of the ions. DeVincentis & Thomas, Comput. Math. Appl. 144, 1 (2023): advective fluxes from the LB distribution (their eq. 21) + linear reconstruction with the superbee flux limiter (their eqs. 13-19). Selected with the input key electrokinetics_advection centred | flla | flla_mass (default centred)** — `src/nernst_planck.h:32-41`
 
 ### 2026-11-11
@@ -266,11 +309,11 @@ Archivos: `src/ludwig.c`, `src/psi_fft.c`, `src/subgrid.c`, `src/subgrid.h`
 Archivos: `src/psi_gradients.c`, `src/psi_petsc.c`, `src/subgrid.c`
 
 - **tangential e0 with walls. The doubled link reads the wall at the link MIDPOINT (half a spacing away), but the wall node stores its value at r + c. With the ramp psi_wall = psi_w - e0.r (psi_petsc.c) they differ by e0.c/2 on a diagonal link; without it the tangential field in the first fluid** — `src/psi_gradients.c:86-97`
-- **tangential e0 with walls. Original: return solver->block->wall_psi[petsc_wall_side(...)]; A tangential external field enters as Ludwig's usual potential jump psi(x + L) = psi(x) - e0 L (psi_halo_psijump). An ideal conductor cannot carry a tangential field, so the wall follows the applied ramp** — `src/psi_petsc.c:260-282`
-- **tangential e0 with walls. Potential jump picked up going from DMDA global site (i,j,k) along displacement c: the stored (periodic) neighbour value plus this is the physical value, with the convention of psi_halo_psijump.** — `src/psi_petsc.c:285-302`
-- **tangential e0 with walls: the jump term, link by link and for fluid neighbours only (a wall neighbour already carries the ramp in petsc_wall_value). Without walls the per-face sum below gives the same, since the wlaplacian weights with c_a = -1 add up to -1.** — `src/psi_petsc.c:700-709`
-- **tangential e0 with walls: skip when walls are set (jump already in the loop above). Original: if (e0[X] || e0[Y] || e0[Z])** — `src/psi_petsc.c:741-744`
-- **tangential e0 with walls: only the component normal to the walls is refused (that is a voltage between the plates, set it with wall_psi). Original: any non-zero e0 returned -2.** — `src/psi_petsc.c:1158-1162`
+- **tangential e0 with walls. Original: return solver->block->wall_psi[petsc_wall_side(...)]; A tangential external field enters as Ludwig's usual potential jump psi(x + L) = psi(x) - e0 L (psi_halo_psijump). The wall follows the applied ramp** — `src/psi_petsc.c:260-291`
+- **tangential e0 with walls. Potential jump picked up going from DMDA global site (i,j,k) along displacement c: the stored (periodic) neighbour value plus this is the physical value, with the convention of psi_halo_psijump.** — `src/psi_petsc.c:294-311`
+- **tangential e0 with walls: the jump term, link by link and for fluid neighbours only (a wall neighbour already carries the ramp in petsc_wall_value). Without walls the per-face sum below gives the same, since the wlaplacian weights with c_a = -1 add up to -1.** — `src/psi_petsc.c:709-718`
+- **tangential e0 with walls: skip when walls are set (jump already in the loop above). Original: if (e0[X] || e0[Y] || e0[Z])** — `src/psi_petsc.c:750-753`
+- **tangential e0 with walls: only the component normal to the walls is refused (that is a voltage between the plates, set it with wall_psi). Original: any non-zero e0 returned -2.** — `src/psi_petsc.c:1167-1171`
 - **halo copies must not re-add the earlier fex. subgrid_force_from_particles() already ran this same (symmetric) halo sum on fex = bonds + pairs + angles + lubrication, which leaves the owner AND each periodic copy holding the total T. The owner then gets the electrostatic force E above, and the sum below added the copy's T** — `src/subgrid.c:1635-1662`
 
 ### 2026-10-21
@@ -319,7 +362,7 @@ Archivos: `src/ludwig.c`, `src/psi.h`, `src/psi_gradients.c`, `src/psi_petsc.c`,
 - **constant-potential walls: parsed in ludwig_rt(), attached just before the time loop (see ludwig_walls_attach).** — `src/ludwig.c:201-207`
 - **constant-potential (Dirichlet) walls for PETSc. electrokinetics_wall_potential psi_lo_psi_hi (units of psi) electrokinetics_wall_axis x|y|z (lower/upper half) Absent keys: the original fully periodic solver. Only read and checked here. The walls are attached to the solver just** — `src/ludwig.c:383-411`
 - **optional with constant-potential walls. electrokinetics_electroneutral yes|no (default yes) With Dirichlet walls the Poisson problem is well posed for any net charge (the walls carry the compensating charge), so the counterions that make the fluid neutral can be left out. Without walls a net charge** — `src/ludwig.c:563-586`
-- **constant-potential walls** — `src/ludwig.c:946-982`, `src/psi_petsc.c:61-63`, `src/psi_petsc.c:1131-1162`
+- **constant-potential walls** — `src/ludwig.c:946-982`, `src/psi_petsc.c:61-63`, `src/psi_petsc.c:1140-1171`
 - **with constant-potential walls the measured reference is still calibrated with the PERIODIC solver: the walls are attached after this block (ludwig_walls_attach). So the table is the bulk one and the pm_sr_meshref cache stays valid for periodic runs. It does NOT describe the particle-wall (image) short range: that is** — `src/ludwig.c:1488-1494`
 - **constant-potential walls (after the pm_sr tables)** — `src/ludwig.c:1513-1515`
 - **constant-potential walls. Set by psi_solver_petsc_wall_set(); NULL (calloc) = no walls. Lets psi_electric_field() apply the same wall rule as the Poisson solver.** — `src/psi.h:77-81`
@@ -327,14 +370,14 @@ Archivos: `src/ludwig.c`, `src/psi.h`, `src/psi_gradients.c`, `src/psi_petsc.c`,
 - **constant-potential walls (see comment above)** — `src/psi_gradients.c:69-97`
 - **constant-potential walls: stubs without PETSc** — `src/psi_petsc.c:191-201`
 - **constant-potential walls (all zero = periodic)** — `src/psi_petsc.c:216-223`
-- **constant-potential walls: helpers. Arguments are LOCAL lattice coordinates; halo values are allowed (the map halo is refreshed in psi_solver_petsc_wall_set()).** — `src/psi_petsc.c:226-282`
-- **constant-potential walls. Rebuilding (wall_set runs after initialise) must start from zero values: the nonzero pattern is frozen (MAT_NEW_NONZERO_LOCATIONS false) and a row that now writes fewer entries would otherwise keep the old ones.** — `src/psi_petsc.c:459-466`
-- **constant-potential walls (Asta et al. 2019, eq. 15). Wall site: decoupled row D x = D psi_wall (rhs_set). Fluid site: each link to a wall site is doubled, and its column is ELIMINATED (moved to the right-hand side in rhs_set) so the matrix stays symmetric -- CG + boomeramg need that. The diagonal can no** — `src/psi_petsc.c:481-521`
-- **constant-potential walls: a Dirichlet wall makes the operator non-singular, so the constant-mode nullspace must go. Original (unconditional): MatNullSpaceCreate(...); MatSetNullSpace(a, nullsp); ...** — `src/psi_petsc.c:545-553`
-- **... but not with walls: there is no nullspace then, and projecting out the mean would shift the prescribed wall potential.** — `src/psi_petsc.c:586-589`
-- **constant-potential walls: induced charge** — `src/psi_petsc.c:617-628`
-- **constant-potential walls. Wall site: the row is D x = b, so b = D psi_wall. Fluid site: move each eliminated wall column to the RHS, b -= A_fw psi_wall with A_fw = 2 wlaplacian[p] epsilon.** — `src/psi_petsc.c:675-709`
-- **constant-potential walls: total fluid charge, for the neutrality check wall_q[0] + wall_q[1] + fluid_q = 0. With walls the e0 jump was already added link by link above (CHANGE 20261028); the per-face block below is for the periodic system only.** — `src/psi_petsc.c:722-732`
+- **constant-potential walls: helpers. Arguments are LOCAL lattice coordinates; halo values are allowed (the map halo is refreshed in psi_solver_petsc_wall_set()).** — `src/psi_petsc.c:226-291`
+- **constant-potential walls. Rebuilding (wall_set runs after initialise) must start from zero values: the nonzero pattern is frozen (MAT_NEW_NONZERO_LOCATIONS false) and a row that now writes fewer entries would otherwise keep the old ones.** — `src/psi_petsc.c:468-475`
+- **constant-potential walls (Asta et al. 2019, eq. 15). Wall site: decoupled row D x = D psi_wall (rhs_set). Fluid site: each link to a wall site is doubled, and its column is ELIMINATED (moved to the right-hand side in rhs_set) so the matrix stays symmetric -- CG + boomeramg need that. The diagonal can no** — `src/psi_petsc.c:490-530`
+- **constant-potential walls: a Dirichlet wall makes the operator non-singular, so the constant-mode nullspace must go. Original (unconditional): MatNullSpaceCreate(...); MatSetNullSpace(a, nullsp); ...** — `src/psi_petsc.c:554-562`
+- **... but not with walls: there is no nullspace then, and projecting out the mean would shift the prescribed wall potential.** — `src/psi_petsc.c:595-598`
+- **constant-potential walls: induced charge** — `src/psi_petsc.c:626-637`
+- **constant-potential walls. Wall site: the row is D x = b, so b = D psi_wall. Fluid site: move each eliminated wall column to the RHS, b -= A_fw psi_wall with A_fw = 2 wlaplacian[p] epsilon.** — `src/psi_petsc.c:684-718`
+- **constant-potential walls: total fluid charge, for the neutrality check wall_q[0] + wall_q[1] + fluid_q = 0. With walls the e0 jump was already added link by link above (CHANGE 20261028); the per-face block below is for the periodic system only.** — `src/psi_petsc.c:731-741`
 - **constant-potential (Dirichlet) walls, following Asta, Palaia, Trizac, Levesque & Rotenberg, arXiv:1907.04732, sec. II-C. MAP_BOUNDARY sites are held at a prescribed potential; the Laplacian at a fluid site doubles every link that reaches a wall site (their eq. 15), which puts the wall at the mid-plane between the last fluid and first solid node** — `src/psi_petsc.h:49-61`
 - **add the force to the OWNER copy only. The cell loop includes the halo cells (0 and ncell+1), which hold periodic copies of particles in the outermost cell. That is right for the fluid reaction above: each copy scatters only to its LOCAL nodes (the node range is clipped** — `src/subgrid.c:1608-1628`
 - **constant-potential walls (psi_petsc.c). The particle-node correction reaches r_cut (~6) from the particle, past the kernel support. With walls it must not use: (1) wall sites, and (2) fluid sites reached THROUGH the periodic boundary when that boundary is a wall -- their halo copy is the fluid on the other side of the electrode.** — `src/subgrid.c:5925-5958`
@@ -383,7 +426,7 @@ Archivos: `src/ludwig.c`, `src/psi_force.c`, `src/subgrid.c`, `src/subgrid.h`, `
 
 Archivos: `src/psi_petsc.c`, `src/subgrid.c`
 
-- **DMDA stencil width = reach of the Poisson stencil, not the lattice halo. The width only sizes the matrix preallocation, (2w+1)^3 entries per row for DMDA_STENCIL_BOX. The Poisson matrix is assembled from cv[p] with components in {-1,0,1} for D3Q7/19/27, so w=1 is exact. Passing nhalo** — `src/psi_petsc.c:354-372`
+- **DMDA stencil width = reach of the Poisson stencil, not the lattice halo. The width only sizes the matrix preallocation, (2w+1)^3 entries per row for DMDA_STENCIL_BOX. The Poisson matrix is assembled from cv[p] with components in {-1,0,1} for D3Q7/19/27, so w=1 is exact. Passing nhalo** — `src/psi_petsc.c:363-381`
 - **no DeviceToHost after the solve. Every solver leaves its result on the HOST: the FFT solver copies DeviceToHost itself at the end of its solve (and re-uploads), and PETSc (psi_solver_petsc_da_to_psi) writes the host array directly. The main loop accordingly does no copy after solve(). The copy that** — `src/subgrid.c:6393-6404`
 
 ### 2026-09-20
@@ -725,14 +768,14 @@ Archivos: `src/subgrid.c`
 Archivos: `src/ludwig.c`, `src/nernst_planck.c`, `src/nernst_planck.h`, `src/psi_petsc.c`
 
 - **Use GPU-parallel NP driver** — `src/ludwig.c:1969-1975`
-- **GPU implementation of nernst_planck_driver_d3qx nernst_planck_driver_d3qx_gpu GPU-parallel version of nernst_planck_driver_d3qx. Uses a flat** — `src/nernst_planck.c:1209-1257`
-- **Fix SEGV: target is a GPU struct, cannot deref ->data from host. Use tdpMemcpy(DeviceToHost) to read the device pointer value stored inside the GPU struct.** — `src/nernst_planck.c:1832-1842`
+- **GPU implementation of nernst_planck_driver_d3qx nernst_planck_driver_d3qx_gpu GPU-parallel version of nernst_planck_driver_d3qx. Uses a flat** — `src/nernst_planck.c:1209-1259`
+- **Fix SEGV: target is a GPU struct, cannot deref ->data from host. Use tdpMemcpy(DeviceToHost) to read the device pointer value stored inside the GPU struct.** — `src/nernst_planck.c:1876-1886`
 - **GPU driver for Nernst-Planck d3qx** — `src/nernst_planck.h:26-29`
-- **Use GPU vec/mat types when -vec_type cuda is set via .petscrc. DMSetVecType/DMSetMatType must match the requested type BEFORE DMSetUp and DMCreateGlobalVector, otherwise -vec_type cuda in .petscrc is ignored and hypre PC fails with "HYPRE_MEMORY_DEVICE expects a device vector". Original (CPU only)** — `src/psi_petsc.c:374-393`
-- **Allow .petscrc / command-line options for KSP solver** — `src/psi_petsc.c:413-415`
-- **Fix DIVERGED_INDEFINITE_MAT with aijcusparse: MatSetNullSpace does not project the null space from the RHS/solution when using GPU matrices. Explicit projection via MatNullSpaceRemove on b and x ensures CG sees a consistent SPD system (no constant-mode contamination).** — `src/psi_petsc.c:582-589`
-- **If the solution vector is on GPU (VECCUDA), bind it to CPU so that DMDAVecGetArray can access it from the host.** — `src/psi_petsc.c:1099-1102`
-- **Restore GPU binding after host read.** — `src/psi_petsc.c:1124-1126`
+- **Use GPU vec/mat types when -vec_type cuda is set via .petscrc. DMSetVecType/DMSetMatType must match the requested type BEFORE DMSetUp and DMCreateGlobalVector, otherwise -vec_type cuda in .petscrc is ignored and hypre PC fails with "HYPRE_MEMORY_DEVICE expects a device vector". Original (CPU only)** — `src/psi_petsc.c:383-402`
+- **Allow .petscrc / command-line options for KSP solver** — `src/psi_petsc.c:422-424`
+- **Fix DIVERGED_INDEFINITE_MAT with aijcusparse: MatSetNullSpace does not project the null space from the RHS/solution when using GPU matrices. Explicit projection via MatNullSpaceRemove on b and x ensures CG sees a consistent SPD system (no constant-mode contamination).** — `src/psi_petsc.c:591-598`
+- **If the solution vector is on GPU (VECCUDA), bind it to CPU so that DMDAVecGetArray can access it from the host.** — `src/psi_petsc.c:1108-1111`
+- **Restore GPU binding after host read.** — `src/psi_petsc.c:1133-1135`
 
 ### 2026-03-10
 
@@ -824,7 +867,7 @@ Archivos: `src/collision.c`, `src/colloid.h`, `src/colloid_state_io.c`, `src/hyd
 - **Subgrid charge // int psi_electroneutral(psi_t psi, map_t map) { int psi_electroneutral(psi_t psi, map_t map, colloids_info_t cinfo, double rho_el) { // CHANGE END - Subgrid charge int ic, jc, kc, index;** *(fecha de git)* — `src/psi.c:935-938`
 - **Subgrid charge int ncell[3]; double qcoll = 0.0; colloid_t p_colloid = NULL; colloids_info_ncell(cinfo, ncell);** *(fecha de git)* — `src/psi.c:990-1060`
 - **Subgrid charge // int psi_electroneutral(psi_t obj, map_t map); int psi_electroneutral(psi_t psi, map_t map,colloids_info_t cinfo, double rho_el); // CHANGE END - Subgrid charge** *(fecha de git)* — `src/psi.h:131-134`
-- **Add subgrid particle charges to PETSc RHS** *(fecha de git)* — `src/psi_petsc.c:812-1026`, `src/psi_petsc.h:40-47`
+- **Add subgrid particle charges to PETSc RHS** *(fecha de git)* — `src/psi_petsc.c:821-1035`, `src/psi_petsc.h:40-47`
 - **Momentum conservation correction** *(fecha de git)* — `src/subgrid.c:2952-3010`
 - **Extra bonds for microgel polimer networks // {10, 11}, 12, {13, 14, 15}, {16, 17, 18}, 19, // 20, 21, 22, 23, 24, 25, // {26, 27, 28, 29, 30, 31, 32}, {10, 11, 12, 13, 14, 15}, 16, {17, 18, 19},** *(fecha de git)* — `tests/unit/test_colloid.c:52-59`
 - **Extra bonds for microgel polimer networks // .bond = {10, 11}, // .rng = 12, // .isfixedrxyz = {13, 14, 15}, // .isfixedvxyz = {16, 17, 18},** *(fecha de git)* — `tests/unit/test_colloid_state_io.c:182-207`
@@ -858,7 +901,7 @@ Archivos: `src/collision.c`, `src/distribution_rt.h`, `src/lb_d3q19.c`, `src/lb_
 - **Subgrid momentum** *(fecha de git)* — `src/ludwig.c:2532-2534`, `src/ludwig.c:2539-2541`, `src/ludwig.c:2560-2562`, `src/ludwig.c:2569-2574`, `src/ludwig.c:2590-2608`, `src/stats_colloid.c:63-70`, `src/stats_colloid.c:191-243`, `src/stats_colloid.h:19-21`
 - **Subgrid charge // // flocal[X] += force[X]; // // flocal[Y] += force[Y]; // // flocal[Z] += force[Z]; // klein_add_double(&flocal_k[X], force[X]);** *(fecha de git)* — `src/psi_force.c:251-258`
 - **Subgrid charge // flocal[X] = klein_sum(&flocal_k[X]); // flocal[Y] = klein_sum(&flocal_k[Y]); // flocal[Z] = klein_sum(&flocal_k[Z]); // // CHANGE END - Subgrid charge** *(fecha de git)* — `src/psi_force.c:264-268`
-- **CUDA C++ compatibility fix** — `src/psi_petsc.c:472-479`, `src/psi_petsc.c:1408-1415`, `src/subgrid.c:1336-1340`, `util/microgel_poly_cross_density.c:1717-1721`, `util/microgel_poly_cross_density.c:1741-1745`
+- **CUDA C++ compatibility fix** — `src/psi_petsc.c:481-488`, `src/psi_petsc.c:1417-1424`, `src/subgrid.c:1336-1340`, `util/microgel_poly_cross_density.c:1717-1721`, `util/microgel_poly_cross_density.c:1741-1745`
 - **Write particle data after colloid_sums_halo, only for local (non-halo) particles** *(fecha de git)* — `src/subgrid.c:2622-2645`
 - **Subgrid charge Loop through all cells (including the halo cells) and set the velocity at each particle to zero for this step.** *(fecha de git)* — `src/subgrid.c:3668-3689`
 - **Subgrid charge klein_t force_k[3]; force_k[X] = klein_zero(); force_k[Y] = klein_zero(); force_k[Z] = klein_zero();** *(fecha de git)* — `src/subgrid.c:3702-3707`
@@ -902,5 +945,5 @@ Archivos: `src/build.c`, `src/interaction.c`, `src/ludwig.c`, `src/subgrid.c`, `
 
 Archivos: `src/psi_petsc.c`
 
-- **Fix NULL pointer handling for test compatibility** — `src/psi_petsc.c:572-577`
+- **Fix NULL pointer handling for test compatibility** — `src/psi_petsc.c:581-586`
 

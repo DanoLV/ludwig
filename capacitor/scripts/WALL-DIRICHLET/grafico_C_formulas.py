@@ -14,7 +14,10 @@ import os, glob, math
 import numpy as np
 from scipy.special import erf as verf, k0 as _k0       # erf and modified Bessel K0 (scipy.special)
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
-HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
+HERE = os.path.dirname(os.path.abspath(__file__))
+# 2026-11-16: absolute path. Since the 2026-11-13 move to capacitor/scripts/ Python resolves the scripts/ symlink,
+# so dirname(HERE) pointed to capacitor/scripts instead of the runs. Original: ROOT = os.path.dirname(HERE)
+ROOT = "/home/danolv/Sim/ludwig/capacitor/local/WALL-DIRICHLET"
 L = 32.0; A = 32.0 ** 2; FOUR = 10.0; LB = FOUR / (4 * np.pi)
 SIG = 8 * math.sqrt(1 / 12 - 1 / (2 * math.pi ** 2))
 D_LOWER = 8.0; D = D_LOWER - L / 2            # charge z-coordinate measured from the centre

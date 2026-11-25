@@ -5,12 +5,22 @@ entre dos placas a tierra INFINITAS (imagenes solo en z). Se agrega la teoria
 periodica en x,y de la caja (Fourier) como referencia.
 psi reducido = l_B * sum q_i/|r - r_i|, l_B = 10/(4 pi). Particula en x=y=16 (nodo).
 Uso: python3 grafico_C_potencial_carga.py -> ../graficos/C_potencial_carga_vs_placas_infinitas.png
+
+2026-11-16 (pedido del usuario): en el panel (a) la referencia teórica es ahora la carga repartida con el kernel
+Hann-8 CONTINUO (psi_hann), no la carga puntual: misma serie de Fourier en x, y que psi_periodic (placas a tierra,
+caja periódica 32x32, sin fondo), con la fuente transformada  W^(kx) W^(ky),  W^(k) = [sin(kn/2)/(kn/2)] / [1-(kn/2pi)^2]
+(la misma de grafico_C_hoja_hann.py), y convolución en z con W(s - d):
+   psi(z) = (4 pi l_B / A) sum_k W^(kx) W^(ky) int W(s-d) G_k(z, s) ds,
+   G_k = [e^{-k|z-s|} - e^{-k(z+s)} - e^{-k(2L-z-s)} + e^{-k(2L-|z-s|)}] / [2k(1 - e^{-2kL})],  G_0 = z_<(L - z_>)/L.
+Comprobado: lejos del soporte coincide con psi_periodic (puntual) a ~1e-6; M = 60 vs 80 modos: igual a 1e-7.
+Aproximación: kernel continuo (Ludwig lo evalúa en los nodos). Textos de la figura en inglés (regla del usuario).
 """
 import os, sys, glob
 import numpy as np
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = "/home/danolv/Sim/ludwig/capacitor/local/WALL-DIRICHLET"   # absolute: scripts/ is a symlink since 2026-11-13
 BAT = os.path.join(ROOT, "C-sin-fondo-hann08")
 sys.argv = ["x", BAT, "8"]; sys.path.insert(0, HERE)
 import analizar_C as C
@@ -34,6 +44,38 @@ def psi_periodic(z, d, M=60):
         out[i] = C.FOURPI_LB * s / A
     return out
 
+NH = 8                                               # Hann-8 kernel
+
+
+def What(k, n=NH):
+    x = k * n / 2; s = np.where(np.abs(x) < 1e-12, 1.0, np.sin(x) / np.where(x == 0, 1, x))
+    den = 1 - (k * n / (2 * np.pi)) ** 2
+    return np.where(np.abs(den) < 1e-12, 0.5, s / np.where(np.abs(den) < 1e-12, 1, den))
+
+
+def W(u, n=NH):
+    return np.where(np.abs(u) <= n / 2, (1 + np.cos(2 * np.pi * u / n)) / n, 0.0)
+
+
+def psi_hann(z, d, M=60, Ns=801):
+    """Potential on the particle axis of the continuous Hann-8 charge between grounded plates, periodic in x, y."""
+    m = np.arange(-M, M + 1); mx, my = np.meshgrid(m, m, indexing="ij")
+    kx = 2 * np.pi * mx / NXY; ky = 2 * np.pi * my / NXY
+    k = np.hypot(kx, ky).ravel(); wt = (What(kx) * What(ky)).ravel(); nz = k > 0
+    ku, inv = np.unique(np.round(k[nz], 12), return_inverse=True); wu = np.bincount(inv, weights=wt[nz])
+    s = np.linspace(d - NH / 2, d + NH / 2, Ns); ws = W(s - d) * (s[1] - s[0]); ws[[0, -1]] *= 0.5
+    z = np.atleast_1d(z).astype(float)
+    zl = np.minimum(z[:, None], s[None, :]); zg = np.maximum(z[:, None], s[None, :])
+    out = (zl * (L - zg) / L) @ ws
+    dz = np.abs(z[:, None] - s[None, :]); sp = z[:, None] + s[None, :]
+    for i in range(0, len(ku), 40):
+        kk = ku[i:i + 40][:, None, None]
+        G = (np.exp(-kk * dz) - np.exp(-kk * sp) - np.exp(-kk * (2 * L - sp)) + np.exp(-kk * (2 * L - dz))) \
+            / (2 * kk * (1 - np.exp(-2 * kk * L)))
+        out += np.einsum("k,kzs,s->z", wu[i:i + 40], G, ws)
+    return C.FOURPI_LB * out / A
+
+
 def read_psi(path):
     return np.loadtxt(path).reshape(NXY, NXY, NZ)
 
@@ -48,16 +90,18 @@ for d, c in cols.items():
     p = read_psi(os.path.join(BAT, "z_%05.2f" % (d + 1.5), "psi-000000001.001-001"))[15, 15, :]
     fl = (zc > 0) & (zc < L)
     near = np.abs(zc - d) < 4.5                      # soporte del kernel Hann-8: no comparable
-    a.plot(zz, np.clip(psi_ideal(zz, d), None, 0.5), "--", color=c, lw=1.2)
-    a.plot(zz, np.clip(psi_periodic(zz, d), None, 0.5), ":", color=c, lw=1.4)
+    th = psi_hann(zz, d)
+    a.plot(zz, th, "-", color=c, lw=1.2, alpha=0.8)
     a.plot(zc[fl & ~near], p[fl & ~near], "o", ms=4, color=c, label="d = %g" % d)
     a.plot(zc[fl & near], p[fl & near], "o", ms=4, mfc="none", color=c)
-a.set(xlabel="z medido desde el plano medio inferior (unidades de red)", ylim=(0, 0.45),
-      ylabel=r"potencial reducido $\psi$ sobre la línea de la partícula",
-      title="(a) Potencial")
-a.plot([], [], "--", color="#55544f", label="ideal: placas infinitas")
-a.plot([], [], ":", color="#55544f", label="teoría con periodicidad lateral")
-a.plot([], [], "o", mfc="none", color="#55544f", label="dentro del soporte del kernel")
+    pt = psi_hann(zc[fl], d); res = p[fl] - pt
+    print("d = %g: max|Ludwig - Hann theory| outside / inside the kernel support: %.2e / %.2e"
+          % (d, np.abs(res[~near[fl]]).max(), np.abs(res[near[fl]]).max()))
+a.set(xlabel="z from the lower mid-plane (lattice units)", ylim=(0, 0.45),
+      ylabel=r"reduced potential $\psi$ on the particle axis",
+      title="(a) Potential")
+a.plot([], [], "-", color="#55544f", label="theory: Hann-8 charge, periodic in x, y")
+a.plot([], [], "o", mfc="none", color="#55544f", label="inside the kernel support")
 a.legend(loc="upper right", fontsize=8.5)
 
 b = ax[1]
@@ -67,17 +111,17 @@ r = [C.read_run(p) for p in dirs]
 qlo = np.array([x["qlo"] for x in r]); qhi = np.array([x["qhi"] for x in r])
 dd = np.linspace(0.5, 16.5, 200)
 b.axvspan(0, C.D_MIN, color="#eee8dc", zorder=0)
-b.plot(dd, -(L - dd) / L, "--", color="#55544f", label="ideal (placas infinitas): $-q(L-d)/L$, $-qd/L$")
+b.plot(dd, -(L - dd) / L, "--", color="#55544f", label="theory: $-q(L-d)/L$, $-qd/L$")
 b.plot(dd, -dd / L, "--", color="#55544f")
 ok = d >= C.D_MIN
-b.plot(d[ok], qlo[ok], "o", ms=5, color="#2a78d6", label="pared inferior, Ludwig")
-b.plot(d[ok], qhi[ok], "^", ms=5, color="#eb6834", label="pared superior, Ludwig")
+b.plot(d[ok], qlo[ok], "o", ms=5, color="#2a78d6", label="lower wall, Ludwig")
+b.plot(d[ok], qhi[ok], "^", ms=5, color="#eb6834", label="upper wall, Ludwig")
 b.plot(d[~ok], qlo[~ok], "o", ms=5, mfc="none", color="#2a78d6")
 b.plot(d[~ok], qhi[~ok], "^", ms=5, mfc="none", color="#eb6834")
-b.set(xlabel="distancia d a la pared inferior (unidades de red)", ylabel="carga inducida (unidades de e)",
-      title="(b) Carga inducida en cada pared")
+b.set(xlabel="distance d to the lower wall (lattice units)", ylabel="induced charge (units of e)",
+      title="(b) Charge induced on each wall")
 b.legend(loc="upper right", fontsize=8.5, bbox_to_anchor=(1.0, 0.88))
-fig.suptitle("Una carga q = +1 entre dos paredes a tierra, L = 32, sin fondo de contraiones (Hann-8, caja 32×32)", y=1.0)
+fig.suptitle("One charge q = +1 between two grounded walls, L = 32, no counterion background (Hann-8, box 32×32)", y=1.0)
 fig.tight_layout()
 out = os.path.join(ROOT, "graficos", "C_potencial_carga_vs_placas_infinitas.png"); fig.savefig(out, dpi=160)
 print("max |Q medida - ideal| (kernel libre): inf %.2e sup %.2e" %
